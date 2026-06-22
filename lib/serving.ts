@@ -12,6 +12,7 @@ import type {
 } from "./types";
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
+const HORIZON_HOURS = 72;   // 3 equal-length leads (day1/2/3); cap the 4-day fetch
 
 export async function getLocations(): Promise<Location[]> {
   return (await sql`SELECT location_key, name, station, area, lat, lon
@@ -118,6 +119,7 @@ export async function buildSeries(key: string): Promise<{ location: Location; po
   for (const iso of L.times) {
     const hoursAhead = (Date.parse(iso + "Z") - now) / 3600000;
     if (hoursAhead < -1) continue;                 // drop already-past hours
+    if (hoursAhead > HORIZON_HOURS) break;         // cap at 72h (times are sorted)
     const lead = hoursToLead(Math.max(0, hoursAhead));
     const p = pointAt(L, iso, lead);
     if (p) points.push(p);
@@ -148,7 +150,8 @@ export async function buildRoute(
     const hoursAhead = (passages[i] - now) / 3600000;
     const lead = hoursToLead(Math.max(0, hoursAhead));
     const iso = nearestHourIso(passages[i]);
-    const point = L ? pointAt(L, iso, lead) : null;
+    // keep the route's promised 3-day horizon (the 4-day fetch is only to fill day3)
+    const point = L && hoursAhead <= HORIZON_HOURS ? pointAt(L, iso, lead) : null;
     return {
       order: i,
       location_key: k,

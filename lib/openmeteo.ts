@@ -12,7 +12,10 @@ export async function fetchModel(lat: number, lon: number, modelId: string): Pro
     models: modelId,
     wind_speed_unit: "kn",
     timezone: "UTC",
-    forecast_days: "3",
+    // forecast_days counts CALENDAR days from today 00:00 UTC, so 3 only reaches
+    // ~48h when "now" is late in the day. Fetch 4 to guarantee a full 72h ahead;
+    // the series is capped to 72h downstream so the three leads stay equal-length.
+    forecast_days: "4",
   });
   const res = await fetch(`${BASE}?${params.toString()}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Open-Meteo ${modelId}: HTTP ${res.status}`);

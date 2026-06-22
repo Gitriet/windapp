@@ -21,9 +21,10 @@ const pool = new Pool({ connectionString: url });
 const q = (text, params) => pool.query(text, params);
 
 try {
-  // schema
+  // schema — run as one multi-statement query (don't split on ';': SQL comments
+  // may contain semicolons, which would break a naive split).
   const schema = readFileSync(new URL("../sql/schema.sql", import.meta.url), "utf8");
-  for (const stmt of schema.split(";")) if (stmt.trim()) await q(stmt);
+  await q(schema);
 
   // locations
   const locs = readCsv("app_locations.csv");

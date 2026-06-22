@@ -1,20 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 import WindChart from "@/components/WindChart";
-import { ktsToBft, compass, fmtTime } from "@/lib/format";
+import Compass from "@/components/Compass";
+import { ktsToBft, fmtTime, compass } from "@/lib/format";
+import { COURSES, relAngle, sail } from "@/lib/sailing";
 import type { Location, CorrectedPoint } from "@/lib/types";
+
+type Summary = { text: string; uncertainty: string; source: string };
+
+const Spark = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#5f9d82" />
+  </svg>
+);
 
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
+  const [course, setCourse] = useState<number | null>(null);
   const [data, setData] = useState<{ location: Location; points: CorrectedPoint[] } | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     fetch("/api/locations").then((r) => r.json()).then((l: Location[]) => {
-      setLocs(l);
-      if (l[0]) setKey(l[0].location_key);
+      setLocs(l); if (l[0]) setKey(l[0].location_key);
     }).catch((e) => setErr(String(e)));
   }, []);
 
@@ -26,21 +37,41 @@ export default function Home() {
     }).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [key]);
 
+  useEffect(() => {
+    if (!key) return;
+    setSummary(null);
+    const q = course === null ? "" : `?course=${course}`;
+    fetch(`/api/summary/${key}${q}`).then((r) => r.json()).then((s) => {
+      if (!s.error) setSummary(s);
+    }).catch(() => {});
+  }, [key, course]);
+
   const now = data?.points?.[0];
+  const pos = now && course !== null ? sail(relAngle(now.dir_deg, course)) : null;
+
   return (
     <>
       <header className="top">
-        <h1>🌬 Windvoorspelling</h1>
+        <h1>Windvoorspelling</h1>
         <nav className="tabs"><a className="active" href="/">Punt</a><a href="/route">Route</a></nav>
       </header>
 
       <div className="panel">
-        <label>Gekalibreerde locatie</label>
+        <div className="flbl">Gekalibreerde locatie</div>
         <select value={key} onChange={(e) => setKey(e.target.value)}>
           {locs.map((l) => (
             <option key={l.location_key} value={l.location_key}>{l.name} — {l.area}</option>
           ))}
         </select>
+        <div className="course">
+          <div className="flbl">Koers <span className="lc">(optioneel — schakelt naar koers-relatief)</span></div>
+          <div className="cbtns">
+            {COURSES.map(([lab, deg]) => (
+              <button key={lab} className={"cbtn" + (course === deg ? " on" : "")}
+                      onClick={() => setCourse(deg)}>{lab}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {err && <div className="panel"><span className="badge warn">fout</span> <span className="muted">{err}</span></div>}
@@ -48,29 +79,59 @@ export default function Home() {
 
       {now && data && (
         <>
+          <div className="panel ai">
+            <div className="flbl"><Spark /> Samenvatting van de dag</div>
+            {summary ? (
+              <>
+                <p className="ai-text">{summary.text}</p>
+                {summary.uncertainty && <div className="ai-unc">{summary.uncertainty}</div>}
+                {summary.source === "fallback" && (
+                  <div className="ai-unc">Regelgebaseerde samenvatting (geen AI-sleutel ingesteld).</div>
+                )}
+              </>
+            ) : <p className="ai-text muted">Samenvatting laden…</p>}
+          </div>
+
           <div className="panel">
-            <div className="now">
-              <span className="big">{now.speed_kn}<span className="unit"> kn</span></span>
-              <span className="bft">{ktsToBft(now.speed_kn)} bft</span>
-              <span>{compass(now.dir_deg)} ({now.dir_deg}°)</span>
-              <span className="muted">vlagen {now.gust_kn} kn</span>
-              <span className="muted">spreiding {now.band_low_kn}–{now.band_high_kn} kn</span>
+            <div className="ovh">
+              <Compass deg={now.dir_deg} />
+              <div style={{ flex: 1 }}>
+                <div className="big">{now.speed_kn}<span className="u">kn</span></div>
+                <div className="sub">
+                  <span><b>{ktsToBft(now.speed_kn)}</b> bft</span>
+                  <span>{compass(now.dir_deg)} <b>{now.dir_deg}°</b></span>
+                  <span>vlagen <b>{now.gust_kn}</b></span>
+                  <span>spreiding <b>{now.band_low_kn}–{now.band_high_kn}</b></span>
+                </div>
+                {pos && (
+                  <div className="pos" style={{ background: pos.color + "22", color: pos.color, borderColor: pos.color + "66" }}>
+                    koers {compass(course as number)} · {pos.label}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="chips">
-              <span className="chip">model: {now.model_label}</span>
-              <span className={"badge " + (now.corrected ? "ok" : "warn")}>
+            <div className="tags">
+              <span className="tag">model: {now.model_label}</span>
+              <span className={"tag" + (now.corrected ? " corr" : "")}>
                 {now.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
               </span>
-              <span className="chip">{fmtTime(now.time)} UTC</span>
+              <span className="tag">{fmtTime(now.time)} UTC</span>
             </div>
           </div>
 
-          <div className="panel"><WindChart points={data.points} /></div>
-          <p className="muted" style={{ fontSize: 13 }}>
-            Lijn = bias-gecorrigeerde wind van het per-lead aanbevolen model; vlak =
-            spreiding tussen alle modellen (gecorrigeerd). Verder vooruit (day2/day3)
-            is de spreiding doorgaans groter.
-          </p>
+          <div className="panel">
+            <WindChart points={data.points} course={course} />
+            <div className="legend">
+              <div className="lgi"><span className="lgsw" style={{ background: "var(--accent)" }} />snelheid</div>
+              <div className="lgi"><span className="lgsw" style={{ background: "var(--gust)" }} />vlagen</div>
+              <div className="lgi"><span className="lgsw" style={{ background: "var(--spread)" }} />spreiding</div>
+            </div>
+            <div className="note">
+              {course === null
+                ? "onderste band = windrichting · vaantjes wijzen naar waar de wind vandaan komt"
+                : "onderste band = zeilbaarheid op jouw koers · rood = te dicht aan de wind · relatief aan het boottype"}
+            </div>
+          </div>
         </>
       )}
     </>
