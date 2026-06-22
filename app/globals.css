@@ -55,7 +55,13 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .lp-menu { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px);
   background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line2);
   border-radius: 12px; padding: 6px; max-height: 340px; overflow-y: auto;
-  box-shadow: 0 18px 44px rgba(0,0,0,.5); }
+  box-shadow: 0 18px 44px rgba(0,0,0,.5);
+  scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.lp-menu::-webkit-scrollbar { width: 8px; }
+.lp-menu::-webkit-scrollbar-track { background: transparent; }
+.lp-menu::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 999px;
+  border: 2px solid transparent; background-clip: padding-box; }
+.lp-menu::-webkit-scrollbar-thumb:hover { background: #3a5566; background-clip: padding-box; }
 .lp-menu:focus { outline: none; }
 .lp-group + .lp-group { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; }
 .lp-ghead { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
