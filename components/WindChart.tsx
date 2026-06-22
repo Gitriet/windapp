@@ -2,41 +2,51 @@
 import type { CorrectedPoint } from "@/lib/types";
 import { fmtTime, compass } from "@/lib/format";
 import { dirColor, relAngle, sail } from "@/lib/sailing";
+import { AXIS, xFor, hourTicks, dayBands } from "@/lib/chartaxis";
 
 // Speed line + spread band + gusts (top), a row of wind vanes pointing toward
 // the SOURCE coloured by the cyclic direction hue, and a bottom band over the
-// same axis: direction hue (no course) or sailability (course set). Vanes always
-// show the real wind direction. Three equal day sections to 72h.
+// same axis: direction hue (no course) or sailability (course set). x is mapped
+// by TIME over the shared [t0, endMs] window so it lines up with the tide chart;
+// the window length follows the 1/2/3-day range switch. A subtle lead tint marks
+// day1/2/3; calendar day labels + an hour axis come from the shared axis module.
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const pt = (cx: number, cy: number, r: number, deg: number) =>
   [cx + r * Math.sin(rad(deg)), cy - r * Math.cos(rad(deg))] as const;
+const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
-export default function WindChart({ points, course }: { points: CorrectedPoint[]; course: number | null }) {
-  if (!points.length) return <p className="muted">Geen data.</p>;
-  const n = points.length;
-  const W = 760, ml = 40, mr = 26, plotT = 22, plotH = 176;
-  const plotB = plotT + plotH, vaneY = plotB + 22, bandT = plotB + 36, bandH = 16;
-  const H = bandT + bandH + 22;
-  const iw = W - ml - mr;
-  const x = (i: number) => ml + (i / Math.max(1, n - 1)) * iw;
-  const maxY = Math.max(10, ...points.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
+export default function WindChart(
+  { points, course, t0, endMs, range }:
+  { points: CorrectedPoint[]; course: number | null; t0: number; endMs: number; range: number },
+) {
+  const pts = points.filter((p) => ms(p.time) <= endMs + 1000);
+  if (!pts.length) return <p className="muted">Geen data.</p>;
+  const n = pts.length;
+  const { W, PADL } = AXIS;
+  const plotT = 22, plotH = 176, plotB = plotT + plotH;
+  const vaneY = plotB + 22, bandT = plotB + 36, bandH = 16;
+  const axisY = bandT + bandH + 4, H = axisY + 18;
+  const x = (p: CorrectedPoint) => xFor(ms(p.time), t0, endMs);
+  const maxY = Math.max(10, ...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
   const y = (v: number) => plotT + plotH - (v / maxY) * (plotH - 12);
 
-  const speedPath = points.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.speed_kn)}`).join(" ");
-  const gustPath = points.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.gust_kn)}`).join(" ");
+  const speedPath = pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.speed_kn)}`).join(" ");
+  const gustPath = pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.gust_kn)}`).join(" ");
   const bandPath =
-    points.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.band_high_kn)}`).join(" ") + " " +
-    points.slice().reverse().map((p, j) => `L${x(n - 1 - j)},${y(p.band_low_kn)}`).join(" ") + " Z";
+    pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.band_high_kn)}`).join(" ") + " " +
+    pts.slice().reverse().map((p) => `L${x(p)},${y(p.band_low_kn)}`).join(" ") + " Z";
 
-  const segs: { from: number; to: number; lead: number }[] = [];
-  points.forEach((p, i) => {
+  // subtle lead tint (day1/2/3) — informative background, not labelled here
+  const segs: { from: CorrectedPoint; to: CorrectedPoint; lead: number }[] = [];
+  pts.forEach((p) => {
     const last = segs[segs.length - 1];
-    if (last && last.lead === p.lead) last.to = i;
-    else segs.push({ from: i, to: i, lead: p.lead });
+    if (last && last.lead === p.lead) last.to = p;
+    else segs.push({ from: p, to: p, lead: p.lead });
   });
 
   const yticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
-  const tickEvery = Math.ceil(n / 6);
+  const bands = dayBands(t0, endMs);
+  const ticks = hourTicks(t0, endMs, range);
 
   const bandLabel = (p: CorrectedPoint) =>
     course === null ? compass(p.dir_deg) : sail(relAngle(p.dir_deg, course)).label.split(" ")[0];
@@ -45,29 +55,35 @@ export default function WindChart({ points, course }: { points: CorrectedPoint[]
 
   // label each colour change, but skip labels too close together so rapid
   // oscillations near a boundary don't pile into unreadable text (colours stay).
-  const transitions: { i: number; lbl: string }[] = [];
+  const transitions: { x: number; lbl: string }[] = [];
   let last = "", lastX = -Infinity;
-  points.forEach((p, i) => {
+  pts.forEach((p, i) => {
     const lbl = bandLabel(p);
     if (i === 0 || lbl !== last) {
-      if (i === 0 || x(i) - lastX >= 48) { transitions.push({ i, lbl }); lastX = x(i); }
+      if (i === 0 || x(p) - lastX >= 48) { transitions.push({ x: x(p), lbl }); lastX = x(p); }
       last = lbl;
     }
   });
 
+  const vaneEvery = Math.max(1, Math.round((n / (endMs - t0)) * 3 * 3600000)); // ~every 3h
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="windvoorspelling">
       {segs.map((s, k) => (
-        <g key={k}>
-          <rect x={x(s.from)} y={plotT} width={Math.max(0, x(s.to) - x(s.from))} height={plotH}
-                fill={s.lead === 1 ? "transparent" : s.lead === 2 ? "#ffffff08" : "#ffffff12"} />
-          <text x={(x(s.from) + x(s.to)) / 2} y={14} className="seg">day{s.lead}</text>
-        </g>
+        <rect key={`s${k}`} x={x(s.from)} y={plotT} width={Math.max(0, x(s.to) - x(s.from))} height={plotH}
+              fill={s.lead === 1 ? "transparent" : s.lead === 2 ? "#ffffff08" : "#ffffff12"} />
+      ))}
+      {/* calendar day labels + midnight separators (shared with the tide chart) */}
+      {bands.bounds.map((b, k) => (
+        <line key={`db${k}`} x1={xFor(b, t0, endMs)} y1={plotT} x2={xFor(b, t0, endMs)} y2={bandT + bandH} stroke="#1b2a36" />
+      ))}
+      {bands.segs.map((s, k) => (
+        <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={13} className="seg">{s.label}</text>
       ))}
       {yticks.map((v, k) => (
-        <g key={k}>
-          <line x1={ml} x2={W - mr} y1={y(v)} y2={y(v)} className="grid" />
-          <text x={ml - 6} y={y(v) + 3} className="ytick">{v}</text>
+        <g key={`y${k}`}>
+          <line x1={PADL} x2={W - AXIS.PADR} y1={y(v)} y2={y(v)} className="grid" />
+          <text x={PADL - 6} y={y(v) + 3} className="ytick">{v}</text>
         </g>
       ))}
       <path d={bandPath} className="band" />
@@ -75,11 +91,11 @@ export default function WindChart({ points, course }: { points: CorrectedPoint[]
       <path d={speedPath} className="speed" />
 
       {/* wind vanes — always real wind direction, pointing to the source */}
-      {points.map((p, i) => {
-        if (i % 3 !== 0) return null;
+      {pts.map((p, i) => {
+        if (i % vaneEvery !== 0) return null;
         const col = dirColor(p.dir_deg);
-        const [tx, ty] = pt(x(i), vaneY, 7, p.dir_deg);
-        const [bx, by] = pt(x(i), vaneY, 7, p.dir_deg + 180);
+        const [tx, ty] = pt(x(p), vaneY, 7, p.dir_deg);
+        const [bx, by] = pt(x(p), vaneY, 7, p.dir_deg + 180);
         const [l1x, l1y] = pt(tx, ty, 3.5, p.dir_deg + 150);
         const [l2x, l2y] = pt(tx, ty, 3.5, p.dir_deg - 150);
         return (
@@ -91,21 +107,24 @@ export default function WindChart({ points, course }: { points: CorrectedPoint[]
       })}
 
       {/* bottom band: direction hue, or sailability when a course is set */}
-      {points.slice(0, n - 1).map((p, i) => (
-        <rect key={`b${i}`} x={x(i)} y={bandT} width={x(i + 1) - x(i) + 0.6} height={bandH} fill={bandColor(p)} />
+      {pts.slice(0, n - 1).map((p, i) => (
+        <rect key={`b${i}`} x={x(p)} y={bandT} width={x(pts[i + 1]) - x(p) + 0.6} height={bandH} fill={bandColor(p)} />
       ))}
       {transitions.map((tr, k) => (
         <g key={`t${k}`}>
-          {tr.i > 0 && <line x1={x(tr.i)} y1={bandT} x2={x(tr.i)} y2={bandT + bandH} stroke="#0a1116" />}
-          <text x={x(tr.i) + 3} y={bandT + 12} fontSize="9" fontWeight={700} fill="#0a1116">{tr.lbl}</text>
+          {tr.x > PADL + 0.5 && <line x1={tr.x} y1={bandT} x2={tr.x} y2={bandT + bandH} stroke="#0a1116" />}
+          <text x={tr.x + 3} y={bandT + 12} fontSize="9" fontWeight={700} fill="#0a1116">{tr.lbl}</text>
         </g>
       ))}
 
-      {points.map((p, i) =>
-        i % tickEvery === 0 || i === n - 1 ? (
-          <text key={`x${i}`} x={x(i)} y={H - 5} className="xtick">{fmtTime(p.time)}</text>
-        ) : null,
-      )}
+      {/* shared hour axis */}
+      {ticks.map((tk, k) => (
+        <g key={`h${k}`}>
+          <line x1={xFor(tk.ms, t0, endMs)} y1={axisY} x2={xFor(tk.ms, t0, endMs)} y2={axisY + (tk.label ? 5 : 3)} stroke="#33485a" />
+          {tk.label && <text x={xFor(tk.ms, t0, endMs)} y={axisY + 15} className="xtick">{tk.label}</text>}
+        </g>
+      ))}
+      <title>{`${fmtTime(pts[0].time)} – ${fmtTime(pts[n - 1].time)} UTC`}</title>
     </svg>
   );
 }

@@ -4,6 +4,7 @@
   --text: #e9f1f6; --muted: #8ea3b2; --faint: #5b7080;
   --accent: #7fd4e8; --gust: #f4a259; --good: #5fd0a6;
   --spread: #23485a;
+  --tide: #4cb5d6; --tide2: #2c6076; --hw: #df6b6b; --lw: #5fd0a6;
   --body: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --mono: var(--font-mono), ui-monospace, monospace;
 }
@@ -84,6 +85,32 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
   border: 1px solid var(--line2); border-radius: 8px; padding: 7px 11px; cursor: pointer; transition: .12s; }
 .cbtn:hover { border-color: #3a5566; }
 .cbtn.on { background: var(--accent); color: #08151b; border-color: var(--accent); font-weight: 700; }
+
+/* chart panel header + subtle inline range switch + next-tide strip */
+.hdr { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.hr { display: flex; align-items: baseline; gap: 10px; }
+.loc { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.hrange { display: flex; gap: 1px; }
+.rbtn { font-family: var(--mono); font-size: 11px; color: var(--faint); background: none; border: 0;
+  padding: 2px 6px; border-radius: 6px; cursor: pointer; transition: .12s; }
+.rbtn:hover { color: var(--muted); }
+.rbtn.on { color: var(--accent); background: rgba(127,212,232,.1); }
+.rbtn:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px rgba(127,212,232,.5); }
+.nextstrip { display: flex; gap: 18px; margin: 4px 2px 2px; flex-wrap: wrap; }
+.ns { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 12px; }
+.ns .nsdot { width: 8px; height: 8px; border-radius: 50%; }
+.ns .nslab { color: var(--faint); }
+.ns .nsval { color: var(--text); }
+.tchart { display: block; width: 100%; height: auto; overflow: visible; }
+.tchart text { font-family: var(--mono); }
+.tchart .ytick { fill: var(--faint); font-size: 9px; text-anchor: end; }
+.tchart .seg { fill: var(--faint); font-size: 9px; text-anchor: middle; }
+.tchart .xtick { fill: var(--faint); font-size: 8.5px; text-anchor: middle; }
+.tchart .tideexp { fill: none; stroke: var(--tide); stroke-width: 2.4; stroke-linecap: round; }
+.tchart .tideastro { fill: none; stroke: var(--tide2); stroke-width: 1.5; stroke-dasharray: 5 4;
+  opacity: .75; stroke-linecap: round; }
+.lgln { width: 15px; height: 0; border-top: 2px solid; }
+.lgln.dashed { border-top-style: dashed; }
 
 /* map tab: timeline + canvas */
 .tlrow { display: flex; align-items: center; gap: 16px; }

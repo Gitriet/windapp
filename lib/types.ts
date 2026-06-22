@@ -42,3 +42,15 @@ export type MapStation = {
   dir: number[]; spd: number[];   // aligned to MapData.times (gaps forward-filled)
 };
 export type MapData = { times: string[]; stations: MapStation[] };
+
+// Tide layer (Wad stations only): water level vs NAP in cm, straight from RWS.
+// A separate data layer beside the wind — no correction, no model blend.
+export type TidePoint = { t: string; v: number };           // t = UTC ISO, v = cm NAP
+export type TideExtreme = { kind: "HW" | "LW"; t: string; v: number };
+export type TideData = {
+  code: string;            // RWS getij location code
+  name: string;            // human label for the getij point
+  expected: TidePoint[];   // verwachting (incl. wind setup), ~48h horizon
+  astro: TidePoint[];      // astronomical, full window
+  extremes: TideExtreme[]; // HW/LW from the expected curve, astro beyond its reach
+};
