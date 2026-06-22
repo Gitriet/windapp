@@ -8,15 +8,25 @@ import type { TideData, TidePoint, TideExtreme } from "./types";
 const RWS =
   "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen";
 
-// Each Wad wind station -> nearest RWS getij location carrying BOTH the expected
-// and astronomical water level. Codes verified live against the RWS catalogue;
-// non-Wad stations are simply absent, so the tide block only shows for these.
-export const WAD_TIDE: Record<string, { code: string; name: string }> = {
+// Each coastal wind station -> nearest RWS getij location carrying BOTH the
+// expected and astronomical water level. Codes verified live against the RWS
+// catalogue; stations absent here get no tide block (inland IJsselmeer/Markermeer
+// have no tide; K13-A is offshore — see below).
+//
+// K13-A is deliberately omitted: the K13-A platform points (k13a, k13a.1) return
+// 204 No Content for WATHTE/NAP verwachting and astronomisch — offshore platforms
+// carry measured data only, no modelled tide — and the nearest point that does
+// model expected+astronomical tide is a coastal station ~100 km away, not
+// representative of the open sea there.
+export const TIDE_STATIONS: Record<string, { code: string; name: string }> = {
+  // Waddenzee
   dekooy: { code: "denhelder.marsdiep", name: "Den Helder (Marsdiep)" },
   vlieland: { code: "vlieland.haven", name: "Vlieland (haven)" },
   hoorn: { code: "terschelling.noordzee", name: "Terschelling (Noordzee)" },
   lauwersoog: { code: "lauwersoog.waddenzee", name: "Lauwersoog (Waddenzee)" },
   huibertgat: { code: "huibertgat", name: "Huibertgat" },
+  // Noordzee-kust
+  ijmuiden: { code: "ijmuiden.buitenhaven", name: "IJmuiden (buitenhaven)" },
 };
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace("Z", "+00:00");
@@ -67,8 +77,8 @@ function extrema(series: TidePoint[]): TideExtreme[] {
 }
 
 export async function buildTide(key: string): Promise<TideData | null> {
-  const tgt = WAD_TIDE[key];
-  if (!tgt) return null;                          // not a Wad station -> no tide block
+  const tgt = TIDE_STATIONS[key];
+  if (!tgt) return null;                          // no coupled getij point -> no tide block
   const now = Date.now();
   const begin = now - 3600000;
   const end = now + 3 * 24 * 3600000 + 3600000;  // cover the widest (3-day) window
