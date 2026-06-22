@@ -38,15 +38,6 @@ CREATE TABLE IF NOT EXISTS forecast_cache (
   PRIMARY KEY (location_key, model_id)
 );
 
--- AI day-summary cache, keyed by location|course|forecast-run (created on demand
--- by the summary code too, so a re-seed isn't required to add it).
-CREATE TABLE IF NOT EXISTS summary_cache (
-  cache_key   TEXT PRIMARY KEY,
-  text        TEXT NOT NULL,
-  uncertainty TEXT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- Saved routes (ordered calibrated waypoints). Optional in v1.
 CREATE TABLE IF NOT EXISTS routes (
   id            SERIAL PRIMARY KEY,

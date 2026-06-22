@@ -6,25 +6,16 @@ import { ktsToBft, fmtTime, compass } from "@/lib/format";
 import { COURSES, relAngle, sail } from "@/lib/sailing";
 import type { Location, CorrectedPoint } from "@/lib/types";
 
-type Summary = { text: string; uncertainty: string; source: string };
-
-const Spark = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-    <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#5f9d82" />
-  </svg>
-);
-
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
   const [course, setCourse] = useState<number | null>(null);
   const [data, setData] = useState<{ location: Location; points: CorrectedPoint[] } | null>(null);
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    fetch("/api/locations").then((r) => r.json()).then((l: Location[]) => {
+    fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()).then((l: Location[]) => {
       setLocs(l); if (l[0]) setKey(l[0].location_key);
     }).catch((e) => setErr(String(e)));
   }, []);
@@ -32,19 +23,10 @@ export default function Home() {
   useEffect(() => {
     if (!key) return;
     setLoading(true); setErr("");
-    fetch(`/api/forecast/${key}`).then((r) => r.json()).then((d) => {
+    fetch(`/api/forecast/${key}`, { cache: "no-store" }).then((r) => r.json()).then((d) => {
       if (d.error) setErr(d.error); else setData(d);
     }).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [key]);
-
-  useEffect(() => {
-    if (!key) return;
-    setSummary(null);
-    const q = course === null ? "" : `?course=${course}`;
-    fetch(`/api/summary/${key}${q}`).then((r) => r.json()).then((s) => {
-      if (!s.error) setSummary(s);
-    }).catch(() => {});
-  }, [key, course]);
 
   const now = data?.points?.[0];
   const pos = now && course !== null ? sail(relAngle(now.dir_deg, course)) : null;
@@ -79,19 +61,6 @@ export default function Home() {
 
       {now && data && (
         <>
-          <div className="panel ai">
-            <div className="flbl"><Spark /> Samenvatting van de dag</div>
-            {summary ? (
-              <>
-                <p className="ai-text">{summary.text}</p>
-                {summary.uncertainty && <div className="ai-unc">{summary.uncertainty}</div>}
-                {summary.source === "fallback" && (
-                  <div className="ai-unc">Regelgebaseerde samenvatting (geen AI-sleutel ingesteld).</div>
-                )}
-              </>
-            ) : <p className="ai-text muted">Samenvatting laden…</p>}
-          </div>
-
           <div className="panel">
             <div className="ovh">
               <Compass deg={now.dir_deg} />

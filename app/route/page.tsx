@@ -14,7 +14,7 @@ export default function RoutePage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/locations").then((r) => r.json()).then((l: Location[]) => {
+    fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()).then((l: Location[]) => {
       setLocs(l); if (l[0]) setPick(l[0].location_key);
     }).catch((e) => setErr(String(e)));
     const d = new Date();
