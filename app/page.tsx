@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import WindChart from "@/components/WindChart";
 import Compass from "@/components/Compass";
+import LocationPicker from "@/components/LocationPicker";
 import { ktsToBft, fmtTime, compass } from "@/lib/format";
 import { COURSES, relAngle, sail } from "@/lib/sailing";
 import type { Location, CorrectedPoint } from "@/lib/types";
@@ -16,7 +17,10 @@ export default function Home() {
 
   useEffect(() => {
     fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()).then((l: Location[]) => {
-      setLocs(l); if (l[0]) setKey(l[0].location_key);
+      setLocs(l);
+      const wanted = new URLSearchParams(window.location.search).get("loc");
+      const initial = l.find((x) => x.location_key === wanted) ?? l[0];
+      if (initial) setKey(initial.location_key);
     }).catch((e) => setErr(String(e)));
   }, []);
 
@@ -35,16 +39,14 @@ export default function Home() {
     <>
       <header className="top">
         <h1>Windvoorspelling</h1>
-        <nav className="tabs"><a className="active" href="/">Punt</a><a href="/route">Route</a></nav>
+        <nav className="tabs">
+          <a className="active" href="/">Punt</a><a href="/map">Kaart</a>
+        </nav>
       </header>
 
       <div className="panel">
         <div className="flbl">Gekalibreerde locatie</div>
-        <select value={key} onChange={(e) => setKey(e.target.value)}>
-          {locs.map((l) => (
-            <option key={l.location_key} value={l.location_key}>{l.name} — {l.area}</option>
-          ))}
-        </select>
+        <LocationPicker locations={locs} value={key} onChange={setKey} />
         <div className="course">
           <div className="flbl">Koers <span className="lc">(optioneel — schakelt naar koers-relatief)</span></div>
           <div className="cbtns">

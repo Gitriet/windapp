@@ -36,12 +36,9 @@ export type CorrectedPoint = {
   corrected: boolean;
 };
 
-export type WaypointForecast = {
-  order: number;
-  location_key: string;
-  name: string;
-  passage_iso: string;
-  hours_ahead: number;
-  lead: 1 | 2 | 3;
-  point: CorrectedPoint | null;   // null = no forecast at that time (out of horizon)
+// Map tab: per calibrated station, direction/speed aligned to a shared time base.
+export type MapStation = {
+  location_key: string; name: string; area: string; lat: number; lon: number;
+  dir: number[]; spd: number[];   // aligned to MapData.times (gaps forward-filled)
 };
+export type MapData = { times: string[]; stations: MapStation[] };

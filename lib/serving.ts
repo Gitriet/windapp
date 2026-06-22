@@ -1,14 +1,14 @@
 // Serving layer: read artifacts from Neon, fetch live forecasts (TTL-cached),
 // apply the speed-bias correction, and build the corrected series + model-spread
-// band for single points and routes. v1: best single corrected model, no blend,
+// band for single points. v1: best single corrected model, no blend,
 // no direction correction.
 import { sql } from "./db";
 import { fetchModel } from "./openmeteo";
 import { CORE_MODEL_IDS, TTL_MINUTES } from "./constants";
 import { correctSpeed } from "./correction";
-import { hoursToLead, routePassages } from "./leads";
+import { hoursToLead } from "./leads";
 import type {
-  BiasModel, Location, RawSeries, CorrectedPoint, WaypointForecast,
+  BiasModel, Location, RawSeries, CorrectedPoint, MapData,
 } from "./types";
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -127,39 +127,34 @@ export async function buildSeries(key: string): Promise<{ location: Location; po
   return { location: L.loc, points };
 }
 
-function nearestHourIso(ms: number): string {
-  const d = new Date(Math.round(ms / 3600000) * 3600000);
-  return d.toISOString().slice(0, 13) + ":00";     // "YYYY-MM-DDTHH:00"
+function fillGaps(a: (number | null)[]): number[] {
+  const out = a.slice();
+  for (let i = 1; i < out.length; i++) if (out[i] == null) out[i] = out[i - 1];
+  for (let i = out.length - 2; i >= 0; i--) if (out[i] == null) out[i] = out[i + 1];
+  return out.map((v) => v ?? 0);
 }
 
-export async function buildRoute(
-  keys: string[], departureMs: number, boatSpeedKn: number,
-): Promise<WaypointForecast[]> {
-  const loaded = new Map<string, LoadedLocation | null>();
-  for (const k of keys) if (!loaded.has(k)) loaded.set(k, await loadLocation(k));
+// All calibrated stations' corrected series in one batch (for the map tab).
+// Reuses buildSeries (and thus the per-location forecast cache) per run.
+export async function buildMap(): Promise<MapData> {
+  const locs = await getLocations();
+  const series = await Promise.all(locs.map((l) => buildSeries(l.location_key)));
+  let times: string[] = [];
+  for (const s of series) if (s && s.points.length > times.length) times = s.points.map((p) => p.time);
+  const idx = new Map(times.map((t, i) => [t, i]));
 
-  const coords = keys.map((k) => {
-    const L = loaded.get(k);
-    return L ? { lat: L.loc.lat, lon: L.loc.lon } : { lat: 0, lon: 0 };
-  });
-  const passages = routePassages(coords, departureMs, boatSpeedKn);
-  const now = Date.now();
-
-  return keys.map((k, i) => {
-    const L = loaded.get(k);
-    const hoursAhead = (passages[i] - now) / 3600000;
-    const lead = hoursToLead(Math.max(0, hoursAhead));
-    const iso = nearestHourIso(passages[i]);
-    // keep the route's promised 3-day horizon (the 4-day fetch is only to fill day3)
-    const point = L && hoursAhead <= HORIZON_HOURS ? pointAt(L, iso, lead) : null;
+  const stations = locs.map((l, k) => {
+    const s = series[k];
+    const dir: (number | null)[] = times.map(() => null);
+    const spd: (number | null)[] = times.map(() => null);
+    if (s) for (const p of s.points) {
+      const i = idx.get(p.time);
+      if (i != null) { dir[i] = p.dir_deg; spd[i] = p.speed_kn; }
+    }
     return {
-      order: i,
-      location_key: k,
-      name: L ? L.loc.name : k,
-      passage_iso: new Date(passages[i]).toISOString(),
-      hours_ahead: Math.round(hoursAhead),
-      lead,
-      point,
+      location_key: l.location_key, name: l.name, area: l.area, lat: l.lat, lon: l.lon,
+      dir: fillGaps(dir), spd: fillGaps(spd),
     };
   });
+  return { times, stations };
 }

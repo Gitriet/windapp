@@ -3,7 +3,7 @@
 // with Python-computed corrected speeds, and checks the TS output matches.
 import { readFileSync } from "node:fs";
 import { correctSpeed } from "../lib/correction";
-import { haversineKm, hoursToLead, routePassages } from "../lib/leads";
+import { hoursToLead } from "../lib/leads";
 import type { BiasModel } from "../lib/types";
 
 const root = new URL("../../outputs/", import.meta.url);
@@ -22,16 +22,11 @@ for (const s of golden.samples) {
     `got=${got.toFixed(4)} exp=${s.expected_corrected}`);
 }
 
-console.log("\n— geometry / lead sanity —");
-const d = haversineKm(52.463, 4.555, 53.218, 3.220);
-console.log(`IJmuiden->K13-A ≈ ${d.toFixed(0)} km (expect ~120)`);
+console.log("\n— lead sanity —");
 const leadOk = hoursToLead(10) === 1 && hoursToLead(30) === 2 && hoursToLead(60) === 3;
 console.log(`hoursToLead 10/30/60 -> ${hoursToLead(10)}/${hoursToLead(30)}/${hoursToLead(60)} ${leadOk ? "ok" : "FAIL"}`);
-const p = routePassages([{ lat: 52.928, lon: 4.781 }, { lat: 53.218, lon: 3.220 }], 0, 6);
-const travelH = (p[1] - p[0]) / 3600000;
-console.log(`DeKooy->K13-A at 6 kn ≈ ${travelH.toFixed(1)} h`);
 
-if (fail || !leadOk || d < 100 || d > 140) {
+if (fail || !leadOk) {
   console.error(`\nFAILED (${fail} correction mismatches)`);
   process.exit(1);
 }
