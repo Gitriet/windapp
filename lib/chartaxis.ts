@@ -1,37 +1,39 @@
 // Shared horizontal axis for the wind + tide charts. Both use the SAME viewBox
 // width and PADL/PADR and the SAME xFor(ms) mapping over [t0, endMs], so a given
 // instant lands at the same x in both — that vertical alignment is the point.
+// Labels and day boundaries are in Europe/Amsterdam local time (see lib/tz); the
+// x-mapping stays pure epoch-ms, so the two charts remain aligned.
+import { localHM, localWeekdayShort, localMidnight, dayMidnights } from "./tz";
+
 export const AXIS = { W: 760, PADL: 40, PADR: 26 };
-const DAY = 86_400_000, HOUR = 3_600_000;
+const HOUR = 3_600_000;
 
 export const xFor = (ms: number, t0: number, endMs: number) =>
   AXIS.PADL + ((ms - t0) / (endMs - t0)) * (AXIS.W - AXIS.PADL - AXIS.PADR);
 
-// Hour ticks; density scales with range so labels don't collide:
+// Hour ticks aligned to LOCAL midnight so labels land on 00/06/12/18 local;
+// density scales with range so labels don't collide:
 // 1 day -> every 3h (all labelled); 2 days -> every 6h; 3 days -> every 6h, label every 2nd (12h).
 export function hourTicks(t0: number, endMs: number, range: number) {
   const stepH = range === 1 ? 3 : 6;
   const labelEvery = range === 3 ? 2 : 1;
-  const start = Math.ceil(t0 / (stepH * HOUR)) * (stepH * HOUR);
+  const step = stepH * HOUR, m0 = localMidnight(t0);
   const ticks: { ms: number; label: string | null }[] = [];
-  let idx = 0;
-  for (let ms = start; ms <= endMs + 1000; ms += stepH * HOUR, idx++) {
-    const major = idx % labelEvery === 0;
-    const hh = new Date(ms).getUTCHours();
-    ticks.push({ ms, label: major ? String(hh).padStart(2, "0") + ":00" : null });
+  let k = Math.ceil((t0 - m0) / step);
+  for (let ms = m0 + k * step; ms <= endMs + 1000; k++, ms = m0 + k * step) {
+    const major = ((k % labelEvery) + labelEvery) % labelEvery === 0;
+    ticks.push({ ms, label: major ? localHM(ms) : null });
   }
   return ticks;
 }
 
-const WD = ["zo", "ma", "di", "wo", "do", "vr", "za"];
-// Weekday label centred per calendar day + midnight boundary positions (UTC).
+// Weekday label centred per LOCAL calendar day + local-midnight boundary positions.
 export function dayBands(t0: number, endMs: number) {
-  const bounds: number[] = [];
-  for (let m = Math.ceil((t0 + 1) / DAY) * DAY; m < endMs; m += DAY) bounds.push(m);
+  const bounds = dayMidnights(t0, endMs);
   const segs: { mid: number; label: string }[] = [];
   let s = t0;
   for (const b of [...bounds, endMs]) {
-    segs.push({ mid: (s + b) / 2, label: WD[new Date((s + b) / 2).getUTCDay()] });
+    segs.push({ mid: (s + b) / 2, label: localWeekdayShort((s + b) / 2) });
     s = b;
   }
   return { bounds, segs };

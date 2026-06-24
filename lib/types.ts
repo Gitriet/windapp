@@ -21,6 +21,43 @@ export type RawSeries = {
   speed: number[];  // knots
   dir: number[];    // degrees
   gust: number[];   // knots
+  // weather overlay — only present for the designated weather model
+  // (knmi_seamless), requested with withWeather; shares the same hourly UTC grid.
+  weather_code?: (number | null)[];
+  temp?: (number | null)[];       // °C
+  cloud?: (number | null)[];      // %
+  precip?: (number | null)[];     // mm
+  pop?: (number | null)[];        // % probability of precipitation
+  vis?: (number | null)[];        // metres
+  sunrise?: string[];             // ISO UTC, one per day
+  sunset?: string[];
+};
+
+// Weather overlay aligned 1:1 with the forecast points (same time[] as the wind).
+// A separate display layer beside the wind — no in-situ calibration.
+export type WeatherSeries = {
+  time: string[];                 // identical to the wind points' times
+  code: (number | null)[];
+  temp: (number | null)[];
+  cloud: (number | null)[];
+  precip: (number | null)[];
+  pop: (number | null)[];
+  vis: (number | null)[];
+  sunrise: string[];
+  sunset: string[];
+};
+
+// 7-day outlook (separate tab): daily aggregates straight from Open-Meteo daily,
+// NL-local days, uncorrected — NOT the per-station bias pipeline.
+export type WeekDay = {
+  date: string;              // local date "YYYY-MM-DD" (Europe/Amsterdam)
+  code: number | null;       // weather_code
+  pop: number | null;        // precipitation_probability_max, %
+  dir: number | null;        // wind_direction_10m_dominant (source bearing)
+  gust: number | null;       // wind_gusts_10m_max, kn
+  windMin: number | null;    // min hourly wind_speed_10m over the local day, kn
+  tmax: number | null;       // °C
+  tmin: number | null;       // °C
 };
 
 export type CorrectedPoint = {
@@ -35,13 +72,6 @@ export type CorrectedPoint = {
   band_high_kn: number;
   corrected: boolean;
 };
-
-// Map tab: per calibrated station, direction/speed aligned to a shared time base.
-export type MapStation = {
-  location_key: string; name: string; area: string; lat: number; lon: number;
-  dir: number[]; spd: number[];   // aligned to MapData.times (gaps forward-filled)
-};
-export type MapData = { times: string[]; stations: MapStation[] };
 
 // Tide layer (Wad stations only): water level vs NAP in cm, straight from RWS.
 // A separate data layer beside the wind — no correction, no model blend.

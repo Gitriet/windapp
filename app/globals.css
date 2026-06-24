@@ -32,7 +32,6 @@ nav.tabs a.active { color: var(--text); border-bottom: 2px solid var(--accent); 
   border-radius: 14px; padding: 16px 18px; }
 .flbl { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
   color: var(--faint); margin-bottom: 9px; }
-.flbl .lc { text-transform: none; letter-spacing: 0; }
 select, input, button { background: var(--panel2); border: 1px solid var(--line2); color: var(--text);
   font-family: var(--body); font-size: 15px; padding: 10px 12px; border-radius: 9px; }
 select { width: 100%; appearance: none; }
@@ -78,14 +77,6 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .lp-opt.sel.active, .lp-opt.sel { background: rgba(127,212,232,.1); }
 .lp-opt.sel.active { background: rgba(127,212,232,.16); }
 
-/* course selector */
-.course { margin-top: 16px; }
-.cbtns { display: flex; flex-wrap: wrap; gap: 6px; }
-.cbtn { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--panel2);
-  border: 1px solid var(--line2); border-radius: 8px; padding: 7px 11px; cursor: pointer; transition: .12s; }
-.cbtn:hover { border-color: #3a5566; }
-.cbtn.on { background: var(--accent); color: #08151b; border-color: var(--accent); font-weight: 700; }
-
 /* chart panel header + subtle inline range switch + next-tide strip */
 .hdr { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
 .hr { display: flex; align-items: baseline; gap: 10px; }
@@ -96,6 +87,16 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .rbtn:hover { color: var(--muted); }
 .rbtn.on { color: var(--accent); background: rgba(127,212,232,.1); }
 .rbtn:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px rgba(127,212,232,.5); }
+/* day stepper (1d only; dimmed + disabled on multi-day) */
+.srow { display: flex; margin: 2px 0 8px; }
+.srow.off { opacity: .4; }
+.step { display: inline-flex; align-items: center; gap: 8px; }
+.sbtn { font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--muted);
+  background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; transition: .12s; }
+.sbtn:hover:not(:disabled) { color: var(--accent); background: rgba(127,212,232,.1); }
+.sbtn:disabled { color: var(--faint); cursor: default; opacity: .5; }
+.sbtn:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px rgba(127,212,232,.5); }
+.sdate { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 56px; text-align: center; }
 .nextstrip { display: flex; gap: 18px; margin: 4px 2px 2px; flex-wrap: wrap; }
 .ns { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 12px; }
 .ns .nsdot { width: 8px; height: 8px; border-radius: 50%; }
@@ -112,20 +113,6 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .lgln { width: 15px; height: 0; border-top: 2px solid; }
 .lgln.dashed { border-top-style: dashed; }
 
-/* map tab: timeline + canvas */
-.tlrow { display: flex; align-items: center; gap: 16px; }
-.tl { position: relative; flex: 1; height: 30px; cursor: pointer; display: flex; align-items: center; touch-action: none; }
-.tl::before { content: ""; position: absolute; left: 0; right: 0; top: 14px; height: 1px; background: var(--line2); }
-.tl-fill { position: absolute; left: 0; top: 14px; height: 1px; background: #3f6675; }
-.tl-ticks { position: absolute; left: 0; right: 0; top: 14px; }
-.tl-ticks span { position: absolute; top: -3px; width: 1px; height: 7px; background: var(--line2); }
-.tl-ticks span b { position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
-  font-family: var(--mono); font-size: 9px; font-weight: 400; letter-spacing: .06em; color: var(--faint); }
-.tl-knob { position: absolute; top: 14px; width: 9px; height: 9px; border-radius: 50%;
-  background: var(--text); transform: translate(-50%, -50%); box-shadow: 0 0 0 3px rgba(127,212,232,.14); }
-.tv { font-family: var(--mono); font-size: 11.5px; color: var(--muted); min-width: 96px; text-align: right; }
-.mapwrap { position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #0a141d; }
-
 /* overview */
 .ovh { display: flex; align-items: center; gap: 20px; }
 .big { font-family: var(--mono); font-size: 40px; font-weight: 700; line-height: 1; }
@@ -133,8 +120,17 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .ovh .sub { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 7px;
   display: flex; gap: 13px; flex-wrap: wrap; }
 .ovh .sub b { color: var(--text); font-weight: 500; }
-.pos { display: inline-flex; align-items: center; gap: 7px; margin-top: 11px; font-family: var(--mono);
-  font-size: 13px; padding: 5px 11px; border-radius: 8px; font-weight: 700; border: 1px solid; }
+/* weather snapshot — secondary, lighter than the wind numbers */
+.wxnow { display: flex; align-items: center; gap: 8px; margin-top: 9px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.wxnow .wxicon { color: var(--faint); flex: none; }
+.wxnow .wxtemp { color: var(--text); font-size: 14px; }
+.wxnow .wxlab { color: var(--muted); }
+.wxnow .wxcloud { color: var(--faint); }
+/* weather strip on the shared axis, above the wind chart */
+.wstrip { display: block; width: 100%; height: auto; overflow: visible; }
+.wstrip .wstripicon { color: var(--faint); }
+.wstrip .wlbl { font-family: var(--mono); font-size: 8.5px; fill: var(--faint); }
 .tags { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .tag { font-family: var(--mono); font-size: 11px; padding: 4px 10px; border-radius: 7px;
   border: 1px solid var(--line2); color: var(--muted); }
@@ -148,6 +144,8 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .xtick { text-anchor: middle; }
 .chart .ytick { text-anchor: end; }
 .chart .seg { text-anchor: middle; }
+.chart .seg.clk { fill: var(--muted); cursor: pointer; }
+.chart .seg.clk:hover { fill: var(--accent); }
 .chart .band { fill: var(--spread); opacity: .5; }
 .chart .gust { fill: none; stroke: var(--gust); stroke-width: 1.3; stroke-dasharray: 4 4; opacity: .8; }
 .chart .speed { fill: none; stroke: var(--accent); stroke-width: 2.3; stroke-linejoin: round; }
@@ -155,6 +153,26 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 .lgi { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .lgsw { width: 13px; height: 9px; border-radius: 2px; }
 .note { font-family: var(--mono); font-size: 10.5px; color: var(--faint); text-align: center; margin-top: 8px; }
+
+/* 7-day outlook: one row per day, wind up front, weather + temp secondary */
+.wk { display: flex; flex-direction: column; }
+.wk-row { display: grid; grid-template-columns: 64px 40px 34px 1fr auto; align-items: center;
+  gap: 12px; padding: 9px 6px; border-radius: 9px; color: var(--text); }
+.wk-row + .wk-row { border-top: 1px solid var(--line); }
+.wk-row:hover { background: var(--panel2); }
+.wk-row.dim { opacity: .5; }
+.wk-day { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.wk-wx { display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--muted); }
+.wk-pop { font-family: var(--mono); font-size: 9.5px; color: var(--faint); }
+.wk-bar { display: flex; align-items: center; gap: 9px; }
+.wk-track { position: relative; flex: 1; height: 7px; border-radius: 4px; background: var(--panel2); }
+.wk-fill { position: absolute; top: 0; height: 7px; border-radius: 4px; min-width: 3px; }
+.wk-gust { font-family: var(--mono); font-size: 14px; color: var(--text); min-width: 38px; text-align: right; }
+.wk-gust .wk-u { font-size: 9.5px; color: var(--muted); margin-left: 2px; }
+.wk-temp { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+.wk-temp .wk-tmin { color: var(--faint); margin-left: 6px; }
+.wk-div { font-family: var(--mono); font-size: 10px; color: var(--faint); text-align: center;
+  padding: 8px 0 6px; margin-top: 2px; border-top: 1px dashed var(--line2); }
 
 /* route view (unchanged classes) */
 .muted { color: var(--muted); }

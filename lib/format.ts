@@ -11,14 +11,6 @@ export function compass(deg: number): string {
   return COMPASS[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
-export function fmtTime(iso: string): string {
-  // iso UTC "YYYY-MM-DDTHH:MM" -> "di 14:00" style in UTC (no tz surprises).
-  const d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
-  const day = ["zo", "ma", "di", "wo", "do", "vr", "za"][d.getUTCDay()];
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  return `${day} ${hh}:00`;
-}
-
 export function fmtDay(iso: string): string {
   const d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;

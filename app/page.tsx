@@ -2,36 +2,53 @@
 import { useEffect, useState } from "react";
 import WindChart from "@/components/WindChart";
 import TideChart from "@/components/TideChart";
+import WeatherStrip from "@/components/WeatherStrip";
+import WeatherIcon from "@/components/WeatherIcon";
 import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
-import { ktsToBft, fmtTime, compass } from "@/lib/format";
-import { COURSES, relAngle, sail } from "@/lib/sailing";
-import type { Location, CorrectedPoint, TideData } from "@/lib/types";
+import Nav from "@/components/Nav";
+import { ktsToBft, compass } from "@/lib/format";
+import { fmtTimeNL, localHM, localDayLabel, dayMidnights } from "@/lib/tz";
+import { wxGroup, wxLabel } from "@/lib/weather";
+import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
-const hhmm = (iso: string) => {
-  const d = new Date(iso);
-  return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
-};
+const hhmm = (iso: string) => localHM(Date.parse(iso + (iso.endsWith("Z") ? "" : "Z")));
 
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
-  const [course, setCourse] = useState<number | null>(null);
   const [range, setRange] = useState(3);
-  const [data, setData] = useState<{ location: Location; points: CorrectedPoint[] } | null>(null);
+  // day-index = which day the window starts on (deel 1); decoupled from range.
+  // only navigable on 1d; multi-day is always the overview from now (index 0).
+  const [dayIndex, setDayIndex] = useState(0);
+  const [data, setData] = useState<{ location: Location; points: CorrectedPoint[]; weather: WeatherSeries } | null>(null);
   const [tide, setTide] = useState<TideData | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    // deep-link from the 7-day tab: ?day=&range= zooms onto a specific day
+    const r = Number(sp.get("range"));
+    if (r === 1 || r === 2 || r === 3) setRange(r);
+    const d = Number(sp.get("day"));
+    if (Number.isInteger(d) && d >= 0) setDayIndex(d);
     fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()).then((l: Location[]) => {
       setLocs(l);
-      const wanted = new URLSearchParams(window.location.search).get("loc");
-      const initial = l.find((x) => x.location_key === wanted) ?? l[0];
+      const initial = l.find((x) => x.location_key === sp.get("loc")) ?? l[0];
       if (initial) setKey(initial.location_key);
     }).catch((e) => setErr(String(e)));
   }, []);
+
+  // keep the location in the URL so the 7-day tab inherits it on switch.
+  // build a fully-qualified URL — Safari rejects a bare relative "?loc=" query.
+  useEffect(() => {
+    if (!key) return;
+    const url = new URL(window.location.href);
+    url.search = `loc=${key}`;
+    window.history.replaceState(null, "", url.href);
+  }, [key]);
 
   useEffect(() => {
     if (!key) return;
@@ -51,9 +68,23 @@ export default function Home() {
   }, [key]);
 
   const now = data?.points?.[0];
-  const pos = now && course !== null ? sail(relAngle(now.dir_deg, course)) : null;
-  const t0 = now ? Date.parse(now.time + "Z") : 0;
+  const wx = data?.weather;
+  const wxNow = wx && wx.code.length
+    ? { group: wxGroup(wx.code[0]), temp: wx.temp[0], cloud: wx.cloud[0], label: wxLabel(wx.code[0]) }
+    : null;
+  // available days = forecast start (now), then each local midnight up to the
+  // horizon; the window starts at the chosen day and spans `range` days.
+  const pts = data?.points ?? [];
+  const firstMs = pts.length ? Date.parse(pts[0].time + "Z") : 0;
+  const lastMs = pts.length ? Date.parse(pts[pts.length - 1].time + "Z") : 0;
+  const dayStarts = pts.length ? [firstMs, ...dayMidnights(firstMs, lastMs)] : [0];
+  const maxDay = dayStarts.length - 1;
+  const di = Math.min(Math.max(0, dayIndex), maxDay);
+  const t0 = dayStarts[di];
   const endMs = t0 + range * DAY_MS;
+
+  const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
+  const pickDay = (d: number) => { setRange(1); setDayIndex(Math.min(Math.max(0, d), maxDay)); };
   const nextTide = tide
     ? ["HW", "LW"].map((k) => tide.extremes.find((e) => e.kind === k && Date.parse(e.t) >= Date.now()))
         .filter(Boolean).sort((a, b) => Date.parse(a!.t) - Date.parse(b!.t))
@@ -63,23 +94,12 @@ export default function Home() {
     <>
       <header className="top">
         <h1>Windvoorspelling</h1>
-        <nav className="tabs">
-          <a className="active" href="/">Punt</a><a href="/map">Kaart</a>
-        </nav>
+        <Nav active="punt" locKey={key} />
       </header>
 
       <div className="panel">
         <div className="flbl">Gekalibreerde locatie</div>
         <LocationPicker locations={locs} value={key} onChange={setKey} />
-        <div className="course">
-          <div className="flbl">Koers <span className="lc">(optioneel — schakelt naar koers-relatief)</span></div>
-          <div className="cbtns">
-            {COURSES.map(([lab, deg]) => (
-              <button key={lab} className={"cbtn" + (course === deg ? " on" : "")}
-                      onClick={() => setCourse(deg)}>{lab}</button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {err && <div className="panel"><span className="badge warn">fout</span> <span className="muted">{err}</span></div>}
@@ -98,9 +118,12 @@ export default function Home() {
                   <span>vlagen <b>{now.gust_kn}</b></span>
                   <span>spreiding <b>{now.band_low_kn}–{now.band_high_kn}</b></span>
                 </div>
-                {pos && (
-                  <div className="pos" style={{ background: pos.color + "22", color: pos.color, borderColor: pos.color + "66" }}>
-                    koers {compass(course as number)} · {pos.label}
+                {wxNow && (
+                  <div className="wxnow">
+                    <WeatherIcon group={wxNow.group} size={20} className="wxicon" />
+                    {wxNow.temp != null && <span className="wxtemp">{Math.round(wxNow.temp)}°</span>}
+                    <span className="wxlab">{wxNow.label}</span>
+                    {wxNow.cloud != null && <span className="wxcloud">{wxNow.cloud}% bewolking</span>}
                   </div>
                 )}
               </div>
@@ -110,7 +133,7 @@ export default function Home() {
               <span className={"tag" + (now.corrected ? " corr" : "")}>
                 {now.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
               </span>
-              <span className="tag">{fmtTime(now.time)} UTC</span>
+              <span className="tag">{fmtTimeNL(now.time)}</span>
             </div>
           </div>
 
@@ -123,21 +146,30 @@ export default function Home() {
                   {[1, 2, 3].map((d) => (
                     <button key={d} className={"rbtn" + (range === d ? " on" : "")}
                             aria-pressed={range === d} aria-label={`${d} ${d === 1 ? "dag" : "dagen"}`}
-                            onClick={() => setRange(d)}>{d}d</button>
+                            onClick={() => pickRange(d)}>{d}d</button>
                   ))}
                 </div>
               </div>
             </div>
-            <WindChart points={data.points} course={course} t0={t0} endMs={endMs} range={range} />
+            <div className={"srow" + (range !== 1 ? " off" : "")}>
+              <div className="step" role="group" aria-label="Dag kiezen">
+                <button className="sbtn" aria-label="Vorige dag"
+                        disabled={range !== 1 || di === 0} onClick={() => setDayIndex(di - 1)}>‹</button>
+                <span className="sdate">{di === 0 ? "vandaag" : localDayLabel(t0)}</span>
+                <button className="sbtn" aria-label="Volgende dag"
+                        disabled={range !== 1 || di >= maxDay} onClick={() => setDayIndex(di + 1)}>›</button>
+              </div>
+            </div>
+            <WeatherStrip weather={data.weather} t0={t0} endMs={endMs} range={range} />
+            <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
+                       startDay={di} onPickDay={pickDay} />
             <div className="legend">
               <div className="lgi"><span className="lgsw" style={{ background: "var(--accent)" }} />snelheid</div>
               <div className="lgi"><span className="lgsw" style={{ background: "var(--gust)" }} />vlagen</div>
               <div className="lgi"><span className="lgsw" style={{ background: "var(--spread)" }} />spreiding</div>
             </div>
             <div className="note">
-              {course === null
-                ? "onderste band = windrichting · vaantjes wijzen naar waar de wind vandaan komt"
-                : "onderste band = zeilbaarheid op jouw koers · rood = te dicht aan de wind · relatief aan het boottype"}
+              onderste band = windrichting · vaantjes wijzen naar waar de wind vandaan komt
             </div>
           </div>
 
@@ -160,7 +192,7 @@ export default function Home() {
               </div>
               <div className="note">
                 zelfde {range} {range === 1 ? "dag" : "dagen"} als de wind · verschil tussen de lijnen = windopzet ·
-                rechtstreeks uit RWS, zonder correctie · tijden in UTC
+                rechtstreeks uit RWS, zonder correctie · tijden in Nederlandse tijd
               </div>
             </div>
           )}

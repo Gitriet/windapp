@@ -1,16 +1,14 @@
 "use client";
 import type { TideData, TidePoint } from "@/lib/types";
 import { AXIS, xFor, hourTicks, dayBands, smoothPath } from "@/lib/chartaxis";
+import { localHM } from "@/lib/tz";
 
 // Tide block: the expected water level (incl. wind setup) as the bright line, the
 // astronomical as a dimmed dashed line beneath it — the gap between them IS the
 // visible wind setup. Zero line at NAP, values in cm NAP. HW points red / LW green
-// with the time. Same shared x-axis as the wind chart, so they line up vertically.
+// with the time (Europe/Amsterdam). Same shared x-axis as the wind chart, so they
+// line up vertically.
 const ms = (iso: string) => Date.parse(iso);
-const hhmm = (iso: string) => {
-  const d = new Date(iso);
-  return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
-};
 
 export default function TideChart(
   { data, t0, endMs, range }: { data: TideData; t0: number; endMs: number; range: number },
@@ -62,7 +60,7 @@ export default function TideChart(
           <g key={`e${k}`}>
             <circle cx={cx} cy={cy} r={3.4} fill={col} stroke="#0d141b" strokeWidth={1.3} />
             <text x={cx} y={cy + (e.kind === "HW" ? -8 : 15)} fontSize={range === 1 ? 10 : 9}
-                  fill={col} textAnchor="middle">{hhmm(e.t)}</text>
+                  fill={col} textAnchor="middle">{localHM(ms(e.t))}</text>
           </g>
         );
       })}

@@ -3,13 +3,18 @@
 // band for single points. v1: best single corrected model, no blend,
 // no direction correction.
 import { sql } from "./db";
-import { fetchModel } from "./openmeteo";
-import { CORE_MODEL_IDS, TTL_MINUTES } from "./constants";
+import { fetchModel, fetchWeek } from "./openmeteo";
+import { CORE_MODEL_IDS, TTL_MINUTES, WEATHER_MODEL } from "./constants";
 import { correctSpeed } from "./correction";
 import { hoursToLead } from "./leads";
 import type {
-  BiasModel, Location, RawSeries, CorrectedPoint, MapData,
+  BiasModel, Location, RawSeries, CorrectedPoint, WeatherSeries, WeekDay,
 } from "./types";
+
+type WeatherCell = {
+  code: number | null; temp: number | null; cloud: number | null;
+  precip: number | null; pop: number | null; vis: number | null;
+};
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const HORIZON_HOURS = 72;   // 3 equal-length leads (day1/2/3); cap the 4-day fetch
@@ -31,6 +36,9 @@ type LoadedLocation = {
   bias: Map<string, BiasModel>;                 // key `${model_id}|${lead}`
   rawMaps: Map<string, Map<string, { speed: number; dir: number; gust: number }>>;
   times: string[];
+  weather: Map<string, WeatherCell>;            // by iso, from the weather model
+  sunrise: string[];
+  sunset: string[];
 };
 
 function toTimeMap(s: RawSeries) {
@@ -41,16 +49,17 @@ function toTimeMap(s: RawSeries) {
   return m;
 }
 
-async function ensureRaw(loc: Location, modelId: string): Promise<RawSeries> {
+async function ensureRaw(loc: Location, modelId: string, withWeather = false): Promise<RawSeries> {
   const rows = (await sql`
     SELECT payload, fetched_at FROM forecast_cache
     WHERE location_key = ${loc.location_key} AND model_id = ${modelId}`) as
     { payload: RawSeries; fetched_at: string }[];
   if (rows.length) {
     const ageMin = (Date.now() - Date.parse(rows[0].fetched_at)) / 60000;
-    if (ageMin < TTL_MINUTES) return rows[0].payload;
+    const hasWeather = !withWeather || rows[0].payload.weather_code != null;
+    if (ageMin < TTL_MINUTES && hasWeather) return rows[0].payload;
   }
-  const raw = await fetchModel(loc.lat, loc.lon, modelId);
+  const raw = await fetchModel(loc.lat, loc.lon, modelId, withWeather);
   await sql`
     INSERT INTO forecast_cache (location_key, model_id, payload, fetched_at)
     VALUES (${loc.location_key}, ${modelId}, ${JSON.stringify(raw)}, now())
@@ -80,7 +89,25 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
     rawMaps.set(m, toTimeMap(raw));
     if (raw.time.length > times.length) times = raw.time;
   }
-  return { loc, serving, bias, rawMaps, times };
+
+  // weather overlay from a separate KNMI fetch on the same coordinate; Open-Meteo
+  // normalises to the same hourly UTC grid, so it aligns with the wind on timestamp.
+  const weatherRaw = await ensureRaw(loc, WEATHER_MODEL, true);
+  const weather = new Map<string, WeatherCell>();
+  for (let i = 0; i < weatherRaw.time.length; i++) {
+    weather.set(weatherRaw.time[i], {
+      code: weatherRaw.weather_code?.[i] ?? null,
+      temp: weatherRaw.temp?.[i] ?? null,
+      cloud: weatherRaw.cloud?.[i] ?? null,
+      precip: weatherRaw.precip?.[i] ?? null,
+      pop: weatherRaw.pop?.[i] ?? null,
+      vis: weatherRaw.vis?.[i] ?? null,
+    });
+  }
+  return {
+    loc, serving, bias, rawMaps, times, weather,
+    sunrise: weatherRaw.sunrise ?? [], sunset: weatherRaw.sunset ?? [],
+  };
 }
 
 // Corrected served-model value + model-spread band at one timestamp.
@@ -111,50 +138,41 @@ function pointAt(L: LoadedLocation, iso: string, lead: number): CorrectedPoint |
   };
 }
 
-export async function buildSeries(key: string): Promise<{ location: Location; points: CorrectedPoint[] } | null> {
+export async function buildSeries(
+  key: string,
+): Promise<{ location: Location; points: CorrectedPoint[]; weather: WeatherSeries } | null> {
   const L = await loadLocation(key);
   if (!L) return null;
   const now = Date.now();
   const points: CorrectedPoint[] = [];
+  // weather overlay, built in lockstep so it stays equal-length and same-timed
+  const w: WeatherSeries = {
+    time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [],
+    sunrise: L.sunrise, sunset: L.sunset,
+  };
   for (const iso of L.times) {
     const hoursAhead = (Date.parse(iso + "Z") - now) / 3600000;
     if (hoursAhead < -1) continue;                 // drop already-past hours
     if (hoursAhead > HORIZON_HOURS) break;         // cap at 72h (times are sorted)
     const lead = hoursToLead(Math.max(0, hoursAhead));
     const p = pointAt(L, iso, lead);
-    if (p) points.push(p);
+    if (!p) continue;
+    points.push(p);
+    const c = L.weather.get(iso);
+    w.time.push(iso);
+    w.code.push(c?.code ?? null); w.temp.push(c?.temp ?? null); w.cloud.push(c?.cloud ?? null);
+    w.precip.push(c?.precip ?? null); w.pop.push(c?.pop ?? null); w.vis.push(c?.vis ?? null);
   }
-  return { location: L.loc, points };
+  return { location: L.loc, points, weather: w };
 }
 
-function fillGaps(a: (number | null)[]): number[] {
-  const out = a.slice();
-  for (let i = 1; i < out.length; i++) if (out[i] == null) out[i] = out[i - 1];
-  for (let i = out.length - 2; i >= 0; i--) if (out[i] == null) out[i] = out[i + 1];
-  return out.map((v) => v ?? 0);
-}
-
-// All calibrated stations' corrected series in one batch (for the map tab).
-// Reuses buildSeries (and thus the per-location forecast cache) per run.
-export async function buildMap(): Promise<MapData> {
-  const locs = await getLocations();
-  const series = await Promise.all(locs.map((l) => buildSeries(l.location_key)));
-  let times: string[] = [];
-  for (const s of series) if (s && s.points.length > times.length) times = s.points.map((p) => p.time);
-  const idx = new Map(times.map((t, i) => [t, i]));
-
-  const stations = locs.map((l, k) => {
-    const s = series[k];
-    const dir: (number | null)[] = times.map(() => null);
-    const spd: (number | null)[] = times.map(() => null);
-    if (s) for (const p of s.points) {
-      const i = idx.get(p.time);
-      if (i != null) { dir[i] = p.dir_deg; spd[i] = p.speed_kn; }
-    }
-    return {
-      location_key: l.location_key, name: l.name, area: l.area, lat: l.lat, lon: l.lon,
-      dir: fillGaps(dir), spd: fillGaps(spd),
-    };
-  });
-  return { times, stations };
+// 7-day outlook for one location. Daily aggregates only, uncorrected — a separate
+// layer from buildSeries. Fetched live (no DB cache); one request per visit.
+export async function buildWeek(
+  key: string,
+): Promise<{ location: Location; days: WeekDay[] } | null> {
+  const loc = await getLocation(key);
+  if (!loc) return null;
+  const days = await fetchWeek(loc.lat, loc.lon);
+  return { location: loc, days };
 }

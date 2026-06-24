@@ -1,25 +1,27 @@
 "use client";
 import type { CorrectedPoint } from "@/lib/types";
-import { fmtTime, compass } from "@/lib/format";
-import { dirColor, relAngle, sail } from "@/lib/sailing";
+import { compass } from "@/lib/format";
+import { fmtTimeNL } from "@/lib/tz";
+import { dirColor } from "@/lib/sailing";
 import { AXIS, xFor, hourTicks, dayBands } from "@/lib/chartaxis";
 
 // Speed line + spread band + gusts (top), a row of wind vanes pointing toward
 // the SOURCE coloured by the cyclic direction hue, and a bottom band over the
-// same axis: direction hue (no course) or sailability (course set). x is mapped
-// by TIME over the shared [t0, endMs] window so it lines up with the tide chart;
-// the window length follows the 1/2/3-day range switch. A subtle lead tint marks
-// day1/2/3; calendar day labels + an hour axis come from the shared axis module.
+// same axis showing wind direction. x is mapped by TIME over the shared
+// [t0, endMs] window so it lines up with the tide chart; the window length
+// follows the 1/2/3-day range switch. A subtle lead tint marks day1/2/3;
+// calendar day labels + an hour axis come from the shared axis module.
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const pt = (cx: number, cy: number, r: number, deg: number) =>
   [cx + r * Math.sin(rad(deg)), cy - r * Math.cos(rad(deg))] as const;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 export default function WindChart(
-  { points, course, t0, endMs, range }:
-  { points: CorrectedPoint[]; course: number | null; t0: number; endMs: number; range: number },
+  { points, t0, endMs, range, startDay = 0, onPickDay }:
+  { points: CorrectedPoint[]; t0: number; endMs: number; range: number;
+    startDay?: number; onPickDay?: (day: number) => void },
 ) {
-  const pts = points.filter((p) => ms(p.time) <= endMs + 1000);
+  const pts = points.filter((p) => { const m = ms(p.time); return m >= t0 - 1 && m <= endMs + 1000; });
   if (!pts.length) return <p className="muted">Geen data.</p>;
   const n = pts.length;
   const { W, PADL } = AXIS;
@@ -48,10 +50,8 @@ export default function WindChart(
   const bands = dayBands(t0, endMs);
   const ticks = hourTicks(t0, endMs, range);
 
-  const bandLabel = (p: CorrectedPoint) =>
-    course === null ? compass(p.dir_deg) : sail(relAngle(p.dir_deg, course)).label.split(" ")[0];
-  const bandColor = (p: CorrectedPoint) =>
-    course === null ? dirColor(p.dir_deg) : sail(relAngle(p.dir_deg, course)).color;
+  const bandLabel = (p: CorrectedPoint) => compass(p.dir_deg);
+  const bandColor = (p: CorrectedPoint) => dirColor(p.dir_deg);
 
   // label each colour change, but skip labels too close together so rapid
   // oscillations near a boundary don't pile into unreadable text (colours stay).
@@ -77,9 +77,15 @@ export default function WindChart(
       {bands.bounds.map((b, k) => (
         <line key={`db${k}`} x1={xFor(b, t0, endMs)} y1={plotT} x2={xFor(b, t0, endMs)} y2={bandT + bandH} stroke="#1b2a36" />
       ))}
-      {bands.segs.map((s, k) => (
-        <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={13} className="seg">{s.label}</text>
-      ))}
+      {bands.segs.map((s, k) => {
+        // in multi-day views the day label zooms to 1d of that day (deel 1)
+        const clk = range > 1 && !!onPickDay;
+        return (
+          <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={13}
+                className={"seg" + (clk ? " clk" : "")}
+                onClick={clk ? () => onPickDay!(startDay + k) : undefined}>{s.label}</text>
+        );
+      })}
       {yticks.map((v, k) => (
         <g key={`y${k}`}>
           <line x1={PADL} x2={W - AXIS.PADR} y1={y(v)} y2={y(v)} className="grid" />
@@ -106,7 +112,7 @@ export default function WindChart(
         );
       })}
 
-      {/* bottom band: direction hue, or sailability when a course is set */}
+      {/* bottom band: wind direction hue */}
       {pts.slice(0, n - 1).map((p, i) => (
         <rect key={`b${i}`} x={x(p)} y={bandT} width={x(pts[i + 1]) - x(p) + 0.6} height={bandH} fill={bandColor(p)} />
       ))}
@@ -124,7 +130,7 @@ export default function WindChart(
           {tk.label && <text x={xFor(tk.ms, t0, endMs)} y={axisY + 15} className="xtick">{tk.label}</text>}
         </g>
       ))}
-      <title>{`${fmtTime(pts[0].time)} – ${fmtTime(pts[n - 1].time)} UTC`}</title>
+      <title>{`${fmtTimeNL(pts[0].time)} – ${fmtTimeNL(pts[n - 1].time)}`}</title>
     </svg>
   );
 }
