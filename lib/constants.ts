@@ -27,3 +27,14 @@ export const WEATHER_MODEL = "knmi_seamless";
 // uncorrected (no per-station bias), and best_match guarantees every daily field
 // is populated.
 export const WEEK_MODEL = "best_match";
+
+// Punt deterministic recap + warning thresholds — central config, never hardcoded
+// in the components. veer* = degrees of veering/backing before we call it a turn.
+export const RECAP = { edgeHours: 8, veerDay: 15, veer3d: 20 };
+export const WARN = {
+  hardWind: { amberKn: 22, amberGust: 28, redKn: 28, redGust: 34 },
+  // wind-against-current needs verified per-location current direction (stroomatlas
+  // / RWS). Until that exists it stays OFF so we never render a wrong warning;
+  // flip enabled (or gate per location) once real current data is wired in.
+  windVsCurrent: { enabled: false, angleDeg: 135, minBft: 4, minHours: 2 },
+};

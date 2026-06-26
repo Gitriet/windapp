@@ -37,11 +37,8 @@ export default function TideChart(
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="tchart" role="img" aria-label="getijvoorspelling">
-      {bands.bounds.map((b, k) => (
+      {range > 1 && bands.bounds.map((b, k) => (
         <line key={`db${k}`} x1={xFor(b, t0, endMs)} y1={plotT} x2={xFor(b, t0, endMs)} y2={plotB} stroke="#1b2a36" />
-      ))}
-      {bands.segs.map((s, k) => (
-        <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={13} className="seg">{s.label}</text>
       ))}
       {grid.map((v, k) => (
         <g key={`g${k}`}>
@@ -59,17 +56,24 @@ export default function TideChart(
         return (
           <g key={`e${k}`}>
             <circle cx={cx} cy={cy} r={3.4} fill={col} stroke="#0d141b" strokeWidth={1.3} />
-            <text x={cx} y={cy + (e.kind === "HW" ? -8 : 15)} fontSize={range === 1 ? 10 : 9}
-                  fill={col} textAnchor="middle">{localHM(ms(e.t))}</text>
+            {/* HW/LW time labels only on a single day — too dense across 3 days */}
+            {range === 1 && (
+              <text x={cx} y={cy + (e.kind === "HW" ? -8 : 15)} fontSize={10}
+                    fill={col} textAnchor="middle">{localHM(ms(e.t))}</text>
+            )}
           </g>
         );
       })}
 
-      {ticks.map((tk, k) => (
+      {/* axis: hour ticks on a single day, day names across the 3-day overview */}
+      {range === 1 && ticks.map((tk, k) => (
         <g key={`h${k}`}>
           <line x1={xFor(tk.ms, t0, endMs)} y1={axisY} x2={xFor(tk.ms, t0, endMs)} y2={axisY + (tk.label ? 5 : 3)} stroke="#33485a" />
           {tk.label && <text x={xFor(tk.ms, t0, endMs)} y={axisY + 15} className="xtick">{tk.label}</text>}
         </g>
+      ))}
+      {range > 1 && bands.segs.map((s, k) => (
+        <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={axisY + 13} className="xtick">{k === 0 ? "nu" : s.label}</text>
       ))}
     </svg>
   );
