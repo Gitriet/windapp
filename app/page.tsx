@@ -72,6 +72,8 @@ export default function Home() {
   const wxNow = wx && wx.code.length
     ? { group: wxGroup(wx.code[0]), temp: wx.temp[0], cloud: wx.cloud[0], label: wxLabel(wx.code[0]) }
     : null;
+  // land station (e.g. Schiphol): wind at the wall, no tide, not open-water — flag it
+  const isLand = !!data && /land/i.test(data.location.area);
   // available days = forecast start (now), then each local midnight up to the
   // horizon; the window starts at the chosen day and spans `range` days.
   const pts = data?.points ?? [];
@@ -129,6 +131,11 @@ export default function Home() {
               </div>
             </div>
             <div className="tags">
+              {isLand && (
+                <span className="tag land" title="wind aan de wal bij Amsterdam — niet representatief voor open water">
+                  landstation
+                </span>
+              )}
               <span className="tag">model: {now.model_label}</span>
               <span className={"tag" + (now.corrected ? " corr" : "")}>
                 {now.corrected ? "gecorrigeerd" : "ongecorrigeerd"}

@@ -50,8 +50,8 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
   return (
     <div className="wk">
       {days.map((d, i) => {
-        const col = strengthColor(d.gust);
-        const lo = d.windMin ?? 0, hi = d.gust ?? 0;
+        const col = strengthColor(d.speedMax);
+        const lo = d.windMin ?? 0, hi = d.speedMax ?? 0;
         const left = (Math.max(0, lo) / WIND_MAX) * 100;
         const width = (Math.max(0, Math.min(WIND_MAX, hi) - Math.max(0, lo)) / WIND_MAX) * 100;
         return (
@@ -69,7 +69,10 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
                 <span className="wk-track">
                   <span className="wk-fill" style={{ left: `${left}%`, width: `${width}%`, background: col }} />
                 </span>
-                <span className="wk-gust">{d.gust != null ? Math.round(d.gust) : "–"}<span className="wk-u">kn</span></span>
+                <span className="wk-nums">
+                  <span className="wk-spd" style={{ color: col }}>{d.speedMax != null ? Math.round(d.speedMax) : "–"}<span className="wk-u">kn</span></span>
+                  {d.gust != null && <span className="wk-peak">piek {Math.round(d.gust)}</span>}
+                </span>
               </span>
               <span className="wk-temp">
                 {d.tmax != null ? Math.round(d.tmax) : "–"}°

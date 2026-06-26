@@ -59,7 +59,7 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
   const params = new URLSearchParams({
     latitude: String(lat),
     longitude: String(lon),
-    daily: "weather_code,wind_gusts_10m_max,wind_direction_10m_dominant," +
+    daily: "weather_code,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant," +
       "precipitation_probability_max,temperature_2m_max,temperature_2m_min",
     hourly: "wind_speed_10m",
     models: WEEK_MODEL,
@@ -87,6 +87,7 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
     date,
     code: d.weather_code?.[i] ?? null,
     gust: d.wind_gusts_10m_max?.[i] ?? null,
+    speedMax: d.wind_speed_10m_max?.[i] ?? null,
     dir: d.wind_direction_10m_dominant?.[i] ?? null,
     pop: d.precipitation_probability_max?.[i] ?? null,
     tmax: d.temperature_2m_max?.[i] ?? null,

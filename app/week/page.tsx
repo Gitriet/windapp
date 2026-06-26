@@ -63,7 +63,7 @@ export default function Week() {
             <div className="lgi"><span className="lgsw" style={{ background: "var(--hw)" }} />boven 25 kn</div>
           </div>
           <div className="note">
-            daggemiddelden uit het globale model, zonder stationscorrectie · balk = laagste tot vlaag op schaal 0–40 kn ·
+            daggemiddelden uit het globale model, zonder stationscorrectie · balk = laagste tot hoogste snelheid op schaal 0–40 kn ·
             tik een dag aan voor het detail op de Punt-kaart
           </div>
         </div>

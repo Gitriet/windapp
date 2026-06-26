@@ -6,7 +6,10 @@ import type { Location } from "@/lib/types";
 // these names against its (free-text) area string — so grouping stays data-driven
 // and a new station falls into the right block from its area alone. Combined
 // labels (e.g. "IJsselmeer/Markermeer") resolve to the first match in this order.
-const AREA_GROUPS = ["Markermeer", "IJsselmeer", "Waddenzee", "Noordzee"];
+// The water vaargebieden come first; land stations (e.g. Schiphol, area
+// "Amsterdam (landstation)") sit in their own "Amsterdam" block at the end, so a
+// sailor never mistakes a shore point for a water point.
+const AREA_GROUPS = ["Markermeer", "IJsselmeer", "Waddenzee", "Noordzee", "Amsterdam"];
 
 function groupOf(area: string): string | null {
   return AREA_GROUPS.find((g) => area.includes(g)) ?? null;
