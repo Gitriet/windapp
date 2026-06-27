@@ -72,14 +72,17 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
   const j = await res.json();
   const d = j.daily ?? {}, h = j.hourly ?? {};
 
-  // min hourly wind per local day (daily reports max but no min)
+  // min + mean hourly wind per local day (daily reports max but no min/mean)
   const minByDay = new Map<string, number>();
+  const sumByDay = new Map<string, { sum: number; n: number }>();
   const ht: string[] = h.time ?? [], hw: number[] = h.wind_speed_10m ?? [];
   for (let i = 0; i < ht.length; i++) {
     const day = ht[i].slice(0, 10), v = hw[i];
     if (v == null) continue;
     const cur = minByDay.get(day);
     if (cur == null || v < cur) minByDay.set(day, v);
+    const acc = sumByDay.get(day) ?? { sum: 0, n: 0 };
+    acc.sum += v; acc.n += 1; sumByDay.set(day, acc);
   }
   const r1 = (x: number) => Math.round(x * 10) / 10;
   const dates: string[] = d.time ?? [];
@@ -93,5 +96,6 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
     tmax: d.temperature_2m_max?.[i] ?? null,
     tmin: d.temperature_2m_min?.[i] ?? null,
     windMin: minByDay.has(date) ? r1(minByDay.get(date)!) : null,
+    windMean: sumByDay.has(date) ? r1(sumByDay.get(date)!.sum / sumByDay.get(date)!.n) : null,
   }));
 }

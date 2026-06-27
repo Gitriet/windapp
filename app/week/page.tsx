@@ -3,7 +3,18 @@ import { useEffect, useState } from "react";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import WeekTable from "@/components/WeekTable";
+import { dirColor } from "@/lib/sailing";
 import type { Location, WeekDay } from "@/lib/types";
+
+// hue strip uses the same dirColor as the bars, so the legend literally matches
+const HUE = `linear-gradient(90deg, ${dirColor(0)}, ${dirColor(90)}, ${dirColor(180)}, ${dirColor(270)}, ${dirColor(360)})`;
+const TRI = (
+  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+    <path d="M8 1.5 L15 14 L1 14 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <line x1="8" y1="6" x2="8" y2="10.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="8" cy="12.3" r="0.9" fill="currentColor" />
+  </svg>
+);
 
 export default function Week() {
   const [locs, setLocs] = useState<Location[]>([]);
@@ -38,6 +49,8 @@ export default function Week() {
     }).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [key]);
 
+  const selName = locs.find((l) => l.location_key === key)?.name ?? "";
+
   return (
     <>
       <header className="top">
@@ -54,18 +67,24 @@ export default function Week() {
       {loading && <div className="panel muted">Laden…</div>}
 
       {days && (
-        <div className="panel">
-          <div className="hdr"><span className="flbl">7 dagen</span><span className="loc">wind voorop</span></div>
+        <div className="card">
+          <div className="card-head">
+            <span className="ct">7 dagen{selName ? ` — ${selName}` : ""}</span>
+            <span className="cr">gem · piek kn</span>
+          </div>
           <WeekTable days={days} locKey={key} />
-          <div className="legend">
-            <div className="lgi"><span className="lgsw" style={{ background: "var(--good)" }} />tot 15 kn</div>
-            <div className="lgi"><span className="lgsw" style={{ background: "var(--gust)" }} />15–25 kn</div>
-            <div className="lgi"><span className="lgsw" style={{ background: "var(--hw)" }} />boven 25 kn</div>
+          <div className="wk-legend">
+            <span className="wk-hue">
+              kleur = richting
+              <span className="wk-huecol">
+                <span className="wk-huebar" style={{ background: HUE }} />
+                <span className="wk-huetick"><span>N</span><span>O</span><span>Z</span><span>W</span><span>N</span></span>
+              </span>
+            </span>
+            <span>langer = harder (0–40 kn)</span>
+            <span className="wk-legwarn">{TRI} harde wind</span>
           </div>
-          <div className="note">
-            daggemiddelden uit het globale model, zonder stationscorrectie · balk = laagste tot hoogste snelheid op schaal 0–40 kn ·
-            tik een dag aan voor het detail op de Punt-kaart
-          </div>
+          <div className="note">daggemiddelden uit het globale model, zonder stationscorrectie · tik een dag voor het detail op de Punt-kaart</div>
         </div>
       )}
     </>
