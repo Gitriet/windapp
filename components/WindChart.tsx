@@ -1,29 +1,32 @@
 "use client";
 import type { CorrectedPoint } from "@/lib/types";
-import { fmtTimeNL } from "@/lib/tz";
+import { fmtTimeNL, localHM, localWeekdayShort } from "@/lib/tz";
+import { compass } from "@/lib/format";
 import { dirColor } from "@/lib/sailing";
-import { AXIS, xFor, hourTicks, dayBands } from "@/lib/chartaxis";
+import { AXIS, xFor, msForClientX, hourTicks, dayBands } from "@/lib/chartaxis";
+import { WINDBAR_RED_KN } from "@/lib/constants";
 
 // One combined block on the shared time axis: a vane row on top, then the speed
-// curve, then the axis. Height = speed (kn); the curve is COLOURED per hour by
-// wind direction (hue = degrees, same dirColor as the rose), so where the tint
-// shifts you see the wind veer/back. Gusts = dashed orange, spread = grey band.
-// No separate direction ribbon — direction lives in the line colour + vanes.
+// curve, then the axis. Height = speed (kn); the curve is a plain white line.
+// Gusts = dashed orange, spread = grey band. Direction is read from the vanes on
+// top (hue = degrees, same dirColor as the rose), not from the speed line.
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const pt = (cx: number, cy: number, r: number, deg: number) =>
   [cx + r * Math.sin(rad(deg)), cy - r * Math.cos(rad(deg))] as const;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 export default function WindChart(
-  { points, t0, endMs, range }:
-  { points: CorrectedPoint[]; t0: number; endMs: number; range: number },
+  { points, t0, endMs, range, hoverMs, onHover }:
+  { points: CorrectedPoint[]; t0: number; endMs: number; range: number;
+    hoverMs: number | null; onHover: (ms: number | null) => void },
 ) {
   const pts = points.filter((p) => { const m = ms(p.time); return m >= t0 - 1 && m <= endMs + 1000; });
   if (!pts.length) return <p className="muted">Geen data.</p>;
   const n = pts.length;
   const { W, PADL, PADR } = AXIS;
   const vaneY = 15, plotT = 34, plotH = 150, plotB = plotT + plotH;
-  const axisY = plotB + 6, H = axisY + 18;
+  const axisY = plotB + 6;
+  const stripTop = axisY + 20, stripH = 6, H = stripTop + stripH + 2;
   const x = (p: CorrectedPoint) => xFor(ms(p.time), t0, endMs);
   const maxY = Math.max(10, ...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
   const y = (v: number) => plotT + plotH - (v / maxY) * plotH;
@@ -40,9 +43,24 @@ export default function WindChart(
   const multi = range > 1;
   const vaneStep = Math.max(1, Math.round(n / 8));   // ~8 vanes across the window
 
+  // shared hover: a crosshair at the hovered instant + a readout of the nearest hour
+  const showHover = hoverMs != null && hoverMs >= t0 && hoverMs <= endMs;
+  const hx = showHover ? xFor(hoverMs!, t0, endMs) : 0;
+  let hp: CorrectedPoint | null = null;
+  if (showHover) {
+    let best = Infinity;
+    for (const p of pts) { const d = Math.abs(ms(p.time) - hoverMs!); if (d < best) { best = d; hp = p; } }
+  }
+  const tipPct = Math.max(15, Math.min(85, (hx / W) * 100));
+  const onMove = (e: { clientX: number; currentTarget: Element }) =>
+    onHover(msForClientX(e.clientX, e.currentTarget.getBoundingClientRect(), t0, endMs));
+  const clearHover = () => onHover(null);
+
   return (
+    <div className="chartwrap" onPointerMove={onMove} onPointerDown={onMove}
+         onPointerLeave={clearHover} onPointerCancel={clearHover}>
     <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img"
-         aria-label="windvoorspelling — snelheid in kn, kleur = richting">
+         aria-label="windvoorspelling — snelheid in kn; richting in de vanen">
       {/* day separators (multi-day only) */}
       {multi && bands.bounds.map((b, k) => (
         <line key={`db${k}`} x1={xFor(b, t0, endMs)} y1={vaneY + 5} x2={xFor(b, t0, endMs)} y2={plotB} stroke="#222c38" />
@@ -56,23 +74,22 @@ export default function WindChart(
       ))}
       <path d={bandPath} className="band" />
       <path d={gustPath} className="gust" />
-      {/* speed line — one segment per hour, coloured by direction */}
-      {pts.slice(0, n - 1).map((p, i) => (
-        <line key={`s${i}`} x1={x(p)} y1={y(p.speed_kn)} x2={x(pts[i + 1])} y2={y(pts[i + 1].speed_kn)}
-              stroke={dirColor(p.dir_deg)} strokeWidth={2.8} strokeLinecap="round" />
-      ))}
+      {/* speed line — plain white; direction is read from the vanes on top */}
+      <path d={pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.speed_kn)}`).join(" ")}
+            fill="none" stroke="var(--text)" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" />
+
       {/* vanes on top — pointing to where the wind comes FROM */}
       {pts.map((p, i) => {
         if (i % vaneStep !== 0) return null;
         const col = dirColor(p.dir_deg);
-        const [tx, ty] = pt(x(p), vaneY, 10, p.dir_deg);
+        const [tx, ty] = pt(x(p), vaneY, 11, p.dir_deg);          // tip sticks out a touch further
         const [bx, by] = pt(x(p), vaneY, 10, p.dir_deg + 180);
-        const [l1x, l1y] = pt(tx, ty, 5, p.dir_deg + 150);
-        const [l2x, l2y] = pt(tx, ty, 5, p.dir_deg - 150);
+        const [l1x, l1y] = pt(tx, ty, 8, p.dir_deg + 158);        // longer + narrower head → pointier
+        const [l2x, l2y] = pt(tx, ty, 8, p.dir_deg - 158);
         return (
           <g key={`v${i}`}>
-            <line x1={bx} y1={by} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} />
-            <polygon points={`${tx},${ty} ${l1x},${l1y} ${l2x},${l2y}`} fill={col} />
+            <line x1={bx} y1={by} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} strokeLinecap="round" />
+            <polygon points={`${tx},${ty} ${l1x},${l1y} ${l2x},${l2y}`} fill={col} stroke={col} strokeWidth={0.8} strokeLinejoin="round" />
           </g>
         );
       })}
@@ -86,7 +103,21 @@ export default function WindChart(
       {multi && bands.segs.map((s, k) => (
         <text key={`dl${k}`} x={xFor(s.mid, t0, endMs)} y={axisY + 12} className="xtick">{k === 0 ? "nu" : s.label}</text>
       ))}
+      {/* hard-wind strip under the axis: green, red where sustained wind ≥ threshold */}
+      {pts.slice(0, n - 1).map((p, i) => (
+        <rect key={`hw${i}`} x={x(p)} y={stripTop} width={Math.max(0, x(pts[i + 1]) - x(p))} height={stripH}
+              fill={p.speed_kn >= WINDBAR_RED_KN ? "var(--hw)" : "var(--good)"} />
+      ))}
+      {showHover && <line className="crossline" x1={hx} y1={vaneY} x2={hx} y2={plotB} />}
       <title>{`${fmtTimeNL(pts[0].time)} – ${fmtTimeNL(pts[n - 1].time)}`}</title>
     </svg>
+    {showHover && hp && (
+      <div className="tip" style={{ left: `${tipPct}%` }}>
+        <b>{localWeekdayShort(hoverMs!)} {localHM(hoverMs!)}</b>
+        <span>{hp.speed_kn} kn · {compass(hp.dir_deg)} {hp.dir_deg}°</span>
+        <span>vlaag {Math.round(hp.gust_kn)} kn</span>
+      </div>
+    )}
+    </div>
   );
 }

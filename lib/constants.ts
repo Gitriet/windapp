@@ -34,3 +34,8 @@ export const WEEK_MODEL = "best_match";
 export const WARN = {
   hardWind: { amberKn: 22, amberGust: 28, redKn: 28, redGust: 34 },
 };
+
+// Wind-strip under the wind chart's axis: green, turning red once the sustained
+// wind reaches this threshold (kn). A single green→red cutoff, separate from the
+// 7-day card's amber/red triangle.
+export const WINDBAR_RED_KN = 22;

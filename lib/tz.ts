@@ -33,6 +33,13 @@ export function localWeekdayShort(ms: number): string {
   return fWeekday.format(ms).replace(".", "").toLowerCase();
 }
 
+// Amsterdam-local time-of-day as decimal hours (e.g. 14.5 = 14:30). Used by the
+// procedural stroom model, which works in hours-of-day around an HW reference.
+export function localHourDecimal(ms: number): number {
+  const p = parts(ms);
+  return p.h + p.mi / 60;
+}
+
 // "ma 22:00" in Amsterdam local time, from a UTC ISO string.
 export function fmtTimeNL(iso: string): string {
   const ms = msOf(iso);

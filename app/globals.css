@@ -5,6 +5,8 @@
   --accent: #7fd4e8; --gust: #f4a259; --good: #5fd0a6;
   --spread: #23485a;
   --tide: #4cb5d6; --tide2: #2c6076; --hw: #df6b6b; --lw: #5fd0a6;
+  --cur: #b4c3d1;          /* getijstroom: één neutrale kleur, nooit hue=richting */
+  --water: #0d2030; --land: #1c2530;
   --body: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --mono: var(--font-mono), ui-monospace, monospace;
 }
@@ -117,10 +119,8 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .daytab .dd.muted { color: var(--faint); }
 .daytab.on .dd.muted { color: var(--text); }
 .daytab .dv { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 3px; }
-.daytab .swatch { height: 4px; width: 100%; border-radius: 2px; margin-top: 7px; }
 .daytab.range { border-style: dashed; }
 .daytab.range.on { border-style: solid; }
-.swatch.wide { background: linear-gradient(90deg, hsl(20 62% 60%), hsl(140 62% 60%), hsl(260 62% 60%)); }
 
 /* wind + tide cards */
 .card { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
@@ -133,7 +133,6 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
   margin-top: 10px; flex-wrap: wrap; }
 .glegend .sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px;
   vertical-align: middle; margin-right: 6px; }
-.glegend .sw.grad { background: linear-gradient(90deg, hsl(20 62% 60%), hsl(140 62% 60%), hsl(260 62% 60%)); }
 
 /* weather strip — sky icons + temp wave, between wind and tide (same 14px h-pad
    as .card so the SVG aligns with the charts above and below) */
@@ -145,6 +144,16 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .wxi svg { color: var(--muted); display: block; }
 .wxi .t { font-family: var(--mono); font-size: 11px; color: var(--faint); }
 .tempcurve { display: block; width: 100%; margin-top: 2px; }
+.tempcurve .xtick { fill: var(--faint); font-size: 14px; text-anchor: middle; }
+
+/* shared hover crosshair + readout, overlaid on each chart */
+.chartwrap { position: relative; touch-action: pan-y; }
+.crossline { stroke: var(--text); stroke-opacity: .38; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.tip { position: absolute; top: 4px; transform: translateX(-50%); pointer-events: none; z-index: 5;
+  display: flex; flex-direction: column; gap: 1px; white-space: nowrap; line-height: 1.35;
+  background: rgba(13, 20, 27, .92); border: 1px solid var(--line2); border-radius: 8px;
+  padding: 5px 8px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.tip b { font-weight: 600; color: var(--text); }
 /* tide strip (next HW/LW) */
 .tide-strip { display: flex; gap: 18px; font-family: var(--mono); font-size: 12.5px;
   margin-bottom: 12px; flex-wrap: wrap; }
@@ -220,3 +229,57 @@ td .sub { color: var(--muted); font-size: 12px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .chip { background: var(--panel2); border: 1px solid var(--line2); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-family: var(--mono); }
 .chip button { background: none; border: none; color: var(--muted); padding: 0 0 0 6px; }
+
+/* ===== Stroom-tab (getijstroom) — één neutrale kleur, nooit hue=richting ===== */
+.cur-group { display: flex; flex-direction: column; }
+.cur-group .section-label { margin-bottom: 8px; }
+.srow { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 12px;
+  width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; padding: 13px 15px; margin-bottom: 9px; cursor: pointer; color: var(--text); }
+.srow:hover { border-color: var(--line2); }
+.srow-ar svg { display: block; }
+.srow-nm { font-size: 15px; font-weight: 600; display: block; }
+.srow-meta { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-top: 3px; display: block; }
+.srow-spd { text-align: right; font-family: var(--mono); display: flex; flex-direction: column; align-items: flex-end; }
+.srow-spd b { font-size: 19px; font-weight: 700; }
+.srow-spd span { font-size: 11px; color: var(--muted); }
+.cspark { margin-top: 4px; display: block; }
+.cur-hint { font-family: var(--mono); font-size: 11px; color: var(--faint); margin: 4px 4px 0;
+  line-height: 1.5; }
+
+/* stroom-detail */
+.cur-back { background: none; border: 0; cursor: pointer; padding: 4px 2px;
+  font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.cur-dhead { display: flex; justify-content: space-between; align-items: baseline; }
+.cur-dnm { font-size: 20px; font-weight: 700; }
+.cur-darea { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+.cur-nowline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.cur-nowline b { color: var(--text); font-weight: 700; font-size: 16px; }
+.cur-nowline svg { display: block; }
+
+/* stroomatlas (detail) */
+.card-h { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 10px; }
+.atlas-hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.atlas-clk { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+.atlas-clk b { color: var(--text); font-weight: 700; font-size: 14px; }
+.atlas-map { width: 100%; display: block; border-radius: 10px; }
+.atlas-controls { display: flex; align-items: center; gap: 11px; margin-top: 11px; }
+.atlas-play { flex: none; width: 34px; height: 34px; border-radius: 50%; padding: 0;
+  border: 1px solid var(--line2); background: var(--panel2); color: var(--text);
+  cursor: pointer; font-size: 12px; line-height: 1; }
+.atlas-controls input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 4px;
+  border: none; border-radius: 2px; background: var(--line2); outline: none; padding: 0; }
+.atlas-controls input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px;
+  border-radius: 50%; background: var(--accent); cursor: pointer; }
+.atlas-controls input[type=range]::-moz-range-thumb { width: 15px; height: 15px; border: none;
+  border-radius: 50%; background: var(--accent); cursor: pointer; }
+.atlas-ticks { display: flex; justify-content: space-between; font-family: var(--mono);
+  font-size: 9.5px; color: var(--faint); margin-top: 6px; padding: 0 2px; }
+.cur-legend { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 8px; line-height: 1.5; }
+
+/* stroom-verloop */
+.cflow { width: 100%; display: block; }
+.cflow-t { fill: var(--faint); font-size: 9px; font-family: var(--mono); }
+.cflow-now { fill: var(--accent); font-size: 9px; font-family: var(--mono); }

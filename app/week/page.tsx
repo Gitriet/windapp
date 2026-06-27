@@ -4,6 +4,7 @@ import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import WeekTable from "@/components/WeekTable";
 import { dirColor } from "@/lib/sailing";
+import { isLakeArea } from "@/lib/stroom";
 import type { Location, WeekDay } from "@/lib/types";
 
 // hue strip uses the same dirColor as the bars, so the legend literally matches
@@ -55,7 +56,8 @@ export default function Week() {
     <>
       <header className="top">
         <h1>Windvoorspelling</h1>
-        <Nav active="week" locKey={key} />
+        <Nav active="week" locKey={key}
+             showStroom={!isLakeArea(locs.find((l) => l.location_key === key)?.area ?? "")} />
       </header>
 
       <div className="panel">

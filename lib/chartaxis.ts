@@ -11,6 +11,20 @@ const HOUR = 3_600_000;
 export const xFor = (ms: number, t0: number, endMs: number) =>
   AXIS.PADL + ((ms - t0) / (endMs - t0)) * (AXIS.W - AXIS.PADL - AXIS.PADR);
 
+// Inverse of xFor: a viewBox x back to epoch ms.
+export const msForX = (vbX: number, t0: number, endMs: number) =>
+  t0 + ((vbX - AXIS.PADL) / (AXIS.W - AXIS.PADL - AXIS.PADR)) * (endMs - t0);
+
+// A pointer's clientX over a full-width chart (rect = the chart wrapper box) back
+// to epoch ms, SNAPPED to the whole hour (the hourly wind/weather grid) and
+// clamped to the window. Shared by all charts so one hover lines up everywhere.
+export function msForClientX(clientX: number, rect: DOMRect, t0: number, endMs: number) {
+  const fx = (clientX - rect.left) / Math.max(1, rect.width);
+  const raw = msForX(fx * AXIS.W, t0, endMs);
+  const snapped = Math.round(raw / HOUR) * HOUR;
+  return Math.max(t0, Math.min(endMs, snapped));
+}
+
 // Hour ticks aligned to LOCAL midnight so labels land on 00/06/12/18 local;
 // density scales with range so labels don't collide:
 // 1 day -> every 3h (all labelled); 2 days -> every 6h; 3 days -> every 6h, label every 2nd (12h).

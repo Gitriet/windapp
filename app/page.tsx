@@ -10,7 +10,7 @@ import Nav from "@/components/Nav";
 import { ktsToBft, compass } from "@/lib/format";
 import { fmtTimeNL, localHM, localDayLabel, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxGroup, wxLabel } from "@/lib/weather";
-import { circMeanDeg, dirColor } from "@/lib/sailing";
+import { isLakeArea } from "@/lib/stroom";
 import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -28,6 +28,8 @@ export default function Home() {
   const [tide, setTide] = useState<TideData | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  // shared hover instant across all three charts (null = not hovering)
+  const [hoverMs, setHoverMs] = useState<number | null>(null);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -105,13 +107,14 @@ export default function Home() {
     ? { group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx], cloud: wx.cloud[heroIdx], label: wxLabel(wx.code[heroIdx]) }
     : null;
 
-  // per-day stats for the day tabs (avg kn + a direction colour swatch)
+  // per-day stats for the day tabs (the day's wind-speed range, min–max kn)
   const dayStats = dayStarts.map((s, i) => {
     const ps = pts.filter((p) => { const m = ms(p.time); return m >= s && m < s + DAY_MS; });
+    const speeds = ps.map((p) => p.speed_kn);
     return {
       i, n: ps.length, label: i === 0 ? "nu" : localWeekdayShort(s),
-      avgKn: ps.length ? Math.round(ps.reduce((a, p) => a + p.speed_kn, 0) / ps.length) : 0,
-      avgDeg: ps.length ? circMeanDeg(ps.map((p) => p.dir_deg)) : 0,
+      loKn: ps.length ? Math.round(Math.min(...speeds)) : 0,
+      hiKn: ps.length ? Math.round(Math.max(...speeds)) : 0,
     };
   }).filter((d) => d.n > 0).slice(0, 4);
 
@@ -131,7 +134,8 @@ export default function Home() {
     <>
       <header className="top">
         <h1>Windvoorspelling</h1>
-        <Nav active="punt" locKey={key} />
+        <Nav active="punt" locKey={key}
+             showStroom={!isLakeArea(locs.find((l) => l.location_key === key)?.area ?? "")} />
       </header>
 
       <LocationPicker locations={locs} value={key} onChange={setKey} />
@@ -184,15 +188,13 @@ export default function Home() {
                       className={"daytab range" + (isRange ? " on" : "")}>
                 <span className="dd muted">3d</span>
                 <span className="dv">overzicht</span>
-                <span className="swatch wide" />
               </button>
               {dayStats.map((d) => (
                 <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
                         onClick={() => pickDay(d.i)}
                         className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
                   <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
-                  <span className="dv">{d.avgKn} kn</span>
-                  <span className="swatch" style={{ background: dirColor(d.avgDeg) }} />
+                  <span className="dv">{d.loKn}–{d.hiKn} kn</span>
                 </button>
               ))}
             </div>
@@ -204,18 +206,14 @@ export default function Home() {
               <span className="ct">Wind — {data.location.name}</span>
               <span className="cr">{dayRangeLabel}</span>
             </div>
-            <WindChart points={data.points} t0={t0} endMs={endMs} range={range} />
+            <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
+                       hoverMs={hoverMs} onHover={setHoverMs} />
             <div className="glegend">
-              <span><i className="sw grad" />snelheid</span>
+              <span><i className="sw" style={{ background: "var(--text)" }} />snelheid</span>
               <span><i className="sw" style={{ background: "var(--gust)" }} />vlagen</span>
               <span><i className="sw" style={{ background: "var(--spread)" }} />spreiding</span>
             </div>
           </div>
-
-          {/* WEATHER STRIP — sky only (no wind) + a temperature wave, shared axis */}
-          {wx && wx.time.length > 0 && (
-            <WeatherStrip weather={wx} t0={t0} endMs={endMs} range={range} />
-          )}
 
           {/* TIDE */}
           {tide && (
@@ -236,7 +234,8 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  <TideChart data={tide} t0={t0} endMs={endMs} range={range} />
+                  <TideChart data={tide} t0={t0} endMs={endMs} range={range}
+                             hoverMs={hoverMs} onHover={setHoverMs} />
                   <div className="glegend">
                     {!tide.expectedMissing && <span><i className="sw" style={{ background: "var(--tide)" }} />verwacht</span>}
                     <span><i className="sw" style={{ background: "var(--tide2)" }} />astronomisch</span>
@@ -252,6 +251,12 @@ export default function Home() {
                 </>
               )}
             </div>
+          )}
+
+          {/* WEATHER STRIP — sky only (no wind) + a temperature wave, shared axis */}
+          {wx && wx.time.length > 0 && (
+            <WeatherStrip weather={wx} t0={t0} endMs={endMs} range={range}
+                          hoverMs={hoverMs} onHover={setHoverMs} />
           )}
         </>
       )}
