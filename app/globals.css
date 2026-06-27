@@ -76,7 +76,7 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .tchart { display: block; width: 100%; height: auto; overflow: visible; }
 .tchart text { font-family: var(--mono); }
 .tchart .ytick { fill: var(--faint); font-size: 10px; text-anchor: end; }
-.tchart .xtick { fill: var(--faint); font-size: 11px; text-anchor: middle; }
+.tchart .xtick { fill: var(--faint); font-size: 14px; text-anchor: middle; }
 .tchart .tideexp { fill: none; stroke: var(--tide); stroke-width: 2.4; stroke-linecap: round; }
 .tchart .tideastro { fill: none; stroke: var(--tide2); stroke-width: 1.5; stroke-dasharray: 5 4;
   opacity: .75; stroke-linecap: round; }
@@ -160,7 +160,7 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 .chart text { font-family: var(--mono); }
 .chart .grid { stroke: #16232e; }
 .chart .ytick, .chart .xtick { fill: var(--faint); font-size: 11px; }
-.chart .xtick { text-anchor: middle; }
+.chart .xtick { text-anchor: middle; font-size: 14px; }
 .chart .ytick { text-anchor: end; }
 .chart .band { fill: var(--spread); opacity: .5; }
 .chart .gust { fill: none; stroke: var(--gust); stroke-width: 1.3; stroke-dasharray: 4 4; opacity: .8; }
