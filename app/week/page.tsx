@@ -70,7 +70,7 @@ export default function Week() {
         <div className="card">
           <div className="card-head">
             <span className="ct">7 dagen{selName ? ` — ${selName}` : ""}</span>
-            <span className="cr">gem · piek kn</span>
+            <span className="cr">max · piek kn</span>
           </div>
           <WeekTable days={days} locKey={key} />
           <div className="wk-legend">

@@ -86,11 +86,11 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
               <span className="wk-bar">
                 <span className="wk-track" />
                 <span className="wk-fill" style={{ left: `${pct(lo)}%`, width: `${Math.max(0, pct(hi) - pct(lo))}%`, background: col }} />
-                {d.windMean != null && <span className="wk-avg" style={{ left: `${pct(d.windMean)}%` }} />}
+                {d.speedMax != null && <span className="wk-avg" style={{ left: `${pct(d.speedMax)}%` }} />}
               </span>
 
               <span className="wk-nums">
-                <span className="wk-big">{d.windMean != null ? Math.round(d.windMean) : "–"}<span className="wk-u"> kn</span></span>
+                <span className="wk-big">{d.speedMax != null ? Math.round(d.speedMax) : "–"}<span className="wk-u"> kn</span></span>
                 <span className="wk-sub">
                   {wl && <span className={"wk-warn " + wl}>{TRI}</span>}
                   piek {Math.round(hi)}{d.tmax != null && <> · {Math.round(d.tmax)}°</>}

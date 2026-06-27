@@ -28,13 +28,9 @@ export const WEATHER_MODEL = "knmi_seamless";
 // is populated.
 export const WEEK_MODEL = "best_match";
 
-// Punt deterministic recap + warning thresholds — central config, never hardcoded
-// in the components. veer* = degrees of veering/backing before we call it a turn.
-export const RECAP = { edgeHours: 8, veerDay: 15, veer3d: 20 };
+// Hard-wind thresholds — central config, never hardcoded in components. Used by
+// the 7-day card's warning triangle: amber from 6 bft (gust ≥28 kn), red from
+// 7 bft (gust ≥34 kn).
 export const WARN = {
   hardWind: { amberKn: 22, amberGust: 28, redKn: 28, redGust: 34 },
-  // wind-against-current needs verified per-location current direction (stroomatlas
-  // / RWS). Until that exists it stays OFF so we never render a wrong warning;
-  // flip enabled (or gate per location) once real current data is wired in.
-  windVsCurrent: { enabled: false, angleDeg: 135, minBft: 4, minHours: 2 },
 };

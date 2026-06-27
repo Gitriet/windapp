@@ -75,8 +75,8 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 
 .tchart { display: block; width: 100%; height: auto; overflow: visible; }
 .tchart text { font-family: var(--mono); }
-.tchart .ytick { fill: var(--faint); font-size: 9px; text-anchor: end; }
-.tchart .xtick { fill: var(--faint); font-size: 8.5px; text-anchor: middle; }
+.tchart .ytick { fill: var(--faint); font-size: 10px; text-anchor: end; }
+.tchart .xtick { fill: var(--faint); font-size: 11px; text-anchor: middle; }
 .tchart .tideexp { fill: none; stroke: var(--tide); stroke-width: 2.4; stroke-linecap: round; }
 .tchart .tideastro { fill: none; stroke: var(--tide2); stroke-width: 1.5; stroke-dasharray: 5 4;
   opacity: .75; stroke-linecap: round; }
@@ -87,37 +87,19 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
    the cards below from shifting between tabs / when a warning appears. */
 .hero { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
   border-radius: 16px; padding: 16px 18px; }
-.warnings { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
-.warn { display: flex; align-items: center; gap: 9px; border-radius: 11px; padding: 9px 12px;
-  font-family: var(--mono); font-size: 12.5px; line-height: 1.3; overflow: hidden; }
-.warn .ic { flex: none; display: flex; }
-.warn span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.warn.amber { background: rgba(244,162,89,.12); border: 1px solid rgba(244,162,89,.42); color: #f0b46a; }
-.warn.red { background: rgba(223,107,107,.14); border: 1px solid rgba(223,107,107,.48); color: #f0869a; }
-.warn.calm { background: rgba(74,217,154,.07); border: 1px solid rgba(74,217,154,.22); color: #86b09f; }
-.warn b { color: #fff; font-weight: 600; }
 .hero-row { display: flex; align-items: center; gap: 18px; }
 .rose-wrap { flex: none; width: 112px; height: 112px; }
 .hero-data { flex: 1; min-width: 0; }
-.hero-kn { font-family: var(--mono); display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.hero-kn { font-family: var(--mono); display: flex; align-items: baseline; gap: 6px; }
 .hero-kn b { font-size: 40px; font-weight: 700; line-height: .95; letter-spacing: -.01em; }
 .hero-kn span { font-size: 16px; color: var(--muted); }
-.peaktag { flex-basis: 100%; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--faint); margin-bottom: 3px; }
-.peaktag.peak { color: var(--gust); }
 .hero-meta { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-top: 7px; letter-spacing: .02em; }
 .hero-meta b { color: var(--text); font-weight: 600; }
-.hero-weather { display: flex; align-items: center; gap: 6px; font-family: var(--mono);
-  font-size: 12.5px; color: var(--faint); margin-top: 10px;
-  white-space: nowrap; overflow: hidden; }
-.hero-weather > span { overflow: hidden; text-overflow: ellipsis; }
+.hero-weather { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-family: var(--mono);
+  font-size: 12.5px; color: var(--faint); margin-top: 10px; }
 .hero-weather .wxicon { color: var(--faint); flex: none; }
 .hero-weather .wxtemp { color: var(--text); }
 .hero-weather .wxcloud { color: var(--faint); }
-.hero-recap { font-family: var(--mono); font-size: 12.5px; color: var(--muted); line-height: 1.6;
-  margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
-.hero-recap .rl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-recap b { color: var(--text); font-weight: 600; }
 .badge-row { display: flex; gap: 7px; margin-top: 13px; flex-wrap: wrap; }
 .badge-row .badge { font-size: 11px; padding: 4px 9px; border-radius: 7px; }
 .badge.land { color: var(--gust); border-color: rgba(244,162,89,.45); }
@@ -147,13 +129,22 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .card-head .ct { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--faint);
   text-transform: uppercase; }
 .card-head .cr { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.ribbon-title { font-family: var(--mono); font-size: 11px; color: var(--faint); margin: 0 0 8px; }
 .glegend { display: flex; gap: 16px; font-family: var(--mono); font-size: 11.5px; color: var(--muted);
   margin-top: 10px; flex-wrap: wrap; }
 .glegend .sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px;
   vertical-align: middle; margin-right: 6px; }
 .glegend .sw.grad { background: linear-gradient(90deg, hsl(20 62% 60%), hsl(140 62% 60%), hsl(260 62% 60%)); }
 
+/* weather strip — sky icons + temp wave, between wind and tide (same 14px h-pad
+   as .card so the SVG aligns with the charts above and below) */
+.wxstrip { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
+  border-radius: 16px; padding: 12px 14px; }
+.wxrow { position: relative; height: 42px; }
+.wxi { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column;
+  align-items: center; gap: 2px; }
+.wxi svg { color: var(--muted); display: block; }
+.wxi .t { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.tempcurve { display: block; width: 100%; margin-top: 2px; }
 /* tide strip (next HW/LW) */
 .tide-strip { display: flex; gap: 18px; font-family: var(--mono); font-size: 12.5px;
   margin-bottom: 12px; flex-wrap: wrap; }
@@ -167,7 +158,7 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 .chart text { font-family: var(--mono); }
 .chart .grid { stroke: #16232e; }
-.chart .ytick, .chart .xtick { fill: var(--faint); font-size: 9px; }
+.chart .ytick, .chart .xtick { fill: var(--faint); font-size: 11px; }
 .chart .xtick { text-anchor: middle; }
 .chart .ytick { text-anchor: end; }
 .chart .band { fill: var(--spread); opacity: .5; }

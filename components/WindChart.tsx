@@ -22,8 +22,8 @@ export default function WindChart(
   if (!pts.length) return <p className="muted">Geen data.</p>;
   const n = pts.length;
   const { W, PADL, PADR } = AXIS;
-  const vaneY = 11, plotT = 24, plotH = 150, plotB = plotT + plotH;
-  const axisY = plotB + 6, H = axisY + 16;
+  const vaneY = 15, plotT = 34, plotH = 150, plotB = plotT + plotH;
+  const axisY = plotB + 6, H = axisY + 18;
   const x = (p: CorrectedPoint) => xFor(ms(p.time), t0, endMs);
   const maxY = Math.max(10, ...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
   const y = (v: number) => plotT + plotH - (v / maxY) * plotH;
@@ -65,13 +65,13 @@ export default function WindChart(
       {pts.map((p, i) => {
         if (i % vaneStep !== 0) return null;
         const col = dirColor(p.dir_deg);
-        const [tx, ty] = pt(x(p), vaneY, 6, p.dir_deg);
-        const [bx, by] = pt(x(p), vaneY, 6, p.dir_deg + 180);
-        const [l1x, l1y] = pt(tx, ty, 3.2, p.dir_deg + 150);
-        const [l2x, l2y] = pt(tx, ty, 3.2, p.dir_deg - 150);
+        const [tx, ty] = pt(x(p), vaneY, 10, p.dir_deg);
+        const [bx, by] = pt(x(p), vaneY, 10, p.dir_deg + 180);
+        const [l1x, l1y] = pt(tx, ty, 5, p.dir_deg + 150);
+        const [l2x, l2y] = pt(tx, ty, 5, p.dir_deg - 150);
         return (
           <g key={`v${i}`}>
-            <line x1={bx} y1={by} x2={tx} y2={ty} stroke={col} strokeWidth={1.6} />
+            <line x1={bx} y1={by} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} />
             <polygon points={`${tx},${ty} ${l1x},${l1y} ${l2x},${l2y}`} fill={col} />
           </g>
         );

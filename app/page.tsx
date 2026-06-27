@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import WindChart from "@/components/WindChart";
 import TideChart from "@/components/TideChart";
+import WeatherStrip from "@/components/WeatherStrip";
 import WeatherIcon from "@/components/WeatherIcon";
 import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
@@ -10,25 +11,11 @@ import { ktsToBft, compass } from "@/lib/format";
 import { fmtTimeNL, localHM, localDayLabel, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxGroup, wxLabel } from "@/lib/weather";
 import { circMeanDeg, dirColor } from "@/lib/sailing";
-import { buildRecap, buildWarning } from "@/lib/insights";
 import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const hhmm = (iso: string) => localHM(Date.parse(iso));
-
-const TRI = (
-  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-    <path d="M8 1.5 L15 14 L1 14 Z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    <line x1="8" y1="6" x2="8" y2="10.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    <circle cx="8" cy="12.3" r="0.9" fill="currentColor" />
-  </svg>
-);
-const CHK = (
-  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-    <path d="M3 8.5 L6.5 12 L13 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
@@ -128,12 +115,6 @@ export default function Home() {
     };
   }).filter((d) => d.n > 0).slice(0, 4);
 
-  // recap + warnings are derived from the SELECTED window, so they change per tab
-  const windowPoints = pts.filter((p) => { const m = ms(p.time); return m >= t0 - 1 && m <= endMs + 1000; });
-  const recapMode = isRange ? "range" : "day";
-  const recap = buildRecap(windowPoints, recapMode);
-  const warning = buildWarning(windowPoints, recapMode);
-
   const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
   const pickDay = (d: number) => { setRange(1); setDayIndex(Math.min(Math.max(0, d), maxDay)); };
 
@@ -141,11 +122,6 @@ export default function Home() {
     ? (["HW", "LW"] as const).map((k) => tide.extremes.find((e) => e.kind === k && Date.parse(e.t) >= Date.now()))
         .filter(Boolean).sort((a, b) => Date.parse(a!.t) - Date.parse(b!.t))
     : [];
-  // recap tides reflect the SELECTED day's window (not "next from now"), so a
-  // future day-tab summarises that day's HW/LW; the strip keeps "next from now".
-  const inWin = (t: string) => { const m = Date.parse(t); return m >= t0 && m <= endMs; };
-  const winHW = tide?.extremes.find((e) => e.kind === "HW" && inWin(e.t));
-  const winLW = tide?.extremes.find((e) => e.kind === "LW" && inWin(e.t));
 
   const dayRangeLabel = isRange
     ? `nu – ${dayStats[dayStats.length - 1]?.label ?? ""} · 3 dagen`
@@ -165,22 +141,12 @@ export default function Home() {
 
       {now && data && (
         <>
-          {/* HERO: rose + numbers → weather → recap → warning → badges.
-              Every field below the rose is fixed-height (recap = exactly two
-              one-line rows, warning = always one chip), so the cards underneath
-              never shift when tabbing between days or when a warning appears. */}
+          {/* HERO: rose + numbers → weather → badges. Nothing in between. */}
           <div className="hero">
             <div className="hero-row">
               <div className="rose-wrap"><Compass deg={hero.dir_deg} /></div>
               <div className="hero-data">
-                <div className="hero-kn">
-                  {/* caption is always present (fixed height) so the hero never
-                      changes height between the live "nu" view and a peak day */}
-                  <span className={"peaktag" + (heroIsPeak ? " peak" : "")}>
-                    {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : "actueel"}
-                  </span>
-                  <b>{hero.speed_kn}</b><span>kn</span>
-                </div>
+                <div className="hero-kn"><b>{hero.speed_kn}</b><span>kn</span></div>
                 <div className="hero-meta">
                   <b>{compass(hero.dir_deg)}</b> {hero.dir_deg}° · {ktsToBft(hero.speed_kn)} bft
                 </div>
@@ -195,43 +161,6 @@ export default function Home() {
               </div>
             </div>
 
-            {recap && (
-              <div className="hero-recap">
-                {/* Line A — strength + veer; no bft here (bft lives in hero-meta) */}
-                <div className="rl">
-                  {isRange ? (
-                    <>3 dagen · <b>{recap.knMin}–{recap.knMax} kn</b></>
-                  ) : recap.veer ? (
-                    <><b>{recap.knMin}–{recap.knMax} kn</b> · {recap.veer}{" "}
-                      <b>{recap.dirStart} → {recap.dirEnd}</b></>
-                  ) : (
-                    <><b>{recap.knMin}–{recap.knMax} kn</b> · uit <b>{recap.dirStart}</b></>
-                  )}
-                </div>
-                {/* Line B — gusts + tide (day) or trend + gusts (3d) */}
-                <div className="rl">
-                  {isRange ? (
-                    <>{recap.veer
-                        ? <>{recap.veer} <b>{recap.dirStart} → {recap.dirEnd}</b></>
-                        : <>overwegend <b>{recap.dirStart}</b></>}
-                      {" · "}vlagen <b>{recap.gustMax} kn</b></>
-                  ) : (
-                    <>vlagen <b>{recap.gustMax} kn</b>
-                      {winHW && <> · HW {hhmm(winHW.t)}</>}
-                      {winLW && <> · LW {hhmm(winLW.t)}</>}</>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* warning zone — always exactly one chip, fixed height */}
-            <div className="warnings">
-              <div className={`warn ${warning.level}`}>
-                <span className="ic">{warning.level === "calm" ? CHK : TRI}</span>
-                <span>{warning.text}</span>
-              </div>
-            </div>
-
             <div className="badge-row">
               {isLand && (
                 <span className="badge land" title="wind aan de wal — niet representatief voor open water">landstation</span>
@@ -240,7 +169,10 @@ export default function Home() {
               <span className={"badge" + (hero.corrected ? " ok" : "")}>
                 {hero.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
               </span>
-              <span className="badge">{fmtTimeNL(hero.time)}</span>
+              {/* live timestamp for "nu"; the peak hour (labelled) for a future day */}
+              <span className="badge">
+                {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : fmtTimeNL(hero.time)}
+              </span>
             </div>
           </div>
 
@@ -272,7 +204,6 @@ export default function Home() {
               <span className="ct">Wind — {data.location.name}</span>
               <span className="cr">{dayRangeLabel}</span>
             </div>
-            <div className="ribbon-title">snelheid in kn · kleur = richting</div>
             <WindChart points={data.points} t0={t0} endMs={endMs} range={range} />
             <div className="glegend">
               <span><i className="sw grad" />snelheid</span>
@@ -280,6 +211,11 @@ export default function Home() {
               <span><i className="sw" style={{ background: "var(--spread)" }} />spreiding</span>
             </div>
           </div>
+
+          {/* WEATHER STRIP — sky only (no wind) + a temperature wave, shared axis */}
+          {wx && wx.time.length > 0 && (
+            <WeatherStrip weather={wx} t0={t0} endMs={endMs} range={range} />
+          )}
 
           {/* TIDE */}
           {tide && (

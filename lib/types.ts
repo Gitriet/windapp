@@ -54,10 +54,9 @@ export type WeekDay = {
   code: number | null;       // weather_code
   pop: number | null;        // precipitation_probability_max, %
   dir: number | null;        // wind_direction_10m_dominant (source bearing)
-  speedMax: number | null;   // wind_speed_10m_max, kn
+  speedMax: number | null;   // wind_speed_10m_max, kn — headline + bar marker
   gust: number | null;       // wind_gusts_10m_max, kn — the day's "piek" (bar high end)
   windMin: number | null;    // min hourly wind_speed_10m over the local day, kn (bar low)
-  windMean: number | null;   // mean hourly wind_speed_10m over the local day, kn (headline)
   tmax: number | null;       // °C
   tmin: number | null;       // °C
 };
