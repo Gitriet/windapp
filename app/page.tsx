@@ -224,19 +224,33 @@ export default function Home() {
                 <span className="ct">Getij — {tide.name}</span>
                 <span className="cr">cm NAP</span>
               </div>
-              <div className="tide-strip">
-                {nextTide.map((e) => (
-                  <div className={"ev " + e!.kind.toLowerCase()} key={e!.kind}>
-                    <span className="pin" />
-                    {e!.kind === "HW" ? "Hoogwater" : "Laagwater"} {hhmm(e!.t)} <small>· {Math.round(e!.v)} cm</small>
+              {tide.unavailable ? (
+                <p className="tide-note">Getij tijdelijk niet beschikbaar — bron RWS onbereikbaar. Probeer het later opnieuw.</p>
+              ) : (
+                <>
+                  <div className="tide-strip">
+                    {nextTide.map((e) => (
+                      <div className={"ev " + e!.kind.toLowerCase()} key={e!.kind}>
+                        <span className="pin" />
+                        {e!.kind === "HW" ? "Hoogwater" : "Laagwater"} {hhmm(e!.t)} <small>· {Math.round(e!.v)} cm</small>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <TideChart data={tide} t0={t0} endMs={endMs} range={range} />
-              <div className="glegend">
-                <span><i className="sw" style={{ background: "var(--tide)" }} />verwacht</span>
-                <span><i className="sw" style={{ background: "var(--tide2)" }} />astronomisch</span>
-              </div>
+                  <TideChart data={tide} t0={t0} endMs={endMs} range={range} />
+                  <div className="glegend">
+                    {!tide.expectedMissing && <span><i className="sw" style={{ background: "var(--tide)" }} />verwacht</span>}
+                    <span><i className="sw" style={{ background: "var(--tide2)" }} />astronomisch</span>
+                  </div>
+                  {(tide.expectedMissing || tide.astroStale) && (
+                    <p className="tide-note">
+                      {tide.expectedMissing
+                        ? "Alleen astronomisch getij — verwachting (incl. windopzet) tijdelijk niet beschikbaar."
+                        : "Verwachting incl. windopzet."}
+                      {tide.astroStale && " Astronomisch: laatst bekende (bron RWS onbereikbaar)."}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           )}
         </>

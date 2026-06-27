@@ -4,9 +4,12 @@
 // no bias correction, no model comparison, no blend. WATHTE / Hoedanigheid NAP,
 // ProcesType "verwachting" (incl. windopzet) and "astronomisch".
 import type { TideData, TidePoint, TideExtreme } from "./types";
+import { sql } from "./db";
 
 const RWS =
   "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen";
+
+const DAY = 24 * 3600000;
 
 // Each coastal wind station -> nearest RWS getij location carrying BOTH the
 // expected and astronomical water level. Codes verified live against the RWS
@@ -76,19 +79,72 @@ function extrema(series: TidePoint[]): TideExtreme[] {
   return out;
 }
 
+// Astronomical tide is weather-independent and valid for weeks, so we cache the
+// last good series per getij code (self-provisioning table) and serve it when RWS
+// is unreachable. Both cache ops are best-effort — a DB hiccup must never break
+// the tide response.
+let cacheEnsured = false;
+async function ensureAstroCache(): Promise<void> {
+  if (cacheEnsured) return;
+  await sql`CREATE TABLE IF NOT EXISTS tide_astro_cache (
+    code TEXT PRIMARY KEY, payload JSONB NOT NULL, fetched_at TIMESTAMPTZ NOT NULL)`;
+  cacheEnsured = true;
+}
+async function writeAstroCache(code: string, astro: TidePoint[]): Promise<void> {
+  try {
+    await ensureAstroCache();
+    await sql`INSERT INTO tide_astro_cache (code, payload, fetched_at)
+      VALUES (${code}, ${JSON.stringify(astro)}, now())
+      ON CONFLICT (code) DO UPDATE SET payload = EXCLUDED.payload, fetched_at = EXCLUDED.fetched_at`;
+  } catch { /* cache is best-effort */ }
+}
+async function readAstroCache(code: string): Promise<TidePoint[] | null> {
+  try {
+    const rows = (await sql`SELECT payload FROM tide_astro_cache WHERE code = ${code}`) as
+      { payload: TidePoint[] }[];
+    return rows.length ? rows[0].payload : null;
+  } catch { return null; }
+}
+
 export async function buildTide(key: string): Promise<TideData | null> {
   const tgt = TIDE_STATIONS[key];
   if (!tgt) return null;                          // no coupled getij point -> no tide block
   const now = Date.now();
   const begin = now - 3600000;
-  const end = now + 3 * 24 * 3600000 + 3600000;  // cover the widest (3-day) window
-  const [expected, astro] = await Promise.all([
+  const end = now + 3 * DAY + 3600000;            // cover the widest (3-day) window
+  const astroEnd = now + 11 * DAY;                // fetch astronomical wider so a cached copy stays useful for ~8 days into an outage
+
+  // each series independently — one failing must not take down the other (RWS can
+  // 204/error per ProcesType), and a total RWS outage falls back to the cache.
+  const [expRes, astroRes] = await Promise.allSettled([
     fetchSeries(tgt.code, "verwachting", begin, end),
-    fetchSeries(tgt.code, "astronomisch", begin, end),
+    fetchSeries(tgt.code, "astronomisch", begin, astroEnd),
   ]);
+  const expected = expRes.status === "fulfilled" ? expRes.value : [];
+  let astroFull = astroRes.status === "fulfilled" ? astroRes.value : [];
+  let astroStale = false;
+
+  if (astroFull.length) {
+    await writeAstroCache(tgt.code, astroFull);   // refresh last-known on success
+  } else {
+    const cached = await readAstroCache(tgt.code);
+    if (cached && cached.length) { astroFull = cached; astroStale = true; }
+  }
+  // client only needs the visible window slice (cache holds the wider series)
+  const astro = astroFull.filter((p) => { const m = Date.parse(p.t); return m >= begin && m <= end; });
+
+  if (!expected.length && !astro.length) {
+    // tide station, but nothing to show (RWS down and no cache yet) — render a
+    // clear "unavailable" card rather than silently dropping the whole section.
+    return { code: tgt.code, name: tgt.name, expected: [], astro: [], extremes: [], unavailable: true };
+  }
+
   // HW/LW from the expected curve where it reaches; from astronomical beyond it.
   const expEnd = expected.length ? Date.parse(expected[expected.length - 1].t) : 0;
   const merged = [...extrema(expected), ...extrema(astro).filter((e) => Date.parse(e.t) > expEnd)];
   const extremes = merged.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
-  return { code: tgt.code, name: tgt.name, expected, astro, extremes };
+  return {
+    code: tgt.code, name: tgt.name, expected, astro, extremes,
+    expectedMissing: expected.length === 0, astroStale,
+  };
 }

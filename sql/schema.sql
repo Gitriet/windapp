@@ -38,6 +38,16 @@ CREATE TABLE IF NOT EXISTS forecast_cache (
   PRIMARY KEY (location_key, model_id)
 );
 
+-- Last-known astronomical tide per RWS getij location. Astronomical tide is
+-- weather-independent and valid for weeks, so a cached copy lets the tide layer
+-- survive an RWS outage (we serve it, labelled "laatste bekende"). One row per
+-- getij code (the table self-provisions on first write, see lib/tide.ts).
+CREATE TABLE IF NOT EXISTS tide_astro_cache (
+  code       TEXT PRIMARY KEY,        -- RWS getij location code, e.g. denhelder.marsdiep
+  payload    JSONB NOT NULL,          -- astronomical TidePoint[]  [{t,v}, ...]
+  fetched_at TIMESTAMPTZ NOT NULL
+);
+
 -- Saved routes (ordered calibrated waypoints). Optional in v1.
 CREATE TABLE IF NOT EXISTS routes (
   id            SERIAL PRIMARY KEY,

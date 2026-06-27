@@ -84,4 +84,8 @@ export type TideData = {
   expected: TidePoint[];   // verwachting (incl. wind setup), ~48h horizon
   astro: TidePoint[];      // astronomical, full window
   extremes: TideExtreme[]; // HW/LW from the expected curve, astro beyond its reach
+  // resilience flags when RWS is partly/fully unreachable
+  unavailable?: boolean;     // tide station, but no data at all (RWS down, no cache)
+  expectedMissing?: boolean; // verwachting (windopzet) failed; only astronomical shown
+  astroStale?: boolean;      // astronomical served from cache, not live
 };
