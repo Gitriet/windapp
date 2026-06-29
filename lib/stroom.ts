@@ -46,6 +46,15 @@ export const STROOM_GROUPS: { area: string; points: StroomPoint[] }[] = [
 export const ALL_POINTS: StroomPoint[] = STROOM_GROUPS.flatMap((g) => g.points);
 export const findPoint = (key: string) => ALL_POINTS.find((p) => p.key === key) ?? null;
 
+// Welke locatie hoort bij welk getijde-stroompunt — één bronwaarheid (ook gebruikt
+// door de /varen-route). Marsdiep is de focus (De Kooy → Den Helder); de rest is
+// een geografische benadering. Locaties zonder entry krijgen geen stroompijl.
+export const STROOM_BY_LOCATION: Record<string, string> = {
+  dekooy: "marsdiep", vlieland: "vlie", hoorn: "borndiep", ijmuiden: "ijmuiden",
+};
+export const stroomForLocation = (locationKey: string): StroomPoint | null =>
+  findPoint(STROOM_BY_LOCATION[locationKey] ?? "");
+
 // een gebied is een meer (geen getijstroom) -> Stroom-tab verbergen
 export const isLakeArea = (area: string) => /ijsselmeer|markermeer|ijmeer/i.test(area);
 

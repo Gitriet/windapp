@@ -8,19 +8,22 @@ import { localHM, localWeekdayShort, localMidnight, dayMidnights } from "./tz";
 export const AXIS = { W: 760, PADL: 40, PADR: 26 };
 const HOUR = 3_600_000;
 
-export const xFor = (ms: number, t0: number, endMs: number) =>
-  AXIS.PADL + ((ms - t0) / (endMs - t0)) * (AXIS.W - AXIS.PADL - AXIS.PADR);
+// The charts pass their measured viewBox width `w` (responsive); it defaults to
+// AXIS.W so any non-measuring caller keeps the old behaviour. PADL/PADR stay fixed
+// pixels, so margins are constant while the plot stretches with the screen.
+export const xFor = (ms: number, t0: number, endMs: number, w: number = AXIS.W) =>
+  AXIS.PADL + ((ms - t0) / (endMs - t0)) * (w - AXIS.PADL - AXIS.PADR);
 
 // Inverse of xFor: a viewBox x back to epoch ms.
-export const msForX = (vbX: number, t0: number, endMs: number) =>
-  t0 + ((vbX - AXIS.PADL) / (AXIS.W - AXIS.PADL - AXIS.PADR)) * (endMs - t0);
+export const msForX = (vbX: number, t0: number, endMs: number, w: number = AXIS.W) =>
+  t0 + ((vbX - AXIS.PADL) / (w - AXIS.PADL - AXIS.PADR)) * (endMs - t0);
 
 // A pointer's clientX over a full-width chart (rect = the chart wrapper box) back
 // to epoch ms, SNAPPED to the whole hour (the hourly wind/weather grid) and
 // clamped to the window. Shared by all charts so one hover lines up everywhere.
-export function msForClientX(clientX: number, rect: DOMRect, t0: number, endMs: number) {
+export function msForClientX(clientX: number, rect: DOMRect, t0: number, endMs: number, w: number = AXIS.W) {
   const fx = (clientX - rect.left) / Math.max(1, rect.width);
-  const raw = msForX(fx * AXIS.W, t0, endMs);
+  const raw = msForX(fx * w, t0, endMs, w);
   const snapped = Math.round(raw / HOUR) * HOUR;
   return Math.max(t0, Math.min(endMs, snapped));
 }
@@ -28,9 +31,11 @@ export function msForClientX(clientX: number, rect: DOMRect, t0: number, endMs: 
 // Hour ticks aligned to LOCAL midnight so labels land on 00/06/12/18 local;
 // density scales with range so labels don't collide:
 // 1 day -> every 3h (all labelled); 2 days -> every 6h; 3 days -> every 6h, label every 2nd (12h).
-export function hourTicks(t0: number, endMs: number, range: number) {
+export function hourTicks(t0: number, endMs: number, range: number, w: number = AXIS.W) {
   const stepH = range === 1 ? 3 : 6;
-  const labelEvery = range === 3 ? 2 : 1;
+  // on a narrow chart the labels would collide at true font size, so label every
+  // 2nd tick (6h) below ~430px; the wider it gets, the denser the labels.
+  const labelEvery = range === 3 ? 2 : (w < 430 ? 2 : 1);
   const step = stepH * HOUR, m0 = localMidnight(t0);
   const ticks: { ms: number; label: string | null }[] = [];
   let k = Math.ceil((t0 - m0) / step);

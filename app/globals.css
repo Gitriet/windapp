@@ -5,8 +5,13 @@
   --accent: #7fd4e8; --gust: #f4a259; --good: #5fd0a6;
   --spread: #23485a;
   --tide: #4cb5d6; --tide2: #2c6076; --hw: #df6b6b; --lw: #5fd0a6;
-  --cur: #b4c3d1;          /* getijstroom: één neutrale kleur, nooit hue=richting */
+  --cur: #b4c3d1;          /* getijstroom: neutrale kleur (kentering/slap) */
+  /* getijstroom-fase: twee kleuren voor vloed/eb (géén kompas-hue: zelfde as) */
+  --flood: #5b8df5; --ebb: #46b39a;
   --water: #0d2030; --land: #1c2530;
+  /* vaarcondities (/varen): vaarbaarheidsoordeel + stroom-op-koers */
+  --sail-g: #2fa46a; --sail-a: #e0a02e; --sail-r: #d5524e;
+  --sail-mee: #5b8df5; --sail-tegen: #244c9e; --sail-side: #3e6fd8;
   --body: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --mono: var(--font-mono), ui-monospace, monospace;
 }
@@ -103,6 +108,7 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .hero-weather .wxtemp { color: var(--text); }
 .hero-weather .wxcloud { color: var(--faint); }
 .badge-row { display: flex; gap: 7px; margin-top: 13px; flex-wrap: wrap; }
+.badge-row.foot { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
 .badge-row .badge { font-size: 11px; padding: 4px 9px; border-radius: 7px; }
 .badge.land { color: var(--gust); border-color: rgba(244,162,89,.45); }
 
@@ -283,3 +289,60 @@ td .sub { color: var(--muted); font-size: 12px; }
 .cflow { width: 100%; display: block; }
 .cflow-t { fill: var(--faint); font-size: 9px; font-family: var(--mono); }
 .cflow-now { fill: var(--accent); font-size: 9px; font-family: var(--mono); }
+
+/* ===== Vaarcondities (/varen) ===== */
+.vd-loc { display: flex; align-items: baseline; gap: 10px; }
+.vd-loc b { font-size: 18px; font-weight: 700; color: var(--text); }
+.vd-loc span { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+.vsec { display: flex; flex-direction: column; gap: 11px; }
+.vsec .section-label { margin-bottom: -1px; }
+.vcard { display: flex; flex-direction: column; gap: 9px; width: 100%; text-align: left;
+  background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
+  border-radius: 16px; padding: 14px 15px; cursor: pointer; color: var(--text); }
+.vcard:hover { border-color: var(--line2); }
+.vcard-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vcard-when b { font-size: 16px; font-weight: 600; }
+.vcard-when span { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 8px; }
+.vcard-wind { display: flex; align-items: center; gap: 7px; font-family: var(--mono); }
+.vcard-wind svg { display: block; }
+.vcard-comp { font-size: 12px; color: var(--faint); }
+.vcard-kn { font-size: 13px; color: var(--muted); }
+.vband { display: block; width: 100%; height: auto; overflow: visible; }
+.vband text { font-family: var(--mono); }
+.vcard-best { display: flex; align-items: baseline; gap: 10px; }
+.vcard-best .vlab { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.vcard-best b { font-size: 16px; font-weight: 600; color: var(--accent); }
+.vcard-best .vchev { margin-left: auto; color: var(--faint); font-size: 18px; }
+.vhint { font-family: var(--mono); font-size: 11px; color: var(--faint); line-height: 1.5; margin: 4px 2px 0; }
+
+/* detail */
+.vdetail { display: flex; flex-direction: column; gap: 12px; }
+.vd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vd-when b { font-size: 18px; font-weight: 700; }
+.vd-when span { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 8px; }
+.koers { display: flex; align-items: center; gap: 0; border: 1px solid var(--line2); border-radius: 9px;
+  background: var(--panel2); overflow: hidden; }
+.koers span { font-family: var(--mono); font-size: 13px; color: var(--text); padding: 0 10px; min-width: 92px; text-align: center; }
+.koers button { background: none; border: none; color: var(--accent); font-size: 18px; line-height: 1;
+  width: 34px; height: 34px; padding: 0; border-radius: 0; }
+.koers button:hover { background: var(--panel); }
+
+.vd-hero { display: flex; flex-direction: column; gap: 2px; background: linear-gradient(180deg, var(--panel), #0d141b);
+  border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.vd-hero .vlab { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.vd-hero b { font-size: 30px; font-weight: 700; letter-spacing: .01em; line-height: 1.05; }
+.vd-hero-sub { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+
+.vsvg { display: block; width: 100%; height: auto; overflow: visible;
+  background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line); border-radius: 16px; }
+.vsvg text { font-family: var(--mono); }
+.vsvg .vh { fill: var(--text); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.vsvg .vhsub { fill: var(--faint); font-size: 12px; }
+.vsvg .vtick { fill: var(--faint); font-size: 11px; }
+.vsvg .vrowlab { fill: var(--faint); font-size: 10.5px; }
+.vsvg .vstrip { fill: var(--muted); font-size: 11.5px; }
+
+.vlegend { display: flex; gap: 16px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+.vlegend span { display: inline-flex; align-items: center; }
+.vlegend .sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 6px; }

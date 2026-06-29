@@ -9,6 +9,7 @@
     "seed": "node scripts/seed.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/correction.test.ts",
+    "test:varen": "tsx test/varen.test.ts",
     "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {

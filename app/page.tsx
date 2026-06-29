@@ -9,8 +9,8 @@ import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import { ktsToBft, compass } from "@/lib/format";
 import { fmtTimeNL, localHM, localDayLabel, localWeekdayShort, dayMidnights } from "@/lib/tz";
-import { wxGroup, wxLabel } from "@/lib/weather";
-import { isLakeArea } from "@/lib/stroom";
+import { wxGroup, wxLabel, sunEvents, isNight } from "@/lib/weather";
+import { isLakeArea, stroomForLocation } from "@/lib/stroom";
 import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -20,7 +20,7 @@ const hhmm = (iso: string) => localHM(Date.parse(iso));
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
-  const [range, setRange] = useState(3);
+  const [range, setRange] = useState(1);
   // day-index = which day the window starts on; decoupled from range. The day
   // tabs drive both: 3d → range 3 / day 0, a day tab → range 1 / that day.
   const [dayIndex, setDayIndex] = useState(0);
@@ -74,6 +74,9 @@ export default function Home() {
   const now = data?.points?.[0];
   const wx = data?.weather;
   const isLand = !!data && /land/i.test(data.location.area);
+  // procedural current direction (vloed/eb) for the tide chart's vanes; null if
+  // this location has no coupled stroom point (then no direction is shown)
+  const streamPt = key ? stroomForLocation(key) : null;
 
   // available days = forecast start (now), then each local midnight up to the
   // horizon; the window starts at the chosen day and spans `range` days.
@@ -104,7 +107,11 @@ export default function Home() {
   const hero = pts[heroIdx] ?? now;
   const heroIsPeak = !startsNow;
   const wxHero = wx && wx.code.length
-    ? { group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx], cloud: wx.cloud[heroIdx], label: wxLabel(wx.code[heroIdx]) }
+    ? {
+        group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx], cloud: wx.cloud[heroIdx],
+        label: wxLabel(wx.code[heroIdx]),
+        night: isNight(ms(wx.time[heroIdx]), sunEvents(wx.sunrise, wx.sunset)),
+      }
     : null;
 
   // per-day stats for the day tabs (the day's wind-speed range, min–max kn)
@@ -145,7 +152,8 @@ export default function Home() {
 
       {now && data && (
         <>
-          {/* HERO: rose + numbers → weather → badges. Nothing in between. */}
+          {/* HERO: rose + numbers → weather. The source/correction/time badges
+              live at the bottom of the page. */}
           <div className="hero">
             <div className="hero-row">
               <div className="rose-wrap"><Compass deg={hero.dir_deg} /></div>
@@ -156,7 +164,7 @@ export default function Home() {
                 </div>
                 {wxHero && (
                   <div className="hero-weather">
-                    <WeatherIcon group={wxHero.group} size={17} className="wxicon" />
+                    <WeatherIcon group={wxHero.group} size={17} className="wxicon" night={wxHero.night} />
                     {wxHero.temp != null && <span className="wxtemp">{Math.round(wxHero.temp)}°</span>}
                     <span>{wxHero.label}</span>
                     {wxHero.cloud != null && <span className="wxcloud">· {wxHero.cloud}% bewolking</span>}
@@ -164,31 +172,11 @@ export default function Home() {
                 )}
               </div>
             </div>
-
-            <div className="badge-row">
-              {isLand && (
-                <span className="badge land" title="wind aan de wal — niet representatief voor open water">landstation</span>
-              )}
-              <span className="badge">{hero.model_label}</span>
-              <span className={"badge" + (hero.corrected ? " ok" : "")}>
-                {hero.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
-              </span>
-              {/* live timestamp for "nu"; the peak hour (labelled) for a future day */}
-              <span className="badge">
-                {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : fmtTimeNL(hero.time)}
-              </span>
-            </div>
           </div>
 
           {/* DAY TABS — replace the 1d/2d/3d toggle */}
           <div className="daysec">
-            <div className="section-label">Kies een dag</div>
             <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
-              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
-                      className={"daytab range" + (isRange ? " on" : "")}>
-                <span className="dd muted">3d</span>
-                <span className="dv">overzicht</span>
-              </button>
               {dayStats.map((d) => (
                 <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
                         onClick={() => pickDay(d.i)}
@@ -197,6 +185,11 @@ export default function Home() {
                   <span className="dv">{d.loKn}–{d.hiKn} kn</span>
                 </button>
               ))}
+              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
+                      className={"daytab range" + (isRange ? " on" : "")}>
+                <span className="dd muted">3d</span>
+                <span className="dv">overzicht</span>
+              </button>
             </div>
           </div>
 
@@ -206,8 +199,13 @@ export default function Home() {
               <span className="ct">Wind — {data.location.name}</span>
               <span className="cr">{dayRangeLabel}</span>
             </div>
+            {/* weather icons on the shared time axis, above the wind chart */}
+            {wx && wx.time.length > 0 && (
+              <WeatherStrip weather={wx} t0={t0} endMs={endMs} />
+            )}
             <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
-                       hoverMs={hoverMs} onHover={setHoverMs} />
+                       hoverMs={hoverMs} onHover={setHoverMs}
+                       sun={wx ? { sunrise: wx.sunrise, sunset: wx.sunset } : undefined} />
             <div className="glegend">
               <span><i className="sw" style={{ background: "var(--text)" }} />snelheid</span>
               <span><i className="sw" style={{ background: "var(--gust)" }} />vlagen</span>
@@ -235,10 +233,28 @@ export default function Home() {
                     ))}
                   </div>
                   <TideChart data={tide} t0={t0} endMs={endMs} range={range}
-                             hoverMs={hoverMs} onHover={setHoverMs} />
+                             hoverMs={hoverMs} onHover={setHoverMs} stream={streamPt} />
                   <div className="glegend">
                     {!tide.expectedMissing && <span><i className="sw" style={{ background: "var(--tide)" }} />verwacht</span>}
                     <span><i className="sw" style={{ background: "var(--tide2)" }} />astronomisch</span>
+                    {streamPt && (
+                      <>
+                        <span>
+                          <svg width={13} height={13} viewBox="0 0 24 24" style={{ verticalAlign: "middle", marginRight: 6 }}
+                               fill="none" stroke="var(--flood)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 4 L12 20 M7 9 L12 4 L17 9" />
+                          </svg>
+                          vloed
+                        </span>
+                        <span>
+                          <svg width={13} height={13} viewBox="0 0 24 24" style={{ verticalAlign: "middle", marginRight: 6 }}
+                               fill="none" stroke="var(--ebb)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 4 L12 20 M7 9 L12 4 L17 9" />
+                          </svg>
+                          eb <small className="muted" style={{ marginLeft: 4 }}>· stroom voorspeld</small>
+                        </span>
+                      </>
+                    )}
                   </div>
                   {(tide.expectedMissing || tide.astroStale) && (
                     <p className="tide-note">
@@ -253,11 +269,20 @@ export default function Home() {
             </div>
           )}
 
-          {/* WEATHER STRIP — sky only (no wind) + a temperature wave, shared axis */}
-          {wx && wx.time.length > 0 && (
-            <WeatherStrip weather={wx} t0={t0} endMs={endMs} range={range}
-                          hoverMs={hoverMs} onHover={setHoverMs} />
-          )}
+          {/* source / correction / time — moved out of the hero to the bottom */}
+          <div className="badge-row foot">
+            {isLand && (
+              <span className="badge land" title="wind aan de wal — niet representatief voor open water">landstation</span>
+            )}
+            <span className="badge">{hero.model_label}</span>
+            <span className={"badge" + (hero.corrected ? " ok" : "")}>
+              {hero.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
+            </span>
+            {/* live timestamp for "nu"; the peak hour (labelled) for a future day */}
+            <span className="badge">
+              {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : fmtTimeNL(hero.time)}
+            </span>
+          </div>
         </>
       )}
     </>
