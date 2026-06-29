@@ -29,6 +29,12 @@ export function localHM(ms: number): string {
   return String(p.h).padStart(2, "0") + ":" + String(p.mi).padStart(2, "0");
 }
 
+// Compact whole-hour label for dense axes: "6", "15", "0" (no leading zero, no
+// ":00"). Used for the chart hour ticks so the labels take little width.
+export function localHourShort(ms: number): string {
+  return String(parts(ms).h);
+}
+
 export function localWeekdayShort(ms: number): string {
   return fWeekday.format(ms).replace(".", "").toLowerCase();
 }

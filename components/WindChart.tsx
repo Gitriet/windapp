@@ -28,7 +28,9 @@ export default function WindChart(
   if (!pts.length) return <p className="muted">Geen data.</p>;
   const n = pts.length;
   const { PADL, PADR } = AXIS;
-  const vaneY = 15, plotT = 34, plotH = 150, plotB = plotT + plotH;
+  // extra gap between the vane row (+ sun-time labels) and the plot, so the kn
+  // numbers and sun times never crowd the arrows or the curve.
+  const vaneY = 15, plotT = 48, plotH = 150, plotB = plotT + plotH;
   const axisY = plotB + 6;
   const stripTop = axisY + 20, stripH = 6, H = stripTop + stripH + 2;
   const xf = (m: number) => xFor(m, t0, endMs, W);
@@ -44,7 +46,7 @@ export default function WindChart(
   const yticks: number[] = [];
   for (let v = 10; v < maxY; v += 10) yticks.push(v);
   const bands = dayBands(t0, endMs);
-  const ticks = hourTicks(t0, endMs, range, W);
+  const ticks = hourTicks(t0, endMs, range);
   const multi = range > 1;
   const vaneStep = Math.max(1, Math.round(n / 8));   // ~8 vanes across the window
 
@@ -141,7 +143,7 @@ export default function WindChart(
           {/* time only on a single day — across 3 days the labels would collide
               (the night shading still marks day/night there) */}
           {!multi && (
-            <text x={s.x} y={plotT - 3} fill="#e2a857" fontSize={9.5} textAnchor="middle" opacity={0.95}>
+            <text x={s.x} y={plotT - 10} fill="#e2a857" fontSize={9.5} textAnchor="middle" opacity={0.95}>
               {(s.rise ? "↑" : "↓") + " " + localHM(s.ms)}
             </text>
           )}

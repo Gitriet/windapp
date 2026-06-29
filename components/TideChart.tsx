@@ -41,7 +41,8 @@ export default function TideChart(
   // room above the plot for it; without one, keep the original compact layout.
   const hasStream = !!stream;
   const vaneY = 13;
-  const plotT = hasStream ? 40 : 24, plotH = 150, plotB = plotT + plotH;
+  // more gap below the stroom vanes so the top cm number and HW label have room
+  const plotT = hasStream ? 48 : 24, plotH = 150, plotB = plotT + plotH;
   const axisY = plotB + 6, H = axisY + 18;
 
   // ~8 current-direction samples across the window. Neutral colour only — direction
@@ -65,7 +66,18 @@ export default function TideChart(
   const x = (iso: string) => xf(ms(iso));
 
   const bands = dayBands(t0, endMs);
-  const ticks = hourTicks(t0, endMs, range, W);
+  const ticks = hourTicks(t0, endMs, range);
+
+  // which HW/LW labels to draw: skip one if it sits too close in x to the previous
+  // label on the same side (HW above / LW below), so the times never overlap.
+  const LABEL_GAP = 34;
+  const showLabel = new Set<number>();
+  let lastHW = -1e9, lastLW = -1e9;
+  ext.forEach((e, k) => {
+    const cx = x(e.t);
+    if (e.kind === "HW") { if (cx - lastHW >= LABEL_GAP) { showLabel.add(k); lastHW = cx; } }
+    else { if (cx - lastLW >= LABEL_GAP) { showLabel.add(k); lastLW = cx; } }
+  });
   const grid: number[] = [];
   for (let v = -150; v <= 150; v += 50) if (v >= ymin - 5 && v <= ymax + 5) grid.push(v);
 
@@ -114,8 +126,9 @@ export default function TideChart(
         return (
           <g key={`e${k}`}>
             <circle cx={cx} cy={cy} r={3.4} fill={col} stroke="#0d141b" strokeWidth={1.3} />
-            {/* HW/LW time labels only on a single day — too dense across 3 days */}
-            {range === 1 && (
+            {/* HW/LW time labels only on a single day, and only when there's room
+                (close-together extremes drop their label to avoid overlap) */}
+            {range === 1 && showLabel.has(k) && (
               <text x={cx} y={cy + (e.kind === "HW" ? -8 : 15)} fontSize={10}
                     fill={col} textAnchor="middle">{localHM(ms(e.t))}</text>
             )}

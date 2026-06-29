@@ -3,7 +3,7 @@
 // instant lands at the same x in both — that vertical alignment is the point.
 // Labels and day boundaries are in Europe/Amsterdam local time (see lib/tz); the
 // x-mapping stays pure epoch-ms, so the two charts remain aligned.
-import { localHM, localWeekdayShort, localMidnight, dayMidnights } from "./tz";
+import { localHourShort, localWeekdayShort, localMidnight, dayMidnights } from "./tz";
 
 export const AXIS = { W: 760, PADL: 40, PADR: 26 };
 const HOUR = 3_600_000;
@@ -31,17 +31,15 @@ export function msForClientX(clientX: number, rect: DOMRect, t0: number, endMs: 
 // Hour ticks aligned to LOCAL midnight so labels land on 00/06/12/18 local;
 // density scales with range so labels don't collide:
 // 1 day -> every 3h (all labelled); 2 days -> every 6h; 3 days -> every 6h, label every 2nd (12h).
-export function hourTicks(t0: number, endMs: number, range: number, w: number = AXIS.W) {
+export function hourTicks(t0: number, endMs: number, range: number) {
   const stepH = range === 1 ? 3 : 6;
-  // on a narrow chart the labels would collide at true font size, so label every
-  // 2nd tick (6h) below ~430px; the wider it gets, the denser the labels.
-  const labelEvery = range === 3 ? 2 : (w < 430 ? 2 : 1);
+  const labelEvery = range === 3 ? 2 : 1;
   const step = stepH * HOUR, m0 = localMidnight(t0);
   const ticks: { ms: number; label: string | null }[] = [];
   let k = Math.ceil((t0 - m0) / step);
   for (let ms = m0 + k * step; ms <= endMs + 1000; k++, ms = m0 + k * step) {
     const major = ((k % labelEvery) + labelEvery) % labelEvery === 0;
-    ticks.push({ ms, label: major ? localHM(ms) : null });
+    ticks.push({ ms, label: major ? localHourShort(ms) : null });
   }
   return ticks;
 }
