@@ -128,6 +128,14 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .daytab.range { border-style: dashed; }
 .daytab.range.on { border-style: solid; }
 
+/* one big frame holding hero + wind + tide + badges; the child sections drop
+   their own card chrome and are separated by thin dividers so it reads as one. */
+.bigframe { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
+  border-radius: 16px; overflow: hidden; }
+.bigframe > .hero, .bigframe > .card { background: none; border: none; border-radius: 0; padding: 16px; }
+.bigframe > * + * { border-top: 1px solid var(--line); }
+.bigframe > .badge-row.foot { margin-top: 0; padding: 14px 16px; }
+
 /* wind + tide cards */
 .card { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
   border-radius: 16px; padding: 16px 14px; }

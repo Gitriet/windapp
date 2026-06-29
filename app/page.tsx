@@ -152,8 +152,29 @@ export default function Home() {
 
       {now && data && (
         <>
+          {/* DAY TABS — separate tiles, above the combined frame */}
+          <div className="daysec">
+            <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
+              {dayStats.map((d) => (
+                <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
+                        onClick={() => pickDay(d.i)}
+                        className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
+                  <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
+                  <span className="dv">{d.loKn}–{d.hiKn} kn</span>
+                </button>
+              ))}
+              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
+                      className={"daytab range" + (isRange ? " on" : "")}>
+                <span className="dd muted">3d</span>
+                <span className="dv">overzicht</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ONE BIG FRAME — hero + wind + tide + badges combined */}
+          <div className="bigframe">
           {/* HERO: rose + numbers → weather. The source/correction/time badges
-              live at the bottom of the page. */}
+              live at the bottom of the frame. */}
           <div className="hero">
             <div className="hero-row">
               <div className="rose-wrap"><Compass deg={hero.dir_deg} /></div>
@@ -171,25 +192,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* DAY TABS — replace the 1d/2d/3d toggle */}
-          <div className="daysec">
-            <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
-              {dayStats.map((d) => (
-                <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
-                        onClick={() => pickDay(d.i)}
-                        className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
-                  <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
-                  <span className="dv">{d.loKn}–{d.hiKn} kn</span>
-                </button>
-              ))}
-              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
-                      className={"daytab range" + (isRange ? " on" : "")}>
-                <span className="dd muted">3d</span>
-                <span className="dv">overzicht</span>
-              </button>
             </div>
           </div>
 
@@ -282,6 +284,7 @@ export default function Home() {
             <span className="badge">
               {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : fmtTimeNL(hero.time)}
             </span>
+          </div>
           </div>
         </>
       )}
