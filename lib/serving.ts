@@ -13,7 +13,7 @@ import type {
 
 type WeatherCell = {
   code: number | null; temp: number | null; cloud: number | null;
-  precip: number | null; pop: number | null; vis: number | null;
+  precip: number | null; pop: number | null; vis: number | null; pressure: number | null;
 };
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -56,7 +56,9 @@ async function ensureRaw(loc: Location, modelId: string, withWeather = false): P
     { payload: RawSeries; fetched_at: string }[];
   if (rows.length) {
     const ageMin = (Date.now() - Date.parse(rows[0].fetched_at)) / 60000;
-    const hasWeather = !withWeather || rows[0].payload.weather_code != null;
+    // require pressure too, so payloads cached before pressure was added refetch
+    const hasWeather = !withWeather ||
+      (rows[0].payload.weather_code != null && rows[0].payload.pressure != null);
     if (ageMin < TTL_MINUTES && hasWeather) return rows[0].payload;
   }
   const raw = await fetchModel(loc.lat, loc.lon, modelId, withWeather);
@@ -102,6 +104,7 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
       precip: weatherRaw.precip?.[i] ?? null,
       pop: weatherRaw.pop?.[i] ?? null,
       vis: weatherRaw.vis?.[i] ?? null,
+      pressure: weatherRaw.pressure?.[i] ?? null,
     });
   }
   return {
@@ -147,7 +150,7 @@ export async function buildSeries(
   const points: CorrectedPoint[] = [];
   // weather overlay, built in lockstep so it stays equal-length and same-timed
   const w: WeatherSeries = {
-    time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [],
+    time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [], pressure: [],
     sunrise: L.sunrise, sunset: L.sunset,
   };
   for (const iso of L.times) {
@@ -162,6 +165,7 @@ export async function buildSeries(
     w.time.push(iso);
     w.code.push(c?.code ?? null); w.temp.push(c?.temp ?? null); w.cloud.push(c?.cloud ?? null);
     w.precip.push(c?.precip ?? null); w.pop.push(c?.pop ?? null); w.vis.push(c?.vis ?? null);
+    w.pressure.push(c?.pressure ?? null);
   }
   return { location: L.loc, points, weather: w };
 }

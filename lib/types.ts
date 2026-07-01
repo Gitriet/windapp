@@ -29,6 +29,7 @@ export type RawSeries = {
   precip?: (number | null)[];     // mm
   pop?: (number | null)[];        // % probability of precipitation
   vis?: (number | null)[];        // metres
+  pressure?: (number | null)[];   // hPa, mean sea level
   sunrise?: string[];             // ISO UTC, one per day
   sunset?: string[];
 };
@@ -43,6 +44,7 @@ export type WeatherSeries = {
   precip: (number | null)[];
   pop: (number | null)[];
   vis: (number | null)[];
+  pressure: (number | null)[];    // hPa, mean sea level
   sunrise: string[];
   sunset: string[];
 };

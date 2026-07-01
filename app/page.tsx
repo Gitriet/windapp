@@ -17,6 +17,14 @@ const DAY_MS = 24 * 3600 * 1000;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const hhmm = (iso: string) => localHM(Date.parse(iso));
 
+// pressure tendency over the next ~3h from a given hour: ↑ rising, ↓ falling, → steady
+function pressArrow(pressure: (number | null)[], i: number): string {
+  const a = pressure[i], b = pressure[Math.min(i + 3, pressure.length - 1)];
+  if (a == null || b == null) return "";
+  const d = b - a;
+  return d > 0.6 ? "↑" : d < -0.6 ? "↓" : "→";
+}
+
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
@@ -108,21 +116,18 @@ export default function Home() {
   const heroIsPeak = !startsNow;
   const wxHero = wx && wx.code.length
     ? {
-        group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx], cloud: wx.cloud[heroIdx],
+        group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx],
         label: wxLabel(wx.code[heroIdx]),
         night: isNight(ms(wx.time[heroIdx]), sunEvents(wx.sunrise, wx.sunset)),
+        pressure: wx.pressure[heroIdx],
+        pressureTrend: pressArrow(wx.pressure, heroIdx),
       }
     : null;
 
-  // per-day stats for the day tabs (the day's wind-speed range, min–max kn)
+  // available days for the day tabs (label only — nu / weekday)
   const dayStats = dayStarts.map((s, i) => {
-    const ps = pts.filter((p) => { const m = ms(p.time); return m >= s && m < s + DAY_MS; });
-    const speeds = ps.map((p) => p.speed_kn);
-    return {
-      i, n: ps.length, label: i === 0 ? "nu" : localWeekdayShort(s),
-      loKn: ps.length ? Math.round(Math.min(...speeds)) : 0,
-      hiKn: ps.length ? Math.round(Math.max(...speeds)) : 0,
-    };
+    const n = pts.filter((p) => { const m = ms(p.time); return m >= s && m < s + DAY_MS; }).length;
+    return { i, n, label: i === 0 ? "nu" : localWeekdayShort(s) };
   }).filter((d) => d.n > 0).slice(0, 4);
 
   const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
@@ -152,26 +157,7 @@ export default function Home() {
 
       {now && data && (
         <>
-          {/* DAY TABS — separate tiles, above the combined frame */}
-          <div className="daysec">
-            <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
-              {dayStats.map((d) => (
-                <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
-                        onClick={() => pickDay(d.i)}
-                        className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
-                  <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
-                  <span className="dv">{d.loKn}–{d.hiKn} kn</span>
-                </button>
-              ))}
-              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
-                      className={"daytab range" + (isRange ? " on" : "")}>
-                <span className="dd muted">3d</span>
-                <span className="dv">overzicht</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ONE BIG FRAME — hero + wind + tide + badges combined */}
+          {/* ONE BIG FRAME — day tabs + hero + wind + tide + badges combined */}
           <div className="bigframe">
           {/* HERO: rose + numbers → weather. The source/correction/time badges
               live at the bottom of the frame. */}
@@ -188,10 +174,29 @@ export default function Home() {
                     <WeatherIcon group={wxHero.group} size={17} className="wxicon" night={wxHero.night} />
                     {wxHero.temp != null && <span className="wxtemp">{Math.round(wxHero.temp)}°</span>}
                     <span>{wxHero.label}</span>
-                    {wxHero.cloud != null && <span className="wxcloud">· {wxHero.cloud}% bewolking</span>}
+                    {wxHero.pressure != null && (
+                      <span className="wxpress">· {Math.round(wxHero.pressure)} hPa{wxHero.pressureTrend && ` ${wxHero.pressureTrend}`}</span>
+                    )}
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* DAY TABS — selector inside the frame, between hero and the charts */}
+          <div className="daysec">
+            <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
+              {dayStats.map((d) => (
+                <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
+                        onClick={() => pickDay(d.i)}
+                        className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
+                  <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
+                </button>
+              ))}
+              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
+                      className={"daytab range" + (isRange ? " on" : "")}>
+                <span className="dd muted">3d</span>
+              </button>
             </div>
           </div>
 

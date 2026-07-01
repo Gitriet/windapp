@@ -14,6 +14,7 @@ export async function fetchModel(
   const hourly = ["wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"];
   if (withWeather) hourly.push(
     "weather_code", "temperature_2m", "cloud_cover", "precipitation", "precipitation_probability", "visibility",
+    "pressure_msl",
   );
   const params = new URLSearchParams({
     latitude: String(lat),
@@ -46,6 +47,7 @@ export async function fetchModel(
     out.precip = h.precipitation ?? [];
     out.pop = h.precipitation_probability ?? [];
     out.vis = h.visibility ?? [];
+    out.pressure = h.pressure_msl ?? [];
     out.sunrise = d.sunrise ?? [];
     out.sunset = d.sunset ?? [];
   }

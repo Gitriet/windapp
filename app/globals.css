@@ -107,6 +107,7 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .hero-weather .wxicon { color: var(--faint); flex: none; }
 .hero-weather .wxtemp { color: var(--text); }
 .hero-weather .wxcloud { color: var(--faint); }
+.hero-weather .wxpress { color: var(--faint); }
 .badge-row { display: flex; gap: 7px; margin-top: 13px; flex-wrap: wrap; }
 .badge-row.foot { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
 .badge-row .badge { font-size: 11px; padding: 4px 9px; border-radius: 7px; }
@@ -124,7 +125,6 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .daytab .dd { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
 .daytab .dd.muted { color: var(--faint); }
 .daytab.on .dd.muted { color: var(--text); }
-.daytab .dv { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 3px; }
 .daytab.range { border-style: dashed; }
 .daytab.range.on { border-style: solid; }
 
@@ -133,6 +133,7 @@ label { color: var(--faint); font-family: var(--mono); font-size: 11px; letter-s
 .bigframe { background: linear-gradient(180deg, var(--panel), #0d141b); border: 1px solid var(--line);
   border-radius: 16px; overflow: hidden; }
 .bigframe > .hero, .bigframe > .card { background: none; border: none; border-radius: 0; padding: 16px; }
+.bigframe > .daysec { padding: 16px; }
 .bigframe > * + * { border-top: 1px solid var(--line); }
 .bigframe > .badge-row.foot { margin-top: 0; padding: 14px 16px; }
 
