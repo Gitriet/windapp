@@ -74,6 +74,7 @@ export type CorrectedPoint = {
   band_low_kn: number;     // model-spread band (corrected models)
   band_high_kn: number;
   corrected: boolean;
+  beyond?: boolean;        // past the 72h corrected horizon — shown, but less certain
 };
 
 // Tide layer (Wad stations only): water level vs NAP in cm, straight from RWS.

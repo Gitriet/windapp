@@ -37,6 +37,7 @@ type LoadedLocation = {
   rawMaps: Map<string, Map<string, { speed: number; dir: number; gust: number }>>;
   times: string[];
   weather: Map<string, WeatherCell>;            // by iso, from the weather model
+  weatherTimes: string[];                       // the weather model's own (longer) grid
   sunrise: string[];
   sunset: string[];
 };
@@ -108,7 +109,7 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
     });
   }
   return {
-    loc, serving, bias, rawMaps, times, weather,
+    loc, serving, bias, rawMaps, times, weather, weatherTimes: weatherRaw.time,
     sunrise: weatherRaw.sunrise ?? [], sunset: weatherRaw.sunset ?? [],
   };
 }
@@ -147,20 +148,29 @@ export async function buildSeries(
   const L = await loadLocation(key);
   if (!L) return null;
   const now = Date.now();
+  // wind points across the full fetched range. Up to 72h the three leads apply as
+  // usual; past 72h there is no dedicated lead, so the furthest (lead 3) model +
+  // correction carries on, flagged `beyond` so the UI can mark it less certain.
   const points: CorrectedPoint[] = [];
-  // weather overlay, built in lockstep so it stays equal-length and same-timed
+  for (const iso of L.times) {
+    const hoursAhead = (Date.parse(iso + "Z") - now) / 3600000;
+    if (hoursAhead < -1) continue;                 // drop already-past hours
+    const lead = hoursToLead(Math.max(0, hoursAhead));
+    const p = pointAt(L, iso, lead);
+    if (!p) continue;
+    if (hoursAhead > HORIZON_HOURS) p.beyond = true;
+    points.push(p);
+  }
+  // weather overlay: a separate display layer on its OWN horizon (the full 4-day
+  // fetch), so future days still show sky/temp past the 72h wind cap. Positioned
+  // on the shared time axis by timestamp, so it need not match points 1:1.
   const w: WeatherSeries = {
     time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [], pressure: [],
     sunrise: L.sunrise, sunset: L.sunset,
   };
-  for (const iso of L.times) {
+  for (const iso of L.weatherTimes) {
     const hoursAhead = (Date.parse(iso + "Z") - now) / 3600000;
-    if (hoursAhead < -1) continue;                 // drop already-past hours
-    if (hoursAhead > HORIZON_HOURS) break;         // cap at 72h (times are sorted)
-    const lead = hoursToLead(Math.max(0, hoursAhead));
-    const p = pointAt(L, iso, lead);
-    if (!p) continue;
-    points.push(p);
+    if (hoursAhead < -1) continue;
     const c = L.weather.get(iso);
     w.time.push(iso);
     w.code.push(c?.code ?? null); w.temp.push(c?.temp ?? null); w.cloud.push(c?.cloud ?? null);

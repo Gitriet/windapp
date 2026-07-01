@@ -18,10 +18,11 @@ const pt = (cx: number, cy: number, r: number, deg: number) =>
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 export default function WindChart(
-  { points, t0, endMs, range, hoverMs, onHover, sun }:
+  { points, t0, endMs, range, hoverMs, onHover, sun, pressure }:
   { points: CorrectedPoint[]; t0: number; endMs: number; range: number;
     hoverMs: number | null; onHover: (ms: number | null) => void;
-    sun?: { sunrise: string[]; sunset: string[] } },
+    sun?: { sunrise: string[]; sunset: string[] };
+    pressure?: { ms: number; hPa: number | null }[] },
 ) {
   const [wrapRef, W] = useChartWidth<HTMLDivElement>();
   const pts = points.filter((p) => { const m = ms(p.time); return m >= t0 - 1 && m <= endMs + 1000; });
@@ -37,6 +38,16 @@ export default function WindChart(
   const x = (p: CorrectedPoint) => xf(ms(p.time));
   const maxY = Math.max(10, ...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
   const y = (v: number) => plotT + plotH - (v / maxY) * plotH;
+
+  // beyond the 72h corrected horizon the forecast continues (lead-3 model), but
+  // it's less certain — mark that region with a divider, a faint veil and a note.
+  const firstBeyond = pts.find((p) => p.beyond);
+  const horizonMs = firstBeyond ? ms(firstBeyond.time) : null;
+  const showBeyond = horizonMs != null && horizonMs > t0 && horizonMs < endMs;
+  const gapX = showBeyond ? xf(horizonMs!) : 0;
+  // a true no-data tail only remains if the fetched data stops before the window
+  const dataEndMs = ms(pts[n - 1].time);
+  const noDataFrom = (endMs - dataEndMs) / (endMs - t0) > 0.05 ? xf(dataEndMs) : null;
 
   const gustPath = pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.gust_kn)}`).join(" ");
   const bandPath =
@@ -64,6 +75,21 @@ export default function WindChart(
       cur = e.ms; night = !e.rise;          // after sunset → night, after sunrise → day
     }
     if (night) nightSegs.push([cur, endMs]);
+  }
+
+  // subtle luchtdruk trend: a faint line on its own scale (own min/max in the
+  // window, padded), sitting in the upper third of the plot so it reads as a
+  // slow rise/fall without competing with the speed curve.
+  const pp = (pressure ?? [])
+    .filter((d) => d.hPa != null && d.ms >= t0 - 1 && d.ms <= endMs + 1000) as { ms: number; hPa: number }[];
+  let pressPath = "";
+  if (pp.length > 1) {
+    const vals = pp.map((d) => d.hPa);
+    const pMin = Math.min(...vals), pMax = Math.max(...vals);
+    const span = Math.max(4, pMax - pMin);       // floor so a flat day isn't amplified
+    const pTop = plotT + 6, pBand = plotH * 0.32;
+    const py = (v: number) => pTop + pBand - ((v - pMin) / span) * pBand;
+    pressPath = pp.map((d, i) => `${i ? "L" : "M"}${xf(d.ms)},${py(d.hPa)}`).join(" ");
   }
 
   // shared hover: a crosshair at the hovered instant + a readout of the nearest hour
@@ -101,6 +127,11 @@ export default function WindChart(
         </g>
       ))}
       <path d={bandPath} className="band" />
+      {/* luchtdruk — very faint trend line on its own scale */}
+      {pressPath && (
+        <path d={pressPath} fill="none" stroke="var(--faint)" strokeWidth={1.2}
+              strokeDasharray="1 4" strokeLinecap="round" opacity={0.6} />
+      )}
       <path d={gustPath} className="gust" />
       {/* speed line — plain white; direction is read from the vanes on top */}
       <path d={pts.map((p, i) => `${i ? "L" : "M"}${x(p)},${y(p.speed_kn)}`).join(" ")}
@@ -115,7 +146,7 @@ export default function WindChart(
         const [l1x, l1y] = pt(tx, ty, 8, p.dir_deg + 158);        // longer + narrower head → pointier
         const [l2x, l2y] = pt(tx, ty, 8, p.dir_deg - 158);
         return (
-          <g key={`v${i}`}>
+          <g key={`v${i}`} opacity={p.beyond ? 0.5 : 1}>
             <line x1={bx} y1={by} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} strokeLinecap="round" />
             <polygon points={`${tx},${ty} ${l1x},${l1y} ${l2x},${l2y}`} fill={col} stroke={col} strokeWidth={0.8} strokeLinejoin="round" />
           </g>
@@ -149,14 +180,28 @@ export default function WindChart(
           )}
         </g>
       ))}
+      {/* beyond 72h — forecast continues but is less certain: faint veil, divider,
+          and a note. The axis itself stays a full day. */}
+      {showBeyond && (
+        <g>
+          <rect x={gapX} y={vaneY - 4} width={Math.max(0, xf(endMs) - gapX)} height={plotB - vaneY + 4}
+                fill="var(--bg)" opacity={0.28} />
+          <line x1={gapX} y1={vaneY - 4} x2={gapX} y2={plotB} stroke="#33485a" strokeDasharray="2 3" />
+        </g>
+      )}
+      {/* a real no-data tail (fetch stops before the window ends) */}
+      {noDataFrom != null && (
+        <text x={(noDataFrom + xf(endMs)) / 2} y={plotT + plotH / 2} className="ytick"
+              textAnchor="middle" fill="var(--faint)">nog geen data</text>
+      )}
       {showHover && <line className="crossline" x1={hx} y1={vaneY} x2={hx} y2={plotB} />}
       <title>{`${fmtTimeNL(pts[0].time)} – ${fmtTimeNL(pts[n - 1].time)}`}</title>
     </svg>
     {showHover && hp && (
       <div className="tip" style={{ left: `${tipPct}%` }}>
-        <b>{localWeekdayShort(hoverMs!)} {localHM(hoverMs!)}</b>
-        <span>{hp.speed_kn} kn · {compass(hp.dir_deg)} {hp.dir_deg}°</span>
-        <span>vlaag {Math.round(hp.gust_kn)} kn</span>
+        <span className="tt">{localWeekdayShort(hoverMs!)} {localHM(hoverMs!)}</span>
+        <b>{hp.speed_kn} kn · {compass(hp.dir_deg)} {hp.dir_deg}°</b>
+        <b>vlaag {Math.round(hp.gust_kn)} kn</b>
       </div>
     )}
     </div>

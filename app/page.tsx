@@ -15,7 +15,6 @@ import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/ty
 
 const DAY_MS = 24 * 3600 * 1000;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
-const hhmm = (iso: string) => localHM(Date.parse(iso));
 
 // pressure tendency over the next ~3h from a given hour: ↑ rising, ↓ falling, → steady
 function pressArrow(pressure: (number | null)[], i: number): string {
@@ -114,13 +113,16 @@ export default function Home() {
   }
   const hero = pts[heroIdx] ?? now;
   const heroIsPeak = !startsNow;
-  const wxHero = wx && wx.code.length
+  // weather is a separate (longer) array now, so match the hero's weather by
+  // timestamp rather than by shared index.
+  const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === ms(hero.time)) : -1;
+  const wxHero = wx && wx.code.length && heroWxIdx >= 0
     ? {
-        group: wxGroup(wx.code[heroIdx]), temp: wx.temp[heroIdx],
-        label: wxLabel(wx.code[heroIdx]),
-        night: isNight(ms(wx.time[heroIdx]), sunEvents(wx.sunrise, wx.sunset)),
-        pressure: wx.pressure[heroIdx],
-        pressureTrend: pressArrow(wx.pressure, heroIdx),
+        group: wxGroup(wx.code[heroWxIdx]), temp: wx.temp[heroWxIdx],
+        label: wxLabel(wx.code[heroWxIdx]),
+        night: isNight(ms(wx.time[heroWxIdx]), sunEvents(wx.sunrise, wx.sunset)),
+        pressure: wx.pressure[heroWxIdx],
+        pressureTrend: pressArrow(wx.pressure, heroWxIdx),
       }
     : null;
 
@@ -132,11 +134,6 @@ export default function Home() {
 
   const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
   const pickDay = (d: number) => { setRange(1); setDayIndex(Math.min(Math.max(0, d), maxDay)); };
-
-  const nextTide = tide
-    ? (["HW", "LW"] as const).map((k) => tide.extremes.find((e) => e.kind === k && Date.parse(e.t) >= Date.now()))
-        .filter(Boolean).sort((a, b) => Date.parse(a!.t) - Date.parse(b!.t))
-    : [];
 
   const dayRangeLabel = isRange
     ? `nu – ${dayStats[dayStats.length - 1]?.label ?? ""} · 3 dagen`
@@ -212,11 +209,13 @@ export default function Home() {
             )}
             <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
                        hoverMs={hoverMs} onHover={setHoverMs}
-                       sun={wx ? { sunrise: wx.sunrise, sunset: wx.sunset } : undefined} />
+                       sun={wx ? { sunrise: wx.sunrise, sunset: wx.sunset } : undefined}
+                       pressure={wx ? wx.pressure.map((hPa, i) => ({ ms: ms(wx.time[i]), hPa })) : undefined} />
             <div className="glegend">
               <span><i className="sw" style={{ background: "var(--text)" }} />snelheid</span>
               <span><i className="sw" style={{ background: "var(--gust)" }} />vlagen</span>
               <span><i className="sw" style={{ background: "var(--spread)" }} />spreiding</span>
+              <span style={{ color: "var(--faint)" }}><i className="sw" style={{ background: "var(--faint)" }} />luchtdruk</span>
             </div>
           </div>
 
@@ -231,14 +230,6 @@ export default function Home() {
                 <p className="tide-note">Getij tijdelijk niet beschikbaar — bron RWS onbereikbaar. Probeer het later opnieuw.</p>
               ) : (
                 <>
-                  <div className="tide-strip">
-                    {nextTide.map((e) => (
-                      <div className={"ev " + e!.kind.toLowerCase()} key={e!.kind}>
-                        <span className="pin" />
-                        {e!.kind === "HW" ? "Hoogwater" : "Laagwater"} {hhmm(e!.t)} <small>· {Math.round(e!.v)} cm</small>
-                      </div>
-                    ))}
-                  </div>
                   <TideChart data={tide} t0={t0} endMs={endMs} range={range}
                              hoverMs={hoverMs} onHover={setHoverMs} stream={streamPt} />
                   <div className="glegend">
@@ -291,6 +282,15 @@ export default function Home() {
             </span>
           </div>
           </div>
+
+          <p className="pagenote">
+            <b>Luchtdruk &amp; wind.</b> Wind ontstaat door verschillen in luchtdruk:
+            lucht stroomt van hoge- naar lagedruk, en hoe scherper dat verschil, hoe
+            harder het waait. Een dalende druk (↓) kondigt vaak een naderend
+            lagedrukgebied met toenemende, buiiger wind aan; een stijgende druk (↑)
+            wijst meestal op rustiger, stabieler weer. De pijl bij de luchtdruk toont
+            de tendens over de komende ~3 uur.
+          </p>
         </>
       )}
     </>

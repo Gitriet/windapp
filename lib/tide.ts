@@ -111,7 +111,9 @@ export async function buildTide(key: string): Promise<TideData | null> {
   if (!tgt) return null;                          // no coupled getij point -> no tide block
   const now = Date.now();
   const begin = now - 3600000;
-  const end = now + 3 * DAY + 3600000;            // cover the widest (3-day) window
+  // the last day-tab (za) reaches into the 4th day ahead, so the visible slice +
+  // extrema must cover 4 days — not just the 3-day (3d) overview window.
+  const end = now + 4 * DAY + 3600000;
   const astroEnd = now + 11 * DAY;                // fetch astronomical wider so a cached copy stays useful for ~8 days into an outage
 
   // each series independently — one failing must not take down the other (RWS can
