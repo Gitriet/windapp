@@ -364,3 +364,144 @@ td .sub { color: var(--muted); font-size: 12px; }
 .vlegend { display: flex; gap: 16px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
 .vlegend span { display: inline-flex; align-items: center; }
 .vlegend .sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 6px; }
+
+/* ===================================================================== */
+/* Punt light redesign (windapp-licht.html) — SCOPED to .punt-dash so the */
+/* other tabs (Varen / 7 dagen / Stroom) keep the dark theme above.       */
+/* ===================================================================== */
+
+/* let the Punt dashboard break out of the global 600px .wrap */
+.wrap:has(.punt-dash) { max-width: none; padding: 0; gap: 0; display: block;
+  background: #f5f4ef; min-height: 100vh; }
+
+.punt-dash {
+  /* new light tokens */
+  --paper: #f5f4ef; --ink: #16232e; --ink-2: #465864; --ink-3: #71808b;
+  --rule: #d9dee1; --magenta: #b02d76; --wind: #16232e; --pressure: #7d8ea0;
+  --amber: #d99a14; --danger: #c0392b; --astro: #8fb4c4;
+  /* remap the existing component tokens onto the light palette so the shared
+     child components (WindChart / TideChart / LocationPicker) theme correctly */
+  --bg: #f5f4ef; --panel: #ffffff; --panel2: #eef1f0;
+  --line: #d9dee1; --line2: #c4ccd0;
+  --text: #16232e; --muted: #465864; --faint: #71808b;
+  --accent: #b02d76; --gust: #c9711c; --good: #1f7a53;
+  --spread: #b9cdd4; --tide: #1d6f96; --tide2: #8fb4c4;
+  --hw: #c0392b; --lw: #1f7a53;
+  --cur: #7d8ea0; --flood: #2f6db0; --ebb: #1f7a53; --water: #eaf1f3;
+  --body: var(--font-barlow), 'Barlow', sans-serif;
+  --mono: var(--font-plex), 'IBM Plex Mono', monospace;
+
+  background: var(--paper); color: var(--ink); font-family: var(--body);
+  display: flex; flex-direction: column; gap: 12px; padding: 14px 28px;
+  max-width: 1088px; margin: 0 auto;
+}
+@media (min-width: 901px) { .punt-dash { height: 100vh; overflow: hidden; } }
+
+/* header */
+.punt-dash .pd-head { display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap; flex: none; }
+.punt-dash .pd-head h1 { font-size: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.punt-dash nav.tabs { display: flex; gap: 20px; }
+.punt-dash nav.tabs a { color: var(--ink-3); font-size: 15px; font-weight: 500; padding-bottom: 4px; border-bottom: 2px solid transparent; }
+.punt-dash nav.tabs a.active { color: var(--ink); border-bottom-color: var(--magenta); }
+.punt-dash .pd-loc { margin-left: auto; min-width: 220px; max-width: 320px; }
+
+/* the shared LocationPicker pill, restyled light */
+.punt-dash .locpill { background: var(--panel); border: 1px solid var(--rule); color: var(--ink); border-radius: 8px; padding: 8px 14px; }
+.punt-dash .locpill:hover { border-color: #b9c2c7; }
+.punt-dash .locpill:focus-visible { border-color: var(--magenta); box-shadow: 0 0 0 3px rgba(176,45,118,.16); }
+.punt-dash .locpill .lp-ar { color: var(--ink-3); }
+.punt-dash .sheet { background: var(--panel); border-top: 1px solid var(--rule); box-shadow: 0 -18px 44px rgba(22,35,46,.18); }
+.punt-dash .sheet-item { color: var(--ink); }
+.punt-dash .sheet-item:hover, .punt-dash .sheet-item:active { background: var(--paper); }
+
+/* instruments strip */
+.punt-dash .instruments { flex: none; display: flex; align-items: center; background: var(--panel);
+  border: 1px solid var(--rule); border-radius: 12px; padding: 10px 20px; }
+.punt-dash .cell { display: flex; align-items: baseline; gap: 8px; padding: 0 22px;
+  border-left: 1px solid var(--rule); min-width: 0; white-space: nowrap; }
+.punt-dash .cell:first-child { border-left: none; padding-left: 0; }
+.punt-dash .cell .lbl { font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: .08em;
+  color: var(--ink-3); text-transform: uppercase; }
+.punt-dash .cell .val { font-family: var(--mono); font-size: 23px; font-weight: 600; letter-spacing: -.02em; color: var(--ink);
+  display: inline-flex; align-items: baseline; gap: 1px; }
+.punt-dash .cell .val.wxval { align-items: center; gap: 6px; }
+.punt-dash .cell .val small { font-size: 14px; font-weight: 500; color: var(--ink-2); margin-left: 1px; }
+.punt-dash .cell .val .wxicon { color: var(--ink-2); }
+.punt-dash .cell .sub { font-size: 14px; color: var(--ink-2); }
+.punt-dash .cell .sub b { font-weight: 600; color: var(--ink); }
+.punt-dash .cell .sub.up { color: var(--good); font-weight: 600; }
+.punt-dash .cell .sub.down { color: var(--gust); font-weight: 600; }
+
+/* day selector + meta */
+.punt-dash .days { flex: none; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.punt-dash .days button { font-family: var(--mono); font-size: 14px; font-weight: 500; padding: 6px 18px;
+  border-radius: 8px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink-2); cursor: pointer; }
+.punt-dash .days button.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.punt-dash .days button:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+.punt-dash .days .meta { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--ink-3);
+  display: flex; gap: 14px; align-items: center; }
+.punt-dash .days .meta .land { color: var(--gust); }
+
+/* panels */
+.punt-dash .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 14px 18px 10px; display: flex; flex-direction: column; min-width: 0; }
+.punt-dash .panel h2 { flex: none; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: .08em;
+  color: var(--ink-2); text-transform: uppercase; display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; margin-bottom: 6px; }
+.punt-dash .panel h2 span { font-weight: 400; color: var(--ink-3); letter-spacing: 0; text-transform: none; }
+.punt-dash .chartbox { flex: 1; min-height: 0; position: relative; touch-action: pan-y; }
+.punt-dash .chartbox svg { display: block; width: 100%; height: 100%; }
+
+/* legend + uitleg popup */
+.punt-dash .legend { flex: none; display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;
+  font-size: 13px; color: var(--ink-2); align-items: center; }
+.punt-dash .legend i { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px;
+  margin-right: 6px; vertical-align: middle; }
+.punt-dash .legend i.dash { border-top-style: dashed; }
+.punt-dash .legend i.dot { border-top-style: dotted; }
+.punt-dash .legend .box { display: inline-block; width: 14px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.punt-dash .legend details { position: relative; }
+.punt-dash .legend summary { cursor: pointer; list-style: none; color: var(--ink-3); }
+.punt-dash .legend summary::before { content: "ⓘ "; }
+.punt-dash .legend details p { position: absolute; right: 0; bottom: 26px; width: min(75ch, 70vw);
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 18px;
+  font-size: 14px; line-height: 1.55; color: var(--ink-2); box-shadow: 0 6px 24px rgba(22,35,46,.12); z-index: 10; }
+.punt-dash .legend details p b { color: var(--ink); font-weight: 600; }
+
+/* meteogram svg */
+.punt-dash #deskpanel { flex: 1; min-height: 0; }
+.punt-dash .meteo { display: block; width: 100%; height: 100%; overflow: visible; }
+.punt-dash .meteo text { font-family: var(--mono); }
+.punt-dash .mgrid { stroke: var(--rule); }
+.punt-dash .mytick { fill: var(--ink-3); font-size: 11px; }
+.punt-dash .mxtick { fill: var(--ink-2); font-size: 12px; text-anchor: middle; }
+.punt-dash .mband { fill: #fff; font-size: 10.5px; font-weight: 600; }
+.punt-dash .mextr { font-size: 11px; font-weight: 600; }
+.punt-dash .mnight { fill: var(--ink-3); font-size: 12px; }
+.punt-dash .mnow { fill: var(--magenta); font-size: 12px; font-weight: 600; }
+.punt-dash .mcross { stroke: var(--ink); stroke-opacity: .4; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+
+/* mobile chart (WindChart/TideChart) light tweaks */
+.punt-dash .chart .grid { stroke: var(--rule); }
+.punt-dash svg.chart, .punt-dash .tchart { height: auto; }
+
+/* shared hover tooltip, light */
+.punt-dash .tip { background: #fff; border: 1px solid var(--rule); color: var(--ink-2); box-shadow: 0 4px 14px rgba(22,35,46,.12); }
+.punt-dash .tip .tt { color: var(--ink-3); }
+.punt-dash .tip b { color: var(--ink); }
+
+/* desktop shows the meteogram, mobile shows the two panels */
+.punt-dash #mobpanels { display: none; }
+@media (max-width: 900px) {
+  .punt-dash { padding: 14px 14px 40px; }
+  .punt-dash .pd-head { gap: 12px; }
+  .punt-dash .pd-loc { margin-left: 0; width: 100%; max-width: none; order: 3; }
+  .punt-dash .instruments { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 0; padding: 12px 16px; }
+  .punt-dash .cell { flex-direction: column; align-items: flex-start; gap: 0; padding: 0 14px; white-space: normal; }
+  .punt-dash .cell:nth-child(odd) { border-left: none; padding-left: 0; }
+  .punt-dash .days .meta { width: 100%; margin-left: 0; }
+  .punt-dash #deskpanel { display: none; }
+  .punt-dash #mobpanels { display: flex; flex-direction: column; gap: 12px; }
+  .punt-dash #mobpanels .chartbox { flex: none; }
+  .punt-dash .legend details p { right: auto; left: 0; }
+}

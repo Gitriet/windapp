@@ -2,45 +2,52 @@
 import { useEffect, useState } from "react";
 import WindChart from "@/components/WindChart";
 import TideChart from "@/components/TideChart";
-import WeatherStrip from "@/components/WeatherStrip";
+import Meteogram from "@/components/Meteogram";
 import WeatherIcon from "@/components/WeatherIcon";
-import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import { ktsToBft, compass } from "@/lib/format";
-import { fmtTimeNL, localHM, localDayLabel, localWeekdayShort, dayMidnights } from "@/lib/tz";
+import { fmtTimeNL, localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxGroup, wxLabel, sunEvents, isNight } from "@/lib/weather";
 import { isLakeArea, stroomForLocation } from "@/lib/stroom";
-import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
+import type { Location, CorrectedPoint, TideData, TidePoint, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
+const msT = (iso: string) => Date.parse(iso);
 
-// pressure tendency over the next ~3h from a given hour: ↑ rising, ↓ falling, → steady
-function pressArrow(pressure: (number | null)[], i: number): string {
+// pressure tendency over the next ~3h: arrow + the change in hPa
+function pressInfo(pressure: (number | null)[], i: number): { arrow: string; d: number } | null {
   const a = pressure[i], b = pressure[Math.min(i + 3, pressure.length - 1)];
-  if (a == null || b == null) return "";
+  if (a == null || b == null) return null;
   const d = b - a;
-  return d > 0.6 ? "↑" : d < -0.6 ? "↓" : "→";
+  return { arrow: d > 0.6 ? "↗" : d < -0.6 ? "↘" : "→", d };
+}
+
+// linear-interpolated tide level at an instant, for the instruments cell
+function levelAt(series: TidePoint[], m: number): number {
+  if (!series.length) return 0;
+  if (m <= msT(series[0].t)) return series[0].v;
+  for (let i = 1; i < series.length; i++) {
+    const a = series[i - 1], b = series[i], ta = msT(a.t), tb = msT(b.t);
+    if (m >= ta && m <= tb) { const f = (m - ta) / Math.max(1, tb - ta); return a.v + f * (b.v - a.v); }
+  }
+  return series[series.length - 1].v;
 }
 
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
   const [range, setRange] = useState(1);
-  // day-index = which day the window starts on; decoupled from range. The day
-  // tabs drive both: 3d → range 3 / day 0, a day tab → range 1 / that day.
   const [dayIndex, setDayIndex] = useState(0);
   const [data, setData] = useState<{ location: Location; points: CorrectedPoint[]; weather: WeatherSeries } | null>(null);
   const [tide, setTide] = useState<TideData | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  // shared hover instant across all three charts (null = not hovering)
   const [hoverMs, setHoverMs] = useState<number | null>(null);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
-    // deep-link from the 7-day tab: ?day=&range= zooms onto a specific day
     const r = Number(sp.get("range"));
     if (r === 1 || r === 3) setRange(r); else if (r === 2) setRange(3);
     const d = Number(sp.get("day"));
@@ -52,8 +59,6 @@ export default function Home() {
     }).catch((e) => setErr(String(e)));
   }, []);
 
-  // keep the location in the URL so the 7-day tab inherits it on switch.
-  // build a fully-qualified URL — Safari rejects a bare relative "?loc=" query.
   useEffect(() => {
     if (!key) return;
     const url = new URL(window.location.href);
@@ -69,7 +74,6 @@ export default function Home() {
     }).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [key]);
 
-  // tide is a separate layer, only for Wad stations (others return {tide:null})
   useEffect(() => {
     if (!key) return;
     setTide(null);
@@ -81,12 +85,8 @@ export default function Home() {
   const now = data?.points?.[0];
   const wx = data?.weather;
   const isLand = !!data && /land/i.test(data.location.area);
-  // procedural current direction (vloed/eb) for the tide chart's vanes; null if
-  // this location has no coupled stroom point (then no direction is shown)
   const streamPt = key ? stroomForLocation(key) : null;
 
-  // available days = forecast start (now), then each local midnight up to the
-  // horizon; the window starts at the chosen day and spans `range` days.
   const pts = data?.points ?? [];
   const firstMs = pts.length ? ms(pts[0].time) : 0;
   const lastMs = pts.length ? ms(pts[pts.length - 1].time) : 0;
@@ -97,10 +97,8 @@ export default function Home() {
   const endMs = t0 + range * DAY_MS;
   const isRange = range > 1;
 
-  // the hero moves with the selected tab. When the window starts now (the "nu"
-  // tab and the 3d overview), it shows the live reading. For a future day-tab
-  // there is no "now", so it shows that day's PEAK — the max-speed hour — with
-  // direction, bft, weather and time all taken from that hour.
+  // the instruments read the selected view: live "now" on the nu/3d tabs, that
+  // day's PEAK hour on a future day-tab (there is no "now" then).
   const startsNow = di === 0;
   let heroIdx = 0;
   if (!startsNow) {
@@ -113,20 +111,29 @@ export default function Home() {
   }
   const hero = pts[heroIdx] ?? now;
   const heroIsPeak = !startsNow;
-  // weather is a separate (longer) array now, so match the hero's weather by
-  // timestamp rather than by shared index.
-  const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === ms(hero.time)) : -1;
+  const heroMs = hero ? ms(hero.time) : firstMs;
+
+  const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === heroMs) : -1;
   const wxHero = wx && wx.code.length && heroWxIdx >= 0
     ? {
         group: wxGroup(wx.code[heroWxIdx]), temp: wx.temp[heroWxIdx],
         label: wxLabel(wx.code[heroWxIdx]),
         night: isNight(ms(wx.time[heroWxIdx]), sunEvents(wx.sunrise, wx.sunset)),
-        pressure: wx.pressure[heroWxIdx],
-        pressureTrend: pressArrow(wx.pressure, heroWxIdx),
+        pressure: wx.pressure[heroWxIdx], press: pressInfo(wx.pressure, heroWxIdx),
+        sunrise: wx.sunrise[0], sunset: wx.sunset[0],
       }
     : null;
 
-  // available days for the day tabs (label only — nu / weekday)
+  // tide instrument: level at the selected instant + phase (vloed/eb) + next HW
+  const tideHero = (() => {
+    if (!tide || tide.unavailable) return null;
+    const series = tide.expected.length ? tide.expected : tide.astro;
+    if (!series.length) return null;
+    const cur = levelAt(series, heroMs), ahead = levelAt(series, heroMs + 30 * 60000);
+    const nextHW = tide.extremes.find((e) => e.kind === "HW" && msT(e.t) > heroMs);
+    return { cur, rising: ahead >= cur, nextHW };
+  })();
+
   const dayStats = dayStarts.map((s, i) => {
     const n = pts.filter((p) => { const m = ms(p.time); return m >= s && m < s + DAY_MS; }).length;
     return { i, n, label: i === 0 ? "nu" : localWeekdayShort(s) };
@@ -135,164 +142,136 @@ export default function Home() {
   const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
   const pickDay = (d: number) => { setRange(1); setDayIndex(Math.min(Math.max(0, d), maxDay)); };
 
-  const dayRangeLabel = isRange
-    ? `nu – ${dayStats[dayStats.length - 1]?.label ?? ""} · 3 dagen`
-    : di === 0 ? "vandaag" : localDayLabel(t0);
+  const sunTimes = wxHero && wxHero.sunrise && wxHero.sunset
+    ? `☀ ${localHM(ms(wxHero.sunrise))}–${localHM(ms(wxHero.sunset))}` : "";
 
   return (
-    <>
-      <header className="top">
+    <div className="punt-dash">
+      <header className="pd-head">
         <h1>Windvoorspelling</h1>
         <Nav active="punt" locKey={key}
              showStroom={!isLakeArea(locs.find((l) => l.location_key === key)?.area ?? "")} />
+        <div className="pd-loc">
+          <LocationPicker locations={locs} value={key} onChange={setKey} />
+        </div>
       </header>
 
-      <LocationPicker locations={locs} value={key} onChange={setKey} />
-
       {err && <div className="panel"><span className="badge warn">fout</span> <span className="muted">{err}</span></div>}
-      {loading && <div className="panel muted">Laden…</div>}
+      {loading && !data && <div className="panel muted">Laden…</div>}
 
-      {now && data && (
+      {now && data && hero && (
         <>
-          {/* ONE BIG FRAME — day tabs + hero + wind + tide + badges combined */}
-          <div className="bigframe">
-          {/* HERO: rose + numbers → weather. The source/correction/time badges
-              live at the bottom of the frame. */}
-          <div className="hero">
-            <div className="hero-row">
-              <div className="rose-wrap"><Compass deg={hero.dir_deg} /></div>
-              <div className="hero-data">
-                <div className="hero-kn"><b>{hero.speed_kn}</b><span>kn</span></div>
-                <div className="hero-meta">
-                  <b>{compass(hero.dir_deg)}</b> {hero.dir_deg}° · {ktsToBft(hero.speed_kn)} bft
-                </div>
-                {wxHero && (
-                  <div className="hero-weather">
-                    <WeatherIcon group={wxHero.group} size={17} className="wxicon" night={wxHero.night} />
-                    {wxHero.temp != null && <span className="wxtemp">{Math.round(wxHero.temp)}°</span>}
-                    <span>{wxHero.label}</span>
-                    {wxHero.pressure != null && (
-                      <span className="wxpress">· {Math.round(wxHero.pressure)} hPa{wxHero.pressureTrend && ` ${wxHero.pressureTrend}`}</span>
-                    )}
-                  </div>
+          {/* instruments — wind / getij / druk / weer on one row (2×2 on mobile) */}
+          <div className="instruments">
+            <div className="cell">
+              <span className="lbl">Wind</span>
+              <span className="val">{hero.speed_kn}<small>kn</small></span>
+              <span className="sub"><b>{compass(hero.dir_deg)} {hero.dir_deg}°</b> · {ktsToBft(hero.speed_kn)} bft</span>
+            </div>
+            {tideHero && (
+              <div className="cell">
+                <span className="lbl">Getij</span>
+                <span className="val">{tideHero.cur >= 0 ? "+" : ""}{Math.round(tideHero.cur)}<small>cm</small></span>
+                <span className="sub"><b>{tideHero.rising ? "vloed" : "eb"}</b>{tideHero.nextHW && ` · HW ${localHM(msT(tideHero.nextHW.t))}`}</span>
+              </div>
+            )}
+            {wxHero && wxHero.pressure != null && (
+              <div className="cell">
+                <span className="lbl">Druk</span>
+                <span className="val">{Math.round(wxHero.pressure)}<small>hPa</small></span>
+                {wxHero.press && (
+                  <span className={"sub" + (wxHero.press.d > 0.6 ? " up" : wxHero.press.d < -0.6 ? " down" : "")}>
+                    {wxHero.press.arrow} {wxHero.press.d >= 0 ? "+" : ""}{wxHero.press.d.toFixed(1)}/3u
+                  </span>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* DAY TABS — selector inside the frame, between hero and the charts */}
-          <div className="daysec">
-            <div className="daytabs" role="tablist" aria-label="Dag of overzicht">
-              {dayStats.map((d) => (
-                <button role="tab" key={d.i} aria-selected={!isRange && di === d.i}
-                        onClick={() => pickDay(d.i)}
-                        className={"daytab" + (!isRange && di === d.i ? " on" : "")}>
-                  <span className={"dd" + (d.i === 0 ? "" : " muted")}>{d.label}</span>
-                </button>
-              ))}
-              <button role="tab" aria-selected={isRange} onClick={() => pickRange(3)}
-                      className={"daytab range" + (isRange ? " on" : "")}>
-                <span className="dd muted">3d</span>
-              </button>
-            </div>
-          </div>
-
-          {/* WIND */}
-          <div className="card">
-            <div className="card-head">
-              <span className="ct">Wind — {data.location.name}</span>
-              <span className="cr">{dayRangeLabel}</span>
-            </div>
-            {/* weather icons on the shared time axis, above the wind chart */}
-            {wx && wx.time.length > 0 && (
-              <WeatherStrip weather={wx} t0={t0} endMs={endMs} />
             )}
-            <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
-                       hoverMs={hoverMs} onHover={setHoverMs}
-                       sun={wx ? { sunrise: wx.sunrise, sunset: wx.sunset } : undefined}
-                       pressure={wx ? wx.pressure.map((hPa, i) => ({ ms: ms(wx.time[i]), hPa })) : undefined} />
-            <div className="glegend">
-              <span><i className="sw" style={{ background: "var(--text)" }} />snelheid</span>
-              <span><i className="sw" style={{ background: "var(--gust)" }} />vlagen</span>
-              <span><i className="sw" style={{ background: "var(--spread)" }} />spreiding</span>
-              <span style={{ color: "var(--faint)" }}><i className="sw" style={{ background: "var(--faint)" }} />luchtdruk</span>
-            </div>
-          </div>
-
-          {/* TIDE */}
-          {tide && (
-            <div className="card">
-              <div className="card-head">
-                <span className="ct">Getij — {tide.name}</span>
-                <span className="cr">cm NAP</span>
+            {wxHero && (
+              <div className="cell">
+                <span className="lbl">Weer</span>
+                <span className="val wxval">
+                  <WeatherIcon group={wxHero.group} size={20} className="wxicon" night={wxHero.night} />
+                  {wxHero.temp != null && <>{Math.round(wxHero.temp)}<small>°C</small></>}
+                </span>
+                <span className="sub">{wxHero.label}{sunTimes && ` · ${sunTimes}`}</span>
               </div>
-              {tide.unavailable ? (
-                <p className="tide-note">Getij tijdelijk niet beschikbaar — bron RWS onbereikbaar. Probeer het later opnieuw.</p>
-              ) : (
-                <>
-                  <TideChart data={tide} t0={t0} endMs={endMs} range={range}
-                             hoverMs={hoverMs} onHover={setHoverMs} stream={streamPt} />
-                  <div className="glegend">
-                    {!tide.expectedMissing && <span><i className="sw" style={{ background: "var(--tide)" }} />verwacht</span>}
-                    <span><i className="sw" style={{ background: "var(--tide2)" }} />astronomisch</span>
-                    {streamPt && (
-                      <>
-                        <span>
-                          <svg width={13} height={13} viewBox="0 0 24 24" style={{ verticalAlign: "middle", marginRight: 6 }}
-                               fill="none" stroke="var(--flood)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 4 L12 20 M7 9 L12 4 L17 9" />
-                          </svg>
-                          vloed
-                        </span>
-                        <span>
-                          <svg width={13} height={13} viewBox="0 0 24 24" style={{ verticalAlign: "middle", marginRight: 6 }}
-                               fill="none" stroke="var(--ebb)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 4 L12 20 M7 9 L12 4 L17 9" />
-                          </svg>
-                          eb <small className="muted" style={{ marginLeft: 4 }}>· stroom voorspeld</small>
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  {(tide.expectedMissing || tide.astroStale) && (
-                    <p className="tide-note">
-                      {tide.expectedMissing
-                        ? "Alleen astronomisch getij — verwachting (incl. windopzet) tijdelijk niet beschikbaar."
-                        : "Verwachting incl. windopzet."}
-                      {tide.astroStale && " Astronomisch: laatst bekende (bron RWS onbereikbaar)."}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* source / correction / time — moved out of the hero to the bottom */}
-          <div className="badge-row foot">
-            {isLand && (
-              <span className="badge land" title="wind aan de wal — niet representatief voor open water">landstation</span>
             )}
-            <span className="badge">{hero.model_label}</span>
-            <span className={"badge" + (hero.corrected ? " ok" : "")}>
-              {hero.corrected ? "gecorrigeerd" : "ongecorrigeerd"}
-            </span>
-            {/* live timestamp for "nu"; the peak hour (labelled) for a future day */}
-            <span className="badge">
-              {heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(ms(hero.time))}` : fmtTimeNL(hero.time)}
-            </span>
-          </div>
           </div>
 
-          <p className="pagenote">
-            <b>Luchtdruk &amp; wind.</b> Wind ontstaat door verschillen in luchtdruk:
-            lucht stroomt van hoge- naar lagedruk, en hoe scherper dat verschil, hoe
-            harder het waait. Een dalende druk (↓) kondigt vaak een naderend
-            lagedrukgebied met toenemende, buiiger wind aan; een stijgende druk (↑)
-            wijst meestal op rustiger, stabieler weer. De pijl bij de luchtdruk toont
-            de tendens over de komende ~3 uur.
-          </p>
+          {/* day selector + model meta */}
+          <div className="days">
+            {dayStats.map((d) => (
+              <button key={d.i} onClick={() => pickDay(d.i)}
+                      className={!isRange && di === d.i ? "active" : ""}>{d.label}</button>
+            ))}
+            <button onClick={() => pickRange(3)} className={isRange ? "active" : ""}>3d</button>
+            <div className="meta">
+              <span>{hero.model_label}</span>
+              {isLand && <span className="land">landstation</span>}
+              <span>{heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(heroMs)}` : fmtTimeNL(hero.time)}</span>
+            </div>
+          </div>
+
+          {/* desktop: one meteogram filling the remaining height */}
+          <div className="panel" id="deskpanel">
+            <h2>{data.location.name}{tide ? ` · ${tide.name}` : ""}
+              <span>wind kn / hPa{tide ? " · getij cm NAP" : ""} · {isRange ? "3 dagen" : startsNow ? "vandaag" : localWeekdayShort(t0)}</span>
+            </h2>
+            <Meteogram points={data.points} weather={wx} tide={tide} stream={streamPt}
+                       t0={t0} endMs={endMs} range={range} hoverMs={hoverMs} onHover={setHoverMs} />
+            <div className="legend">
+              <span><i style={{ borderColor: "var(--wind)" }} />snelheid</span>
+              <span><i className="dash" style={{ borderColor: "var(--gust)" }} />vlagen</span>
+              <span><span className="box" style={{ background: "var(--spread)" }} />spreiding</span>
+              <span><i className="dot" style={{ borderColor: "var(--pressure)" }} />luchtdruk</span>
+              {tide && <span><i style={{ borderColor: "var(--tide)" }} />getij</span>}
+              <span><i style={{ borderColor: "var(--magenta)" }} />nu</span>
+              <details>
+                <summary>uitleg</summary>
+                <p><b>Luchtdruk &amp; wind.</b> Wind ontstaat door verschillen in luchtdruk:
+                lucht stroomt van hoge- naar lagedruk, en hoe scherper dat verschil, hoe harder
+                het waait. Een dalende druk kondigt vaak een naderend lagedrukgebied met
+                toenemende, buiiger wind aan; een stijgende druk wijst meestal op rustiger,
+                stabieler weer. De vaarbaarheidsband beoordeelt op de vlagen.</p>
+              </details>
+            </div>
+          </div>
+
+          {/* mobile: two separate panels */}
+          <div id="mobpanels">
+            <div className="panel">
+              <h2>Wind — {data.location.name} <span>kn / hPa</span></h2>
+              <WindChart points={data.points} t0={t0} endMs={endMs} range={range}
+                         hoverMs={hoverMs} onHover={setHoverMs}
+                         sun={wx ? { sunrise: wx.sunrise, sunset: wx.sunset } : undefined}
+                         pressure={wx ? wx.pressure.map((hPa, i) => ({ ms: ms(wx.time[i]), hPa })) : undefined} />
+              <div className="legend">
+                <span><i style={{ borderColor: "var(--wind)" }} />snelheid</span>
+                <span><i className="dash" style={{ borderColor: "var(--gust)" }} />vlagen</span>
+                <span><i className="dot" style={{ borderColor: "var(--pressure)" }} />luchtdruk</span>
+                <span><i style={{ borderColor: "var(--magenta)" }} />nu</span>
+              </div>
+            </div>
+            {tide && (
+              <div className="panel">
+                <h2>Getij — {tide.name} <span>cm NAP</span></h2>
+                {tide.unavailable ? (
+                  <p className="tide-note">Getij tijdelijk niet beschikbaar — bron RWS onbereikbaar. Probeer het later opnieuw.</p>
+                ) : (
+                  <>
+                    <TideChart data={tide} t0={t0} endMs={endMs} range={range}
+                               hoverMs={hoverMs} onHover={setHoverMs} stream={streamPt} />
+                    <div className="legend">
+                      {!tide.expectedMissing && <span><i style={{ borderColor: "var(--tide)" }} />verwacht</span>}
+                      <span><i className="dash" style={{ borderColor: "var(--tide2)" }} />astronomisch</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
-    </>
+    </div>
   );
 }

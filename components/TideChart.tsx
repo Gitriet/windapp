@@ -96,12 +96,12 @@ export default function TideChart(
          onPointerLeave={clearHover} onPointerCancel={clearHover}>
     <svg viewBox={`0 0 ${W} ${H}`} className="tchart" role="img" aria-label="getijvoorspelling">
       {range > 1 && bands.bounds.map((b, k) => (
-        <line key={`db${k}`} x1={xf(b)} y1={plotT} x2={xf(b)} y2={plotB} stroke="#1b2a36" />
+        <line key={`db${k}`} x1={xf(b)} y1={plotT} x2={xf(b)} y2={plotB} stroke="var(--rule)" />
       ))}
       {grid.map((v, k) => (
         <g key={`g${k}`}>
           <line x1={PADL} x2={W - PADR} y1={y(v)} y2={y(v)}
-                stroke={v === 0 ? "#33485a" : "#16242f"} strokeDasharray={v === 0 ? "4 4" : undefined} />
+                stroke={v === 0 ? "var(--ink-3)" : "var(--rule)"} strokeDasharray={v === 0 ? "4 4" : undefined} />
           <text x={PADL - 6} y={y(v) + 3} className="ytick">{v}</text>
         </g>
       ))}
@@ -125,7 +125,7 @@ export default function TideChart(
         const cx = x(e.t), cy = y(e.v), col = e.kind === "HW" ? "var(--hw)" : "var(--lw)";
         return (
           <g key={`e${k}`}>
-            <circle cx={cx} cy={cy} r={3.4} fill={col} stroke="#0d141b" strokeWidth={1.3} />
+            <circle cx={cx} cy={cy} r={3.4} fill={col} stroke="var(--paper)" strokeWidth={1.3} />
             {/* HW/LW time labels only on a single day, and only when there's room
                 (close-together extremes drop their label to avoid overlap) */}
             {range === 1 && showLabel.has(k) && (

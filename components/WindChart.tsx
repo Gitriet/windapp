@@ -2,11 +2,12 @@
 import type { CorrectedPoint } from "@/lib/types";
 import { fmtTimeNL, localHM, localWeekdayShort } from "@/lib/tz";
 import { compass } from "@/lib/format";
-import { dirColor } from "@/lib/sailing";
+import { dirColor, sailBand } from "@/lib/sailing";
 import { AXIS, xFor, msForClientX, hourTicks, dayBands } from "@/lib/chartaxis";
-import { WINDBAR_RED_KN } from "@/lib/constants";
 import { sunEvents, isNight } from "@/lib/weather";
 import { useChartWidth } from "./useChartWidth";
+
+const bandCol = { ok: "var(--good)", krap: "var(--amber)", storm: "var(--hw)" } as const;
 
 // One combined block on the shared time axis: a vane row on top, then the speed
 // curve, then the axis. Height = speed (kn); the curve is a plain white line.
@@ -33,7 +34,7 @@ export default function WindChart(
   // numbers and sun times never crowd the arrows or the curve.
   const vaneY = 15, plotT = 48, plotH = 150, plotB = plotT + plotH;
   const axisY = plotB + 6;
-  const stripTop = axisY + 20, stripH = 6, H = stripTop + stripH + 2;
+  const stripTop = axisY + 20, stripH = 13, H = stripTop + stripH + 3;
   const xf = (m: number) => xFor(m, t0, endMs, W);
   const x = (p: CorrectedPoint) => xf(ms(p.time));
   const maxY = Math.max(10, ...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) * 1.1;
@@ -59,7 +60,19 @@ export default function WindChart(
   const bands = dayBands(t0, endMs);
   const ticks = hourTicks(t0, endMs, range);
   const multi = range > 1;
-  const vaneStep = Math.max(1, Math.round(n / 8));   // ~8 vanes across the window
+  const vaneStep = 6;                                // a vane every 6h (hourly pts)
+
+  // vaarbaarheidsband (onder de x-as): groen VAARBAAR / amber KRAP / rood STORM,
+  // aaneengesloten segmenten met een label o.b.v. de vlagen (zie lib/sailing).
+  type Seg = { a: number; b: number; cls: "ok" | "krap" | "storm"; label: string };
+  const bandSegs: Seg[] = [];
+  for (const p of pts) {
+    const m = ms(p.time), { cls, label } = sailBand(p.gust_kn);
+    const prev = bandSegs[bandSegs.length - 1];
+    if (prev && prev.cls === cls) prev.b = m; else bandSegs.push({ a: m, b: m, cls, label });
+  }
+  if (bandSegs.length) { bandSegs[0].a = t0; bandSegs[bandSegs.length - 1].b = endMs; }
+  for (let i = 0; i < bandSegs.length - 1; i++) bandSegs[i].b = bandSegs[i + 1].a;
 
   // sun: faint night-shading spans + a marker at each sunrise/sunset in the window
   const sunEv = sun ? sunEvents(sun.sunrise, sun.sunset) : [];
@@ -113,11 +126,11 @@ export default function WindChart(
       {/* night shading — faint cool band over the hours between sunset and sunrise */}
       {nightSegs.map(([a, b], k) => (
         <rect key={`ns${k}`} x={xf(a)} y={plotT} width={Math.max(0, xf(b) - xf(a))}
-              height={plotH} fill="#16243a" opacity={0.45} />
+              height={plotH} fill="var(--water)" opacity={0.8} />
       ))}
       {/* day separators (multi-day only) */}
       {multi && bands.bounds.map((b, k) => (
-        <line key={`db${k}`} x1={xf(b)} y1={vaneY + 5} x2={xf(b)} y2={plotB} stroke="#222c38" />
+        <line key={`db${k}`} x1={xf(b)} y1={vaneY + 5} x2={xf(b)} y2={plotB} stroke="var(--rule)" />
       ))}
       {/* kn grid, full width */}
       {yticks.map((v, k) => (
@@ -155,26 +168,34 @@ export default function WindChart(
       {/* axis: hour ticks in 1d, day names in 3d */}
       {!multi && ticks.map((tk, k) => (
         <g key={`h${k}`}>
-          <line x1={xf(tk.ms)} y1={axisY} x2={xf(tk.ms)} y2={axisY + (tk.label ? 5 : 3)} stroke="#33485a" />
+          <line x1={xf(tk.ms)} y1={axisY} x2={xf(tk.ms)} y2={axisY + (tk.label ? 5 : 3)} stroke="var(--ink-3)" />
           {tk.label && <text x={xf(tk.ms)} y={axisY + 14} className="xtick">{tk.label}</text>}
         </g>
       ))}
       {multi && bands.segs.map((s, k) => (
         <text key={`dl${k}`} x={xf(s.mid)} y={axisY + 12} className="xtick">{k === 0 ? "nu" : s.label}</text>
       ))}
-      {/* hard-wind strip under the axis: green, red where sustained wind ≥ threshold */}
-      {pts.slice(0, n - 1).map((p, i) => (
-        <rect key={`hw${i}`} x={x(p)} y={stripTop} width={Math.max(0, x(pts[i + 1]) - x(p))} height={stripH}
-              fill={p.speed_kn >= WINDBAR_RED_KN ? "var(--hw)" : "var(--good)"} />
-      ))}
+      {/* vaarbaarheidsband under the axis: green/amber/red segments with a label */}
+      {bandSegs.map((s, k) => {
+        const sx = xf(s.a), sw = Math.max(0, xf(s.b) - xf(s.a));
+        return (
+          <g key={`bd${k}`}>
+            <rect x={sx} y={stripTop} width={sw} height={stripH} rx={2} fill={bandCol[s.cls]} />
+            {sw > 70 && (
+              <text x={sx + sw / 2} y={stripTop + stripH - 3.5} fontSize={9.5} fontWeight={600}
+                    fill="#fff" textAnchor="middle">{s.label}</text>
+            )}
+          </g>
+        );
+      })}
       {/* sunrise (↑) / sunset (↓) markers + local time, on the shared axis */}
       {sunMarks.map((s, k) => (
         <g key={`sm${k}`}>
-          <line x1={s.x} y1={plotT} x2={s.x} y2={plotB} stroke="#e2a857" strokeWidth={1} strokeDasharray="2 3" opacity={0.45} />
+          <line x1={s.x} y1={plotT} x2={s.x} y2={plotB} stroke="var(--amber)" strokeWidth={1} strokeDasharray="2 3" opacity={0.45} />
           {/* time only on a single day — across 3 days the labels would collide
               (the night shading still marks day/night there) */}
           {!multi && (
-            <text x={s.x} y={plotT - 10} fill="#e2a857" fontSize={9.5} textAnchor="middle" opacity={0.95}>
+            <text x={s.x} y={plotT - 10} fill="var(--amber)" fontSize={9.5} textAnchor="middle" opacity={0.95}>
               {(s.rise ? "↑" : "↓") + " " + localHM(s.ms)}
             </text>
           )}
@@ -186,7 +207,7 @@ export default function WindChart(
         <g>
           <rect x={gapX} y={vaneY - 4} width={Math.max(0, xf(endMs) - gapX)} height={plotB - vaneY + 4}
                 fill="var(--bg)" opacity={0.28} />
-          <line x1={gapX} y1={vaneY - 4} x2={gapX} y2={plotB} stroke="#33485a" strokeDasharray="2 3" />
+          <line x1={gapX} y1={vaneY - 4} x2={gapX} y2={plotB} stroke="var(--ink-3)" strokeDasharray="2 3" />
         </g>
       )}
       {/* a real no-data tail (fetch stops before the window ends) */}
