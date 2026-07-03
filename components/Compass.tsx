@@ -1,44 +1,40 @@
 "use client";
 import { compass } from "@/lib/format";
-import { dirColor } from "@/lib/sailing";
 
-// Direction rose: a continuous colour ring (same hue=direction scale as the wind
-// chart, via dirColor) with the eight compass labels OUTSIDE the ring — N O Z W
-// large, NO ZO ZW NW small/muted. The core is empty except the pointer, which
-// points to where the wind comes FROM (app-wide vane convention).
+// v4 direction rose: a thin --rule ring with a degree tick every 10° (cardinals
+// emphasised), N O Z W condensed labels, and a magenta needle with a counterweight
+// tail + a paper centre cap. The needle points to where the wind comes FROM
+// (app-wide vane convention).
 const rad = (deg: number) => ((deg - 90) * Math.PI) / 180;
-const pt = (cx: number, cy: number, r: number, deg: number) =>
-  [cx + r * Math.cos(rad(deg)), cy + r * Math.sin(rad(deg))] as const;
-
+const on = (c: number, r: number, deg: number) => [c + r * Math.cos(rad(deg)), c + r * Math.sin(rad(deg))] as const;
 const CARD: [string, number][] = [["N", 0], ["O", 90], ["Z", 180], ["W", 270]];
-const INTER: [string, number][] = [["NO", 45], ["ZO", 135], ["ZW", 225], ["NW", 315]];
 
-export default function Compass({ deg, size = 118 }: { deg: number; size?: number }) {
-  const cx = size / 2, cy = size / 2;
-  const r = size * 0.356, ir = size * 0.263, lr = size * 0.432; // ring, inner, labels
-  const arcs = [];
-  for (let a = 0; a < 360; a += 4) {
-    const [x0, y0] = pt(cx, cy, r, a), [x1, y1] = pt(cx, cy, r, a + 4);
-    const [xi1, yi1] = pt(cx, cy, ir, a + 4), [xi0, yi0] = pt(cx, cy, ir, a);
-    arcs.push(
-      <path key={a} fill={dirColor(a)}
-            d={`M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1} L${xi1} ${yi1} A${ir} ${ir} 0 0 0 ${xi0} ${yi0} Z`} />,
+export default function Compass({ deg, size = 112 }: { deg: number; size?: number }) {
+  const c = 60, r = 52;                                   // viewBox is 120×120
+  const ticks = [];
+  for (let d = 0; d < 360; d += 10) {
+    const card = d % 90 === 0, mid = d % 30 === 0;
+    const r1 = card ? r - 11 : mid ? r - 8 : r - 4.5;
+    const [x1, y1] = on(c, r1, d), [x2, y2] = on(c, r - 0.5, d);
+    ticks.push(
+      <line key={d} x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke={card ? "var(--ink)" : "var(--ink-3)"} strokeWidth={card ? 1.8 : mid ? 1.2 : 0.8} />,
     );
   }
-  const [px, py] = pt(cx, cy, ir - 4, deg);
+  const [nx, ny] = on(c, r - 13, deg);                    // needle tip (FROM)
+  const [tx, ty] = on(c, 14, deg + 180);                  // counterweight tail
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`wind uit ${compass(deg)} (${Math.round(deg)}°)`}
-         style={{ width: "100%", height: "100%", display: "block", fontFamily: "var(--mono)" }}>
-      {arcs}
-      {CARD.map(([t, d]) => { const [x, y] = pt(cx, cy, lr, d); return (
-        <text key={t} x={x} y={y + 3.9} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--text)">{t}</text>
+    <svg viewBox="0 0 120 120" role="img" aria-label={`wind uit ${compass(deg)} (${Math.round(deg)}°)`}
+         style={{ width: "100%", height: "100%", display: "block" }}>
+      <circle cx={c} cy={c} r={r} fill="none" stroke="var(--rule)" strokeWidth={1} />
+      {ticks}
+      {CARD.map(([t, d]) => { const [x, y] = on(c, r - 21, d); return (
+        <text key={t} x={x} y={y + 4} textAnchor="middle" fontFamily="var(--cond)" fontSize={13} fontWeight={600} fill="var(--ink)">{t}</text>
       ); })}
-      {INTER.map(([t, d]) => { const [x, y] = pt(cx, cy, lr - 1, d); return (
-        <text key={t} x={x} y={y + 2.8} textAnchor="middle" fontSize={8} fontWeight={500} fill="var(--faint)">{t}</text>
-      ); })}
-      <line x1={cx} y1={cy} x2={px} y2={py} stroke="var(--text)" strokeWidth={2.5} strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r={3.2} fill="var(--text)" />
+      <line x1={tx} y1={ty} x2={nx} y2={ny} stroke="var(--magenta)" strokeWidth={3.5} strokeLinecap="round" />
+      <circle cx={nx} cy={ny} r={4} fill="var(--magenta)" />
+      <circle cx={c} cy={c} r={4.5} fill="var(--paper)" stroke="var(--ink)" strokeWidth={2} />
     </svg>
   );
 }
