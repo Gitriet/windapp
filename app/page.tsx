@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Seascape from "@/components/Seascape";
+import Meteogram from "@/components/Meteogram";
 import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
@@ -193,23 +193,8 @@ export default function Home() {
             {isLand && <span className="landtag">landstation</span>}
           </div>
 
-          <div id="deskchart">
-            <Seascape mode="full" points={data.points} weather={wx} tide={tide} stream={streamPt}
-                      t0={t0} endMs={endMs} range={range} hoverMs={hoverMs} onHover={setHoverMs} />
-          </div>
-
-          <div id="mobcharts">
-            <div className="chartbox-wrap">
-              <Seascape mode="sky" points={data.points} weather={wx} tide={tide} stream={streamPt}
-                        t0={t0} endMs={endMs} range={range} hoverMs={hoverMs} onHover={setHoverMs} />
-            </div>
-            {tide && !tide.unavailable && (
-              <div className="chartbox-wrap sea">
-                <Seascape mode="sea" points={data.points} weather={wx} tide={tide} stream={streamPt}
-                          t0={t0} endMs={endMs} range={range} hoverMs={hoverMs} onHover={setHoverMs} />
-              </div>
-            )}
-          </div>
+          <Meteogram points={data.points} weather={wx} tide={tide} stream={streamPt}
+                     t0={t0} endMs={endMs} range={range} hoverMs={hoverMs} onHover={setHoverMs} />
 
           <div className="legend">
             <span><i style={{ borderColor: "var(--wind)" }} />snelheid</span>

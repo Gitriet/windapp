@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windvoorspelling — De Kooy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F2EB; --ink:#12333F; --ink-soft:#5B7480; --hair:#D9D3C6;
+    --water:#7FA9BE; --water-deep:#3E7391;
+    --go:#2E7D5B; --tight:#B9902F; --no:#A6432F;
+    --now:#C21E63; --gust:#C4772E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);font-family:"Barlow",sans-serif;-webkit-font-smoothing:antialiased}
+  body{max-width:1240px;margin:0 auto;padding:28px 32px 44px}
+  .mono{font-family:"IBM Plex Mono",monospace}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .title{display:flex;align-items:baseline;gap:12px}
+  .title h1{font-size:27px;font-weight:600;letter-spacing:-0.01em;line-height:1}
+  .title .sub{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .loc{font-size:13px;color:var(--ink-soft)}
+  .loc .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--go);margin-right:7px;vertical-align:middle}
+  .loc select{font:inherit;font-size:13px;color:var(--ink);background:transparent;border:none;border-bottom:1px solid var(--hair);padding:2px 2px 3px;cursor:pointer}
+
+  /* ---- actuele data ---- */
+  .now-strip{display:flex;flex-direction:column;gap:20px;margin:26px 0 6px;max-width:640px}
+  .wind-now{display:flex;align-items:center;gap:20px}
+  .compass{width:88px;height:88px;flex:none}
+  .wind-read .val{font-size:52px;font-weight:600;letter-spacing:-0.02em;line-height:.9}
+  .wind-read .val .u{font-size:19px;font-weight:500;color:var(--ink-soft);margin-left:4px}
+  .wind-read .dir{font-size:14px;color:var(--ink-soft);margin-top:8px}
+  .wind-read .dir b{color:var(--ink);font-weight:600}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);padding-top:16px}
+  .metric{padding-left:24px}
+  .metric:not(:first-child){border-left:1px solid var(--hair)}
+  .metric:first-child{padding-left:0}
+  .metric .lbl{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+  .metric .big{font-family:"IBM Plex Mono",monospace;font-size:23px;font-weight:500;letter-spacing:-0.01em}
+  .metric .big .u{font-size:13px;color:var(--ink-soft);margin-left:3px}
+  .metric .note{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .metric .note .mono{font-size:12px}
+
+
+  .days{display:flex;gap:6px;margin:22px 0 8px}
+  .days button{font:inherit;font-size:13px;font-weight:500;color:var(--ink-soft);background:transparent;border:none;padding:6px 12px;border-radius:20px;cursor:pointer;letter-spacing:.02em}
+  .days button.active{background:var(--ink);color:var(--paper)}
+
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .grid{stroke:var(--hair);stroke-width:1}
+  .axis-num{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-soft)}
+  .axis-time{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--ink-soft)}
+  .spread{fill:var(--ink);opacity:.07}
+  .wind-line{fill:none;stroke:var(--ink);stroke-width:2.2}
+  .gust-line{fill:none;stroke:var(--gust);stroke-width:1.6;stroke-dasharray:5 4;opacity:.9}
+  .pres-line{fill:none;stroke:var(--ink-soft);stroke-width:1.3;stroke-dasharray:1 3.5;opacity:.7}
+  .dir-arrow{stroke:var(--ink-soft);stroke-width:1.4;fill:none}
+  .navax{stroke-width:3}
+  .navlabel{font-family:"Barlow",sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+  .tide-line{fill:none;stroke:#fff;stroke-width:1.4;stroke-dasharray:3 3;opacity:.75}
+  .event-mark{fill:#fff;stroke:var(--water-deep);stroke-width:1.5}
+  .event-label{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink)}
+  .sun{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-soft)}
+  .now-line{stroke:var(--now);stroke-width:1.5}
+  .now-dot{fill:var(--now)}
+  .now-tag{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:500;fill:var(--now);letter-spacing:.1em;text-transform:uppercase}
+
+  .legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px;font-size:11px;color:var(--ink-soft);letter-spacing:.02em}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block}
+  .legend .src{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+
+  #mobileChart{display:none}
+  @media(max-width:900px){
+    body{padding:20px 18px 36px}
+    .title h1{font-size:22px}
+    .metric{padding-left:16px}
+    #desktopChart{display:none}
+    #mobileChart{display:block}
+    .legend{gap:14px}
+    .legend .src{margin-left:0;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title"><h1>De Kooy</h1><span class="sub">Waddenzee · Den Oever</span></div>
+  <div class="loc"><span class="dot"></span>
+    <select><option>De Kooy — Waddenzee</option><option>Kornwerderzand</option><option>Den Oever sluis</option><option>Oudeschild</option></select>
+  </div>
+</header>
+
+<div class="now-strip">
+  <div class="wind-now">
+    <svg class="compass" viewBox="0 0 100 100" id="compass"></svg>
+    <div class="wind-read">
+      <div class="val">4.3<span class="u">kn</span></div>
+      <div class="dir">W · <b>254°</b> · 2 bft</div>
+    </div>
+  </div>
+  <div class="metrics">
+    <div class="metric"><div class="lbl">Getij</div><div class="big">+24<span class="u">cm</span></div><div class="note">eb · HW <span class="mono">22:20</span></div></div>
+    <div class="metric"><div class="lbl">Luchtdruk</div><div class="big">1027<span class="u">hPa</span></div><div class="note mono">↘ −0.3 / 3u</div></div>
+    <div class="metric"><div class="lbl">Weer</div><div class="big">17<span class="u">°C</span></div><div class="note">bewolkt</div></div>
+  </div>
+</div>
+
+<div class="days">
+  <button class="active">nu</button><button>za</button><button>zo</button><button>ma</button><button>3d</button>
+</div>
+
+<svg id="desktopChart" viewBox="0 0 1200 470" preserveAspectRatio="xMidYMid meet"></svg>
+<svg id="mobileChart" viewBox="0 0 400 560" preserveAspectRatio="xMidYMid meet"></svg>
+
+<div class="legend">
+  <span><i style="border-color:var(--ink)"></i>wind</span>
+  <span><i style="border-color:var(--gust);border-top-style:dashed"></i>vlagen</span>
+  <span><i style="border-color:var(--ink);opacity:.25"></i>spreiding</span>
+  <span><i style="border-color:var(--ink-soft);border-top-style:dotted"></i>luchtdruk</span>
+  <span><i style="border-color:var(--water-deep)"></i>waterstand</span>
+  <span><i style="border-color:var(--go)"></i>vaarbaar</span>
+  <span><i style="border-color:var(--tight)"></i>krap</span>
+  <span class="src">ECMWF IFS · vr 09:00</span>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+function el(svg,name,attrs,text){const e=document.createElementNS(NS,name);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;svg.appendChild(e);return e;}
+
+/* data (uurwaarden) */
+const HOURS=24;
+const wind=[5.0,4.6,4.3,4.1,4.0,4.2,4.6,5.4,6.5,7.8,9.2,10.6,12.1,13.4,14.2,14.6,14.3,13.5,12.2,10.6,9.0,7.6,6.4,5.6];
+const gust=[8,7.5,7,6.8,6.7,7,7.8,9,11,13.5,16,18.5,21,23.5,25.5,26.5,26,24.5,22,19,16,13.5,11.5,10];
+const spread=[1.2,1.1,1,1,1,1.1,1.3,1.6,2,2.4,2.8,3.1,3.4,3.6,3.7,3.7,3.6,3.3,3,2.6,2.2,1.9,1.6,1.4];
+const dir=[250,252,254,255,256,258,260,262,264,266,268,270,272,273,274,274,273,272,270,268,266,264,262,260];
+const pres=[1029.4,1029.2,1029.0,1028.7,1028.4,1028.1,1027.8,1027.5,1027.2,1027.0,1026.8,1026.6,1026.5,1026.3,1026.1,1025.9,1025.6,1025.3,1025.0,1024.7,1024.4,1024.1,1023.8,1023.5];
+const nav=[[0,11,'go'],[11,18,'tight'],[18,24,'go']];
+const NAVCOL={go:'var(--go)',tight:'var(--tight)',no:'var(--no)'};
+const NAVTXT={go:'Vaarbaar',tight:'Krap · vlagen > 25 kn',no:'Niet vaarbaar'};
+const NAVSHORT={go:'Vaarbaar',tight:'Krap',no:'Niet vaarbaar'};
+const tide=[];for(let h=0;h<=HOURS;h++)tide.push(40*Math.cos((h-11.17)/6.21*Math.PI)-12);
+const TMIN=-70,TMAX=60;
+const HW=[{h:11.17,label:'HW 11:10'}];
+const LW=[{h:5.17,label:'LW 05:10'},{h:17.83,label:'LW 17:50'}];
+const sunUp=5.38,sunDown=22.12,NOW=9.0,WMAX=30;
+
+function smooth(pts){
+  if(pts.length<3)return 'M'+pts.map(p=>p.join(' ')).join('L');
+  let d='M'+pts[0][0]+' '+pts[0][1];
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+    const c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=`C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+function draw(svg,o){
+  const X=h=>o.padl+(o.w-o.padl-o.padr)*(h/HOURS);
+  const WY=kn=>o.windTop+(o.windBot-o.windTop)*(1-kn/WMAX);
+  const TY=cm=>o.tideTop+(o.tideBot-o.tideTop)*(1-(cm-TMIN)/(TMAX-TMIN));
+
+  // wind grid
+  [0,10,20,30].forEach(v=>{
+    el(svg,'line',{class:'grid',x1:o.padl,y1:WY(v),x2:o.w-o.padr,y2:WY(v),opacity:v===0?1:.55});
+    el(svg,'text',{class:'axis-num','text-anchor':'end',x:o.padl-8,y:WY(v)+3},v);
+  });
+  // spreiding
+  let up=[],lo=[];
+  for(let i=0;i<=HOURS;i++){const w=wind[Math.min(i,HOURS-1)],s=spread[Math.min(i,HOURS-1)];up.push([X(i),WY(w+s)]);lo.push([X(i),WY(Math.max(0,w-s))]);}
+  el(svg,'path',{class:'spread',d:smooth(up)+' L'+lo.slice().reverse().map(p=>p.join(' ')).join(' L')+' Z'});
+  // luchtdruk (eigen schaal, onderste helft windvlak, fijn gestippeld)
+  const PMIN=1022, PMAX=1030;
+  const PY=hpa=>o.windTop+(o.windBot-o.windTop)*(1-(hpa-PMIN)/(PMAX-PMIN)*0.55-0.05);
+  el(svg,'path',{class:'pres-line',d:smooth(pres.map((v,i)=>[X(i),PY(v)]))});
+  // vlagen + wind
+  el(svg,'path',{class:'gust-line',d:smooth(gust.map((v,i)=>[X(i),WY(v)]))});
+  el(svg,'path',{class:'wind-line',d:smooth(wind.map((v,i)=>[X(i),WY(v)]))});
+  // richtingpijlen (niet op de nu-positie, botst met NU-tag)
+  for(let h=0;h<HOURS;h+=o.arrowStep){
+    if(Math.abs(h-NOW)<0.5) continue;
+    const cx=X(h),cy=o.windTop-o.arrowGap,r=9,a=(dir[h]+180)*Math.PI/180,dx=Math.sin(a),dy=-Math.cos(a);
+    el(svg,'line',{class:'dir-arrow',x1:(cx-dx*r).toFixed(1),y1:(cy-dy*r).toFixed(1),x2:(cx+dx*r).toFixed(1),y2:(cy+dy*r).toFixed(1)});
+    const hx=cx+dx*r,hy=cy+dy*r;
+    [(dir[h]+330),(dir[h]+30)].forEach(dd=>{const ang=dd*Math.PI/180;el(svg,'line',{class:'dir-arrow',x1:hx.toFixed(1),y1:hy.toFixed(1),x2:(hx+Math.sin(ang)*6).toFixed(1),y2:(hy-Math.cos(ang)*6).toFixed(1)});});
+  }
+  // nav-as
+  nav.forEach(([a,b,st])=>{
+    el(svg,'line',{class:'navax',x1:X(a),y1:o.navY,x2:X(b),y2:o.navY,stroke:NAVCOL[st]});
+    const seg=X(b)-X(a), txt=(o.compact?NAVSHORT:NAVTXT)[st];
+    if(seg>44) el(svg,'text',{class:'navlabel','text-anchor':'middle',x:(X(a)+X(b))/2,y:o.navY-9,fill:NAVCOL[st]},txt);
+  });
+  // getij
+  const tp=tide.map((v,i)=>[X(i),TY(v)]);
+  const defs=el(svg,'defs',{}),grad=document.createElementNS(NS,'linearGradient');
+  const gid='tg_'+o.id;grad.setAttribute('id',gid);grad.setAttribute('x1','0');grad.setAttribute('y1','0');grad.setAttribute('x2','0');grad.setAttribute('y2','1');
+  [['0%','var(--water-deep)','.85'],['100%','var(--water)','.5']].forEach(([off,c,op])=>{const s=document.createElementNS(NS,'stop');s.setAttribute('offset',off);s.setAttribute('stop-color',c);s.setAttribute('stop-opacity',op);grad.appendChild(s);});
+  defs.appendChild(grad);
+  el(svg,'path',{d:smooth(tp)+` L${X(HOURS)} ${o.tideBot} L${X(0)} ${o.tideBot} Z`,fill:`url(#${gid})`,opacity:.9});
+  el(svg,'path',{class:'tide-line',d:smooth(tp)});
+  HW.concat(LW).forEach(ev=>{
+    const cm=40*Math.cos((ev.h-11.17)/6.21*Math.PI)-12;
+    el(svg,'circle',{class:'event-mark',cx:X(ev.h),cy:TY(cm),r:3.5});
+    const anc=ev.h<3?'start':(ev.h>21?'end':'middle');
+    el(svg,'text',{class:'event-label','text-anchor':anc,x:X(ev.h),y:TY(cm)-9},ev.label);
+  });
+  // zon
+  el(svg,'text',{class:'sun','text-anchor':'middle',x:X(sunUp),y:o.windBot-6},'☀ 05:23');
+  el(svg,'text',{class:'sun','text-anchor':'middle',x:X(sunDown),y:o.windBot-6},'☾ 22:07');
+  // nu
+  el(svg,'line',{class:'now-line',x1:X(NOW),y1:o.windTop-o.arrowGap-4,x2:X(NOW),y2:o.axisY-18});
+  el(svg,'circle',{class:'now-dot',cx:X(NOW),cy:o.navY,r:4});
+  el(svg,'text',{class:'now-tag',x:X(NOW)+7,y:o.windTop-o.arrowGap-6},'nu');
+  // tijdas
+  for(let h=0;h<=HOURS;h+=o.tickStep) el(svg,'text',{class:'axis-time','text-anchor':'middle',x:X(h),y:o.axisY},h);
+}
+
+/* desktop */
+draw(document.getElementById('desktopChart'),{
+  id:'d',w:1200,padl:44,padr:16,windTop:64,windBot:210,navY:246,tideTop:280,tideBot:422,axisY:452,arrowStep:3,arrowGap:30,tickStep:3
+});
+/* mobiel — eigen compositie op 1:1 schaal */
+draw(document.getElementById('mobileChart'),{
+  id:'m',w:400,padl:30,padr:12,windTop:56,windBot:230,navY:270,tideTop:308,tideBot:508,axisY:540,arrowStep:6,arrowGap:26,tickStep:6,compact:true
+});
+
+/* kompas — v4: tickring, lange ticks op N/O/Z/W, naald door centrum, open ring */
+(function(){
+  const c=document.getElementById('compass'), R=46, dirDeg=254;
+  el(c,'circle',{cx:50,cy:50,r:R,fill:'none',stroke:'var(--hair)','stroke-width':1});
+  for(let d=0;d<360;d+=15){
+    const a=d*Math.PI/180, major=(d%90===0);
+    const inner=major?R-9:R-5;
+    el(c,'line',{x1:50+Math.sin(a)*R,y1:50-Math.cos(a)*R,x2:50+Math.sin(a)*inner,y2:50-Math.cos(a)*inner,
+      stroke:major?'var(--ink)':'var(--ink-soft)','stroke-width':major?1.6:1,opacity:major?.85:.45});
+  }
+  ['N','O','Z','W'].forEach((L,i)=>{const a=i*90*Math.PI/180;
+    el(c,'text',{x:50+Math.sin(a)*(R-19),y:50-Math.cos(a)*(R-19)+3.5,'text-anchor':'middle',
+      'font-family':'Barlow, sans-serif','font-size':10,'font-weight':600,fill:'var(--ink)'},L);});
+  // naald: lange kant naar herkomst (waar de wind vandaan komt), korte stomp tegenover
+  const a=dirDeg*Math.PI/180, sx=Math.sin(a), sy=-Math.cos(a);
+  el(c,'line',{x1:50-sx*8,y1:50-sy*8,x2:50+sx*30,y2:50+sy*30,stroke:'var(--now)','stroke-width':2.4,'stroke-linecap':'round'});
+  el(c,'circle',{cx:50+sx*30,cy:50+sy*30,r:2.6,fill:'var(--now)'});
+  el(c,'circle',{cx:50,cy:50,r:4,fill:'var(--paper)',stroke:'var(--now)','stroke-width':2});
+})();
+</script>
+</body>
+</html>

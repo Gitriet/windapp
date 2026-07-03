@@ -378,7 +378,7 @@ td .sub { color: var(--muted); font-size: 12px; }
   --sky-hi: #e9f1f4; --sky-lo: #fbfaf3; --dusk: #31445a;
   --sea-1: #a9ccda; --sea-2: #5d92ac; --sea-3: #2f6a8a;
   --wind: #1a2733; --gust: #c9711c; --spread: #1a2733; --pressure: #8494a3;
-  --green: #2e8b63; --amber: #d9a114; --magenta: #c22f7f;
+  --green: #2e8b63; --amber: #d9a114; --no: #a6432f; --magenta: #c22f7f;
   /* remap the tokens the shared LocationPicker / .panel still reference */
   --bg: #faf9f4; --panel: #ffffff; --panel2: #f0efe8; --line: #e3e2da; --line2: #cfd3c9;
   --text: #1a2733; --muted: #4c5d6a; --faint: #7d8b95; --accent: #c22f7f; --good: #2e8b63;
@@ -435,19 +435,31 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .days button:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
 .punt-dash .days .landtag { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--gust); }
 
-/* doorsnede */
-.punt-dash #deskchart { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
-.punt-dash #deskchart .chartbox { flex: 1; min-height: 0; }
+/* meteogram */
+.punt-dash .mg { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
+.punt-dash .mg-view { position: relative; touch-action: pan-y; }
+.punt-dash .mg-view.mob { display: none; }
 .punt-dash .chartbox { position: relative; touch-action: pan-y; }
-.punt-dash .chartbox svg { display: block; width: 100%; height: 100%; }
-.punt-dash .seascape text { font-family: var(--mono); }
-.punt-dash .sty { font-size: 12px; }
-.punt-dash .stlint { font-family: var(--cond); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; }
-.punt-dash .stext { font-size: 13px; font-weight: 600; }
-.punt-dash .stx { font-size: 14px; fill: var(--ink-2); }
-.punt-dash .stnow { font-size: 13px; font-weight: 600; fill: var(--magenta); }
-.punt-dash .stcross { stroke: var(--ink); stroke-opacity: .35; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
-.punt-dash .stcross.sea { stroke: #fff; stroke-opacity: .6; }
+.punt-dash .meteogram { display: block; width: 100%; height: auto; overflow: visible; }
+.punt-dash .meteogram text { font-family: var(--mono); }
+.punt-dash .mg-grid { stroke: var(--rule); stroke-width: 1; }
+.punt-dash .mg-axnum { font-size: 12px; fill: var(--ink-3); }
+.punt-dash .mg-axtime { font-size: 13px; fill: var(--ink-2); }
+.punt-dash .mg-spread { fill: var(--ink); opacity: 0.08; }
+.punt-dash .mg-wind { fill: none; stroke: var(--wind); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.punt-dash .mg-gust { fill: none; stroke: var(--gust); stroke-width: 1.7; stroke-dasharray: 6 4; opacity: 0.9; }
+.punt-dash .mg-pres { fill: none; stroke: var(--pressure); stroke-width: 1.4; stroke-dasharray: 1.5 4; stroke-linecap: round; opacity: 0.75; }
+.punt-dash .mg-arrow { stroke: var(--ink-2); stroke-width: 1.5; fill: none; stroke-linecap: round; }
+.punt-dash .mg-navlbl { font-family: var(--cond); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.punt-dash .mg-tideline { fill: none; stroke: #fff; stroke-width: 1.5; opacity: 0.9; }
+.punt-dash .mg-tideastro { fill: none; stroke: #fff; stroke-width: 1.3; stroke-dasharray: 4 5; opacity: 0.55; }
+.punt-dash .mg-event { fill: #fff; stroke: var(--sea-3); stroke-width: 1.6; }
+.punt-dash .mg-evlbl { font-size: 12px; font-weight: 600; }
+.punt-dash .mg-sun { font-size: 11px; fill: var(--ink-3); }
+.punt-dash .mg-nowline { stroke: var(--magenta); stroke-width: 1.8; }
+.punt-dash .mg-nowdot { fill: var(--magenta); }
+.punt-dash .mg-nowtag { font-size: 12px; font-weight: 600; fill: var(--magenta); letter-spacing: 0.08em; text-transform: uppercase; }
+.punt-dash .mg-cross { stroke: var(--ink); stroke-opacity: 0.32; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 
 /* hover tooltip */
 .punt-dash .tip { position: absolute; top: 6px; transform: translateX(-50%); pointer-events: none; z-index: 5;
@@ -475,8 +487,7 @@ td .sub { color: var(--muted); font-size: 12px; }
 /* error/loading panels, light */
 .punt-dash .panel { background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 14px 18px; }
 
-/* mobiel: twee losse doorsnedes */
-.punt-dash #mobcharts { display: none; }
+/* mobiel: eigen 1:1 meteogram */
 @media (max-width: 900px) {
   .punt-dash { padding: 16px 18px 40px; }
   .punt-dash .top { gap: 14px; }
@@ -487,10 +498,7 @@ td .sub { color: var(--muted); font-size: 12px; }
   .punt-dash .item { padding: 2px 16px; }
   .punt-dash .item:first-child { border-left: none; padding-left: 0; }
   .punt-dash .item .s { white-space: nowrap; font-size: 13.5px; }
-  .punt-dash #deskchart { display: none; }
-  .punt-dash #mobcharts { display: block; }
-  .punt-dash #mobcharts .chartbox-wrap { height: 380px; margin-top: 14px; }
-  .punt-dash #mobcharts .chartbox-wrap.sea { height: 300px; }
-  .punt-dash #mobcharts .chartbox-wrap .chartbox { height: 100%; }
+  .punt-dash .mg-view.desk { display: none; }
+  .punt-dash .mg-view.mob { display: block; margin-top: 12px; }
   .punt-dash .legend details p { right: auto; left: 0; bottom: auto; top: 130px; }
 }
