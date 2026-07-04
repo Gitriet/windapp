@@ -7,7 +7,8 @@ import Nav from "@/components/Nav";
 import { ktsToBft, compass } from "@/lib/format";
 import { fmtTimeNL, localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxLabel } from "@/lib/weather";
-import { isLakeArea, stroomForLocation } from "@/lib/stroom";
+import { stroomForLocation } from "@/lib/stroom";
+import { BORROWED_WIND } from "@/lib/borrowed";
 import type { Location, CorrectedPoint, TideData, TidePoint, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -82,6 +83,7 @@ export default function Home() {
   const now = data?.points?.[0];
   const wx = data?.weather;
   const isLand = !!data && /land/i.test(data.location.area);
+  const borrow = key ? BORROWED_WIND[key] : undefined;
   const streamPt = key ? stroomForLocation(key) : null;
 
   const pts = data?.points ?? [];
@@ -138,8 +140,7 @@ export default function Home() {
     <div className="punt-dash">
       <div className="top">
         <h1>Windvoorspelling</h1>
-        <Nav active="punt" locKey={key}
-             showStroom={!isLakeArea(locs.find((l) => l.location_key === key)?.area ?? "")} />
+        <Nav active="punt" locKey={key} />
         <div className="pd-loc">
           <LocationPicker locations={locs} value={key} onChange={setKey} />
         </div>
@@ -191,6 +192,12 @@ export default function Home() {
             ))}
             <button onClick={() => pickRange(3)} className={isRange ? "active" : ""}>3d</button>
             {isLand && <span className="landtag">landstation</span>}
+            {borrow && (
+              <span className="borrowtag"
+                    title={`De windgrafiek toont ${borrow.donorName} — Texelhors heeft geen gevalideerde meetreeks. Het getij is van Texel (Oudeschild).`}>
+                wind: {borrow.donorName}
+              </span>
+            )}
           </div>
 
           <Meteogram points={data.points} weather={wx} tide={tide} stream={streamPt}

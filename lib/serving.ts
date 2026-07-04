@@ -7,6 +7,7 @@ import { fetchModel, fetchWeek } from "./openmeteo";
 import { CORE_MODEL_IDS, TTL_MINUTES, WEATHER_MODEL } from "./constants";
 import { correctSpeed } from "./correction";
 import { hoursToLead } from "./leads";
+import { BORROWED_WIND, SYNTHETIC_LOCATIONS } from "./borrowed";
 import type {
   BiasModel, Location, RawSeries, CorrectedPoint, WeatherSeries, WeekDay,
 } from "./types";
@@ -20,11 +21,16 @@ const round1 = (x: number) => Math.round(x * 10) / 10;
 const HORIZON_HOURS = 72;   // 3 equal-length leads (day1/2/3); cap the 4-day fetch
 
 export async function getLocations(): Promise<Location[]> {
-  return (await sql`SELECT location_key, name, station, area, lat, lon
-                    FROM locations ORDER BY name`) as Location[];
+  const rows = (await sql`SELECT location_key, name, station, area, lat, lon
+                          FROM locations ORDER BY name`) as Location[];
+  // append borrowed-wind points (not in the DB), then sort by name for the picker
+  const have = new Set(rows.map((r) => r.location_key));
+  const extra = Object.values(SYNTHETIC_LOCATIONS).filter((l) => !have.has(l.location_key));
+  return [...rows, ...extra].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
 
 async function getLocation(key: string): Promise<Location | undefined> {
+  if (SYNTHETIC_LOCATIONS[key]) return SYNTHETIC_LOCATIONS[key];
   const r = (await sql`SELECT location_key, name, station, area, lat, lon
                        FROM locations WHERE location_key = ${key}`) as Location[];
   return r[0];
@@ -72,6 +78,16 @@ async function ensureRaw(loc: Location, modelId: string, withWeather = false): P
 }
 
 async function loadLocation(key: string): Promise<LoadedLocation | null> {
+  // borrowed-wind point: reuse the donor's serving/bias/forecast/weather verbatim
+  // (its calibrated wind), keeping only this point's own identity for display + the
+  // tide coupling. The donor's fetch caches under the donor key, so no duplication.
+  const borrowed = BORROWED_WIND[key];
+  if (borrowed) {
+    const donor = await loadLocation(borrowed.donor);
+    if (!donor || !SYNTHETIC_LOCATIONS[key]) return null;
+    return { ...donor, loc: SYNTHETIC_LOCATIONS[key] };
+  }
+
   const loc = await getLocation(key);
   if (!loc) return null;
 

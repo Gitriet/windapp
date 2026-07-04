@@ -24,6 +24,9 @@ const DAY = 24 * 3600000;
 export const TIDE_STATIONS: Record<string, { code: string; name: string }> = {
   // Waddenzee
   dekooy: { code: "denhelder.marsdiep", name: "Den Helder (Marsdiep)" },
+  // Texel: own getij point (Oudeschild, verified verwachting + astronomisch), wind
+  // borrowed from De Kooy — Texelhors has no calibrated wind series (see lib/borrowed.ts).
+  texel: { code: "texel.oudeschild", name: "Texel (Oudeschild)" },
   vlieland: { code: "vlieland.haven", name: "Vlieland (haven)" },
   hoorn: { code: "terschelling.noordzee", name: "Terschelling (Noordzee)" },
   lauwersoog: { code: "lauwersoog.waddenzee", name: "Lauwersoog (Waddenzee)" },
