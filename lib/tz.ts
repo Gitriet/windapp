@@ -39,6 +39,14 @@ export function localWeekdayShort(ms: number): string {
   return fWeekday.format(ms).replace(".", "").toLowerCase();
 }
 
+// Amsterdam-local calendar date "YYYY-MM-DD" from a UTC instant — matches the
+// day keys Open-Meteo returns for the 7-day outlook (timezone=Europe/Amsterdam),
+// so tide extrema can be grouped onto the same local days.
+export function localDateISO(ms: number): string {
+  const p = parts(ms);
+  return `${p.y}-${String(p.mo).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+}
+
 // Amsterdam-local time-of-day as decimal hours (e.g. 14.5 = 14:30). Used by the
 // procedural stroom model, which works in hours-of-day around an HW reference.
 export function localHourDecimal(ms: number): number {

@@ -3,19 +3,21 @@ import { Fragment } from "react";
 import Link from "next/link";
 import WeatherIcon from "./WeatherIcon";
 import { wxGroup } from "@/lib/weather";
-import { localWeekdayShort } from "@/lib/tz";
+import { localWeekdayShort, localHM, localDateISO } from "@/lib/tz";
 import { compass } from "@/lib/format";
 import { sailBand } from "@/lib/sailing";
-import type { WeekDay } from "@/lib/types";
+import type { WeekDay, TideData, TideExtreme } from "@/lib/types";
 
 // 7-day day rows in the meteogram visual language (light theme, hairline dividers,
 // mono numbers). Uncorrected daily global-model aggregates — one row per day:
 // weekday + date, a subtle weather glyph + max temp, the dominant wind direction as
 // an ink compass-style vane, the day's wind range (min hourly → daily max) as mono
-// numbers + a slim bar on a fixed 0–40 kn scale, the peak gust, and a
-// vaarbaarheids-verdict dot in the nav colours (from sailBand on the gust — the same
-// rule as the meteogram spine). Wind-only: HW/LW only reaches ~4 days, so the tide
-// stays on Punt. Tapping a row opens that day on the Punt meteogram.
+// numbers + a slim 0–40 kn bar whose band segment carries the sailability colour
+// (green/amber/red, from sailBand on the gust — the SAME threshold as the verdict
+// dot) with a small tick marking the day's mean wind, the peak gust, and a
+// vaarbaarheids-verdict dot. For tide-coupled stations a compact per-day HW(red)/
+// LW(green) line (same tide source + coupling as Punt; only ~4 days ahead). Tapping
+// a row opens that day on the Punt meteogram.
 const WIND_MAX = 40;                       // kn — full width of the range bar
 const pct = (kn: number) => (Math.max(0, Math.min(WIND_MAX, kn)) / WIND_MAX) * 100;
 
@@ -46,7 +48,17 @@ function dayParts(date: string, i: number): { main: string; sub: string } {
   return { main: localWeekdayShort(Date.parse(date + "T12:00:00Z")), sub: `${dd}/${mo}` };
 }
 
-export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: string }) {
+export default function WeekTable({ days, locKey, tide }: { days: WeekDay[]; locKey: string; tide: TideData | null }) {
+  // Tide extrema (same source + coupling as Punt) grouped onto NL-local days, so
+  // each row shows that day's HW/LW. Only populated for tide-coupled stations
+  // (tide === null → no lines); the tide reaches ~4 days, so later rows have none.
+  const tideByDay = new Map<string, TideExtreme[]>();
+  for (const e of tide?.extremes ?? []) {
+    const day = localDateISO(Date.parse(e.t));
+    const arr = tideByDay.get(day);
+    if (arr) arr.push(e); else tideByDay.set(day, [e]);
+  }
+
   return (
     <div className="wd">
       {days.map((d, i) => {
@@ -55,6 +67,7 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
         const lo = d.windMin ?? 0;
         const hi = d.speedMax ?? 0;
         const nav = d.gust != null ? NAV[sailBand(d.gust).cls] : null;
+        const tideDay = tideByDay.get(d.date);
         return (
           <Fragment key={d.date}>
             {i === 3 && (
@@ -81,7 +94,9 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
                 </span>
                 <span className="wd-bar" aria-hidden="true">
                   <span className="wd-track" />
-                  <span className="wd-fill" style={{ left: `${pct(lo)}%`, width: `${Math.max(1.5, pct(hi) - pct(lo))}%` }} />
+                  <span className={"wd-fill" + (nav ? " " + nav.cls : "")}
+                        style={{ left: `${pct(lo)}%`, width: `${Math.max(1.5, pct(hi) - pct(lo))}%` }} />
+                  {d.windMean != null && <span className="wd-mean" style={{ left: `${pct(d.windMean)}%` }} />}
                 </span>
                 <span className="wd-gust">vlaag {d.gust != null ? Math.round(d.gust) : "–"}</span>
               </span>
@@ -89,6 +104,16 @@ export default function WeekTable({ days, locKey }: { days: WeekDay[]; locKey: s
               {nav && (
                 <span className={"wd-verdict " + nav.cls}>
                   <span className="wd-dot" />{nav.label}
+                </span>
+              )}
+
+              {tideDay && tideDay.length > 0 && (
+                <span className="wd-tide">
+                  {tideDay.map((e, k) => (
+                    <span key={k} className={"wd-ti " + (e.kind === "HW" ? "hw" : "lw")}>
+                      {e.kind} {localHM(Date.parse(e.t))}
+                    </span>
+                  ))}
                 </span>
               )}
             </Link>

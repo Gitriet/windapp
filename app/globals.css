@@ -280,6 +280,22 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 .week-dash .wd-verdict.tight { color: var(--amber); } .week-dash .wd-verdict.tight .wd-dot { background: var(--amber); }
 .week-dash .wd-verdict.no { color: var(--no); } .week-dash .wd-verdict.no .wd-dot { background: var(--no); }
 
+/* band segment in the sailability colour (same threshold as the verdict dot) +
+   a small tick marking the day's mean wind on the 0–40 scale */
+.week-dash .wd-fill.go { background: var(--green); }
+.week-dash .wd-fill.tight { background: var(--amber); }
+.week-dash .wd-fill.no { background: var(--no); }
+.week-dash .wd-mean { position: absolute; top: -3px; width: 2px; height: 10px; background: #fff;
+  transform: translateX(-50%); border-radius: 1px; box-shadow: 0 0 0 0.5px rgba(26,39,51,0.30); }
+
+/* per-day eb/vloed line (tide-coupled stations only): compact, muted, HW red / LW green.
+   grid-column 1/-1 auto-places it on a second row only when present, so tide-less rows
+   keep their single-line height. */
+.week-dash .wd-tide { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.week-dash .wd-ti.hw { color: var(--no); }
+.week-dash .wd-ti.lw { color: var(--green); }
+
 /* "verder vooruit" hairline cue before day 4 */
 .week-dash .wd-split { display: flex; align-items: center; margin: 4px 0 0; padding-top: 12px; border-top: 1px dashed var(--rule); }
 .week-dash .wd-split .tx { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-3); }

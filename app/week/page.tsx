@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import WeekTable from "@/components/WeekTable";
-import type { Location, WeekDay } from "@/lib/types";
+import type { Location, WeekDay, TideData } from "@/lib/types";
 
 export default function Week() {
   const [locs, setLocs] = useState<Location[]>([]);
   const [key, setKey] = useState("");
   const [days, setDays] = useState<WeekDay[] | null>(null);
+  const [tide, setTide] = useState<TideData | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -38,6 +39,16 @@ export default function Week() {
     }).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [key]);
 
+  // tide for the per-day HW/LW line — same endpoint + coupling as Punt. Returns
+  // null for stations without a getij coupling, so no tide lines appear there.
+  useEffect(() => {
+    if (!key) return;
+    setTide(null);
+    fetch(`/api/tide/${key}`, { cache: "no-store" }).then((r) => r.json()).then((d) => {
+      setTide(d && d.code ? d : null);
+    }).catch(() => setTide(null));
+  }, [key]);
+
   const selName = locs.find((l) => l.location_key === key)?.name ?? "";
 
   return (
@@ -59,7 +70,7 @@ export default function Week() {
             <h2>7 dagen{selName && <span> · {selName}</span>}</h2>
             <span className="wd-hint">daggemiddelden · globaal model, zonder stationscorrectie</span>
           </div>
-          <WeekTable days={days} locKey={key} />
+          <WeekTable days={days} locKey={key} tide={tide} />
           <p className="wd-note">
             Wind, dominante richting en vaarbaarheid per dag. Tik een dag voor het detail op de Punt-kaart.
             Verder dan drie dagen wordt de voorspelling minder zeker.

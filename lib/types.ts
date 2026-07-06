@@ -59,6 +59,7 @@ export type WeekDay = {
   speedMax: number | null;   // wind_speed_10m_max, kn — headline + bar marker
   gust: number | null;       // wind_gusts_10m_max, kn — the day's "piek" (bar high end)
   windMin: number | null;    // min hourly wind_speed_10m over the local day, kn (bar low)
+  windMean: number | null;   // mean hourly wind_speed_10m over the local day, kn (bar mean tick)
   tmax: number | null;       // °C
   tmin: number | null;       // °C
 };
