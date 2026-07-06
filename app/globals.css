@@ -337,7 +337,10 @@ td .sub { color: var(--muted); font-size: 12px; }
   --mono: var(--font-plex), 'IBM Plex Mono', monospace;
 
   background: var(--paper); color: var(--ink); font-family: var(--body);
-  max-width: 1440px; margin: 0 auto; padding: 20px 40px 18px;
+  /* same content width + side margins as the 7-dagen page (.week-dash), so both
+     tabs line up and stay aligned on future changes. Vertical padding stays Punt's
+     own (this is a fixed-height layout, unrelated to the width). */
+  max-width: 760px; margin: 0 auto; padding: 20px 24px 18px;
   display: flex; flex-direction: column;
 }
 @media (min-width: 901px) { .punt-dash { height: 100vh; overflow: hidden; } }
