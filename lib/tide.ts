@@ -33,7 +33,7 @@ export const TIDE_STATIONS: Record<string, { code: string; name: string }> = {
   huibertgat: { code: "huibertgat", name: "Huibertgat" },
   // Noordzee-kust
   ijmuiden: { code: "ijmuiden.buitenhaven", name: "IJmuiden (buitenhaven)" },
-  // Zuidwestelijke kust — uncorrected local-wind getij points (see lib/borrowed.ts).
+  // Zuidwestelijke kust — now calibrated wind stations (KNMI 310/330, EDR).
   // Both RWS codes verified live to carry verwachting + astronomisch WATHTE/NAP.
   hoekvanholland: { code: "hoekvanholland", name: "Hoek van Holland" },
   vlissingen: { code: "vlissingen", name: "Vlissingen" },

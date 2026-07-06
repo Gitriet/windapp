@@ -5,7 +5,7 @@ import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
 import { ktsToBft, compass } from "@/lib/format";
-import { fmtTimeNL, localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
+import { localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxLabel } from "@/lib/weather";
 import { stroomForLocation } from "@/lib/stroom";
 import { BORROWED_WIND, UNCORRECTED_WIND } from "@/lib/borrowed";
@@ -110,7 +110,6 @@ export default function Home() {
     }
   }
   const hero = pts[heroIdx] ?? now;
-  const heroIsPeak = !startsNow;
   const heroMs = hero ? ms(hero.time) : firstMs;
 
   const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === heroMs) : -1;
@@ -135,7 +134,7 @@ export default function Home() {
 
   const pickRange = (d: number) => { setRange(d); if (d !== 1) setDayIndex(0); };
   const pickDay = (d: number) => { setRange(1); setDayIndex(Math.min(Math.max(0, d), maxDay)); };
-  const modelInfo = hero ? `${hero.model_label} · ${heroIsPeak ? `piek ${localWeekdayShort(t0)} ${localHM(heroMs)}` : fmtTimeNL(hero.time)}` : "";
+  const modelInfo = hero ? hero.model_label : "";
 
   return (
     <div className="punt-dash">
@@ -205,6 +204,9 @@ export default function Home() {
                 ongecorrigeerd
               </span>
             )}
+            <span className="days-info">
+              <span className="model">{modelInfo}</span>
+            </span>
           </div>
 
           <Meteogram points={data.points} weather={wx} tide={tide} stream={streamPt}
@@ -219,15 +221,6 @@ export default function Home() {
             <span><i style={{ borderColor: "var(--green)" }} />vaarbaar</span>
             <span><i style={{ borderColor: "var(--amber)" }} />krap</span>
             <span><i style={{ borderColor: "var(--magenta)" }} />nu</span>
-            <span className="model">{modelInfo}</span>
-            <details>
-              <summary>uitleg</summary>
-              <p><b>Luchtdruk &amp; wind.</b> Wind ontstaat door verschillen in luchtdruk:
-              lucht stroomt van hoge- naar lagedruk, en hoe scherper dat verschil, hoe harder
-              het waait. Een dalende druk kondigt vaak een naderend lagedrukgebied met
-              toenemende, buiiger wind aan; een stijgende druk wijst meestal op rustiger,
-              stabieler weer. Het lint op de horizon beoordeelt de vaarbaarheid op de vlagen.</p>
-            </details>
           </div>
         </>
       )}

@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import type { CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 import { localHM, localWeekdayShort, localHourDecimal } from "@/lib/tz";
 import { compass } from "@/lib/format";
@@ -31,7 +32,19 @@ type Layout = {
   axisY: number; arrowGap: number; arrowN: number; compact: boolean;
 };
 
-const DESK: Layout = { id: "d", w: 1200, h: 762, padl: 46, padr: 18, windTop: 104, windBot: 340, navY: 398, tideTop: 454, tideBot: 684, axisY: 732, arrowGap: 30, arrowN: 8, compact: false };
+// Desktop layout is height-responsive: the graph always spans the full column
+// width and fills whatever vertical room the flex column leaves, so it never
+// overflows onto the legend (short window) nor floats letterboxed (tall window).
+// These are the tuned prototype proportions at h=470; deskLayout scales the band
+// positions to the measured height so the design stays identical at any height.
+const DESK_REF = { h: 470, windTop: 64, windBot: 210, navY: 246, tideTop: 280, tideBot: 422, axisY: 452, arrowGap: 30 };
+function deskLayout(h: number): Layout {
+  const k = h / DESK_REF.h, s = (v: number) => Math.round(v * k);
+  return { id: "d", w: 1200, h: Math.round(h), padl: 46, padr: 18,
+    windTop: s(DESK_REF.windTop), windBot: s(DESK_REF.windBot), navY: s(DESK_REF.navY),
+    tideTop: s(DESK_REF.tideTop), tideBot: s(DESK_REF.tideBot), axisY: s(DESK_REF.axisY),
+    arrowGap: s(DESK_REF.arrowGap), arrowN: 8, compact: false };
+}
 const MOB: Layout = { id: "m", w: 400, h: 560, padl: 32, padr: 14, windTop: 56, windBot: 230, navY: 270, tideTop: 308, tideBot: 508, axisY: 540, arrowGap: 26, arrowN: 4, compact: true };
 
 export default function Meteogram(
@@ -40,6 +53,21 @@ export default function Meteogram(
     stream?: StroomPoint | null; t0: number; endMs: number; range: number;
     hoverMs: number | null; onHover: (ms: number | null) => void },
 ) {
+  // Match the desktop viewBox to the container's actual box, so the graph fills
+  // its width AND height with no letterbox and no distortion. Measuring the
+  // flex-sized container (not the svg it holds) avoids any resize feedback loop.
+  const deskRef = useRef<HTMLDivElement>(null);
+  const [deskAspect, setDeskAspect] = useState(712 / 452);
+  useEffect(() => {
+    const el = deskRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => { const w = el.clientWidth, h = el.clientHeight; if (w > 0 && h > 0) setDeskAspect(w / h); };
+    update();
+    const ro = new ResizeObserver(update); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const DESK = deskLayout(1200 / deskAspect);
+
   const pts = points.filter((p) => { const m = ms(p.time); return m >= t0 - 1 && m <= endMs + 1000; });
   const withinT = (iso: string) => { const m = msT(iso); return m >= t0 - 1 && m <= endMs + 1000; };
   const exp = tide ? tide.expected.filter((p) => withinT(p.t)) : [];
@@ -279,7 +307,7 @@ export default function Meteogram(
 
   return (
     <div className="mg">
-      <div className="mg-view desk chartbox" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={clear} onPointerCancel={clear}>
+      <div ref={deskRef} className="mg-view desk chartbox" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={clear} onPointerCancel={clear}>
         <svg viewBox={`0 0 ${DESK.w} ${DESK.h}`} className="meteogram" preserveAspectRatio="xMidYMid meet" role="img" aria-label="meteogram wind, vaarbaarheid en getij">
           {renderView(DESK)}
         </svg>

@@ -414,7 +414,7 @@ td .sub { color: var(--muted); font-size: 12px; }
 }
 
 /* dagregel */
-.punt-dash .days { flex: none; display: flex; gap: 2px; align-items: center; padding: 2px 0 4px; }
+.punt-dash .days { flex: none; display: flex; flex-wrap: wrap; gap: 2px; align-items: center; padding: 2px 0 4px; }
 .punt-dash .days button { font-family: var(--mono); font-size: 14px; font-weight: 500; padding: 5px 16px; border: none; background: none; color: var(--ink-3); cursor: pointer; border-radius: 20px; }
 .punt-dash .days button.active { background: var(--ink); color: var(--paper); }
 .punt-dash .days button:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
@@ -423,13 +423,22 @@ td .sub { color: var(--muted); font-size: 12px; }
   border-bottom: 1px dotted var(--magenta); }
 .punt-dash .days .uncorrtag { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); cursor: help;
   border-bottom: 1px dotted var(--ink-3); }
+/* served model name, small + muted, right-aligned next to the day buttons
+   (padding-left keeps a gap from a preceding tag; margin-left:auto pushes it right) */
+.punt-dash .days-info { margin-left: auto; padding-left: 12px; }
+.punt-dash .days-info .model { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
 /* meteogram */
 .punt-dash .mg { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
 .punt-dash .mg-view { position: relative; touch-action: pan-y; }
 .punt-dash .mg-view.mob { display: none; }
+/* desktop: let the meteogram fill the remaining column height. With
+   preserveAspectRatio "meet" it grows to its natural 712×452 when there's room
+   and shrinks to fit (never overflowing the legend) on a shorter window. */
+.punt-dash .mg-view.desk { flex: 1; min-height: 0; }
 .punt-dash .chartbox { position: relative; touch-action: pan-y; }
 .punt-dash .meteogram { display: block; width: 100%; height: auto; overflow: visible; }
+.punt-dash .mg-view.desk .meteogram { height: 100%; }
 .punt-dash .meteogram text { font-family: var(--mono); }
 .punt-dash .mg-grid { stroke: var(--rule); stroke-width: 1; }
 .punt-dash .mg-axnum { font-size: 12px; fill: var(--ink-3); }
@@ -459,19 +468,12 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .tip b { color: var(--ink); font-weight: 600; }
 
 /* legenda */
-.punt-dash .legend { position: relative; flex: none; display: flex; gap: 20px; flex-wrap: wrap; padding-top: 9px; font-size: 13px; color: var(--ink-2); align-items: center; }
+.punt-dash .legend { flex: none; display: flex; gap: 20px; flex-wrap: wrap; padding-top: 9px; font-size: 13px; color: var(--ink-2); align-items: center; }
 .punt-dash .legend i { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .punt-dash .legend i.dash { border-top-style: dashed; }
 .punt-dash .legend i.dot { border-top-style: dotted; }
 .punt-dash .legend .box { display: inline-block; width: 13px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .punt-dash .legend .box.sea { background: linear-gradient(var(--sea-1), var(--sea-2)); }
-.punt-dash .legend .model { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
-.punt-dash .legend summary { cursor: pointer; list-style: none; color: var(--ink-3); }
-.punt-dash .legend summary::before { content: "ⓘ "; }
-.punt-dash .legend details p { position: absolute; right: 0; bottom: 28px; width: min(78ch, 72vw);
-  background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 16px 20px;
-  font-size: 14px; line-height: 1.6; color: var(--ink-2); box-shadow: 0 10px 34px rgba(26,39,51,.13); z-index: 10; }
-.punt-dash .legend details p b { color: var(--ink); font-weight: 600; }
 
 /* error/loading panels, light */
 .punt-dash .panel { background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 14px 18px; }
@@ -489,5 +491,4 @@ td .sub { color: var(--muted); font-size: 12px; }
   .punt-dash .item .s { white-space: nowrap; font-size: 13.5px; }
   .punt-dash .mg-view.desk { display: none; }
   .punt-dash .mg-view.mob { display: block; margin-top: 12px; }
-  .punt-dash .legend details p { right: auto; left: 0; bottom: auto; top: 130px; }
 }
