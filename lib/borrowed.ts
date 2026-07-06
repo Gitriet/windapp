@@ -4,42 +4,29 @@
 //
 //  1. Borrowed wind (BORROWED_WIND) — a point with no calibrated series of its own,
 //     shown with the wind of the nearest calibrated station, labelled as borrowed.
-//     Texel (Oudeschild): Texelhors has no KNMI validated historical wind series —
-//     its klimatologie number (229) is rejected like a non-existent station and its
-//     North-Sea decade file is empty — so it borrows De Kooy's calibrated wind
-//     (~5 km across the Marsdiep); only the tide is Texel's own (texel.oudeschild).
+//     General mechanism, currently unused: Texel used to borrow De Kooy, but since
+//     the KNMI EDR migration Texelhors has a validated series and is now its own
+//     calibrated station (in the Neon `locations` table), so it no longer belongs here.
 //
-//  2. Uncorrected local wind (UNCORRECTED_WIND) — a point with no calibrated station
-//     anywhere near, shown with the raw global-model wind on its OWN coordinate (no
-//     fase-1 bias correction), labelled "ongecorrigeerd". Vlissingen and Hoek van
-//     Holland: their KNMI wind stations can't be calibrated (the klimatologie source
-//     is retired and the EDR successor isn't reachable yet), and the nearest
-//     calibrated donor (IJmuiden) is 55–130 km away in a different sea area, so
-//     borrowing would misrepresent them. The tide is each point's own (RWS).
+//  2. Uncorrected local wind (UNCORRECTED_WIND) — a point with no calibrated station,
+//     shown with the raw global-model wind on its OWN coordinate (no fase-1 bias
+//     correction), labelled "ongecorrigeerd". Vlissingen and Hoek van Holland are not
+//     (yet) calibrated, and the nearest calibrated donor (IJmuiden) is 55–130 km away
+//     in a different sea area, so borrowing would misrepresent them. Tide is each
+//     point's own (RWS).
 import type { Location } from "./types";
 
-export const BORROWED_WIND: Record<string, { donor: string; donorName: string }> = {
-  texel: { donor: "dekooy", donorName: "De Kooy" },
-};
+// Empty for now — Texel graduated to a real calibrated station. Kept as the seam for
+// any future point that must borrow a neighbour's calibrated wind.
+export const BORROWED_WIND: Record<string, { donor: string; donorName: string }> = {};
 
 // Synthetic points served with uncorrected local wind (see flavour 2 above). The
 // serving layer gives these a default served model per lead with no bias table, so
 // the wind is the raw model value at the point's coordinate.
 export const UNCORRECTED_WIND = new Set(["vlissingen", "hoekvanholland"]);
 
-// Identity for a borrowed-wind point (not in the Neon `locations` table). Uses the
-// donor's coordinate so the uncorrected 7-day + weather overlay stay consistent
-// with the borrowed wind; the wind itself comes from the donor's serving/bias via
-// the alias in serving.ts, and the tide from lib/tide.ts by key.
+// Identity for a synthetic point (not in the Neon `locations` table).
 export const SYNTHETIC_LOCATIONS: Record<string, Location> = {
-  texel: {
-    location_key: "texel",
-    name: "Texel (Oudeschild)",
-    station: "DeKooy",
-    area: "Waddenzee (Texel)",
-    lat: 52.928,
-    lon: 4.781,
-  },
   // Uncorrected local-wind points (no calibrated station). Coordinate = the RWS
   // getij point, so the wind/weather overlay and the tide sit at the same spot.
   // station "" — no backing KNMI station. area includes "Noordzee" so the picker

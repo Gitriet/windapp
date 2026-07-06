@@ -58,8 +58,9 @@ function toTimeMap(s: RawSeries) {
 
 async function ensureRaw(loc: Location, modelId: string, withWeather = false): Promise<RawSeries> {
   // Synthetic points aren't in the `locations` table, and forecast_cache has a FK
-  // to it — so we can't cache under their key. Fetch them live every visit. (Texel
-  // never reaches here with its own key: it reuses the donor's real, cached row.)
+  // to it — so we can't cache under their key. Fetch them live every visit. (A
+  // borrowed-wind point never reaches here with its own key: it reuses the donor's
+  // real, cached row.)
   const synthetic = !!SYNTHETIC_LOCATIONS[loc.location_key];
   if (!synthetic) {
     const rows = (await sql`
