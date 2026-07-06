@@ -10,13 +10,13 @@ export function signedDelta(from: number, to: number): number {
   return ((to - from + 540) % 360) - 180;
 }
 
-// Vaarbaarheidsband (presentatie): klasse + label o.b.v. de vlagen. Groen VAARBAAR,
-// amber KRAP, rood STORM. Alleen voor de band onder/in de grafiek — geen invloed op
-// de datalaag of de /varen-beoordeling.
+// Vaarbaarheidsband (presentatie): klasse + label o.b.v. de vlagen. Groen GOED,
+// amber STEVIG, rood STORM. Alleen voor de band onder/in de grafiek — geen invloed op
+// de datalaag of de /varen-beoordeling. (De cls-keys blijven ok/krap/storm.)
 export function sailBand(gustKn: number): { cls: "ok" | "krap" | "storm"; label: string } {
   if (gustKn >= 34) return { cls: "storm", label: "STORM · VLAGEN > 34 KN" };
-  if (gustKn >= 25) return { cls: "krap", label: "KRAP · VLAGEN > 25 KN" };
-  return { cls: "ok", label: "VAARBAAR" };
+  if (gustKn >= 25) return { cls: "krap", label: "STEVIG · VLAGEN > 25 KN" };
+  return { cls: "ok", label: "GOED" };
 }
 
 // Circular mean of a set of bearings (degrees) — the right way to average wind

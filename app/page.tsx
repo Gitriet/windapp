@@ -218,8 +218,8 @@ export default function Home() {
             <span><span className="box" style={{ background: "rgba(26,39,51,0.09)" }} />spreiding</span>
             <span><i className="dot" style={{ borderColor: "var(--pressure)" }} />luchtdruk</span>
             {tide && <span><span className="box sea" />waterstand</span>}
-            <span><i style={{ borderColor: "var(--green)" }} />vaarbaar</span>
-            <span><i style={{ borderColor: "var(--amber)" }} />krap</span>
+            <span><i style={{ borderColor: "var(--green)" }} />goed</span>
+            <span><i style={{ borderColor: "var(--amber)" }} />stevig</span>
             <span><i style={{ borderColor: "var(--magenta)" }} />nu</span>
           </div>
         </>

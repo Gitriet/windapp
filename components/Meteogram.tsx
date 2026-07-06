@@ -21,8 +21,8 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 // vaarbaarheid: sailBand's three classes -> spine colour + label
 const NAVCOL = { go: "var(--green)", tight: "var(--amber)", no: "var(--no)" } as const;
-const NAVFULL = { go: "Vaarbaar", tight: "Krap · vlagen > 25 kn", no: "Niet vaarbaar" } as const;
-const NAVSHORT = { go: "Vaarbaar", tight: "Krap", no: "Niet" } as const;
+const NAVFULL = { go: "Goed", tight: "Stevig · vlagen > 25 kn", no: "Niet vaarbaar" } as const;
+const NAVSHORT = { go: "Goed", tight: "Stevig", no: "Niet" } as const;
 type Nav = keyof typeof NAVCOL;
 const navOf = (gust: number): Nav => { const c = sailBand(gust).cls; return c === "ok" ? "go" : c === "krap" ? "tight" : "no"; };
 

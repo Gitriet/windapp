@@ -23,8 +23,8 @@ const pct = (kn: number) => (Math.max(0, Math.min(WIND_MAX, kn)) / WIND_MAX) * 1
 
 // sailBand's three classes -> nav-colour verdict (matches the meteogram spine)
 const NAV = {
-  ok:    { cls: "go",    label: "Vaarbaar" },
-  krap:  { cls: "tight", label: "Krap" },
+  ok:    { cls: "go",    label: "Goed" },
+  krap:  { cls: "tight", label: "Stevig" },
   storm: { cls: "no",    label: "Niet" },
 } as const;
 
