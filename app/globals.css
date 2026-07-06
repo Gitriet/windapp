@@ -400,6 +400,19 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .item .s.up { color: var(--green); font-weight: 600; }
 .punt-dash .item .s.down { color: var(--gust); font-weight: 600; }
 
+/* Desktop (>900px): keep the hero on ONE row within the 760px width. Tighter gaps +
+   a slightly smaller headline and metric values so the three columns (getij/luchtdruk/
+   weer) stay beside the compass+windvalue instead of wrapping to a second line — that
+   wrap left a big empty gap bottom-left and stole vertical space from the graph.
+   Placed AFTER the base hero rules so it wins on source order (media queries add no
+   specificity). The ≤900px mobile layout keeps its own values, untouched. */
+@media (min-width: 901px) {
+  .punt-dash .hero { gap: 26px; padding: 16px 0 12px; }
+  .punt-dash .num { font-size: 60px; }
+  .punt-dash .item { padding: 2px 20px; }
+  .punt-dash .item .v { font-size: 23px; }
+}
+
 /* dagregel */
 .punt-dash .days { flex: none; display: flex; gap: 2px; align-items: center; padding: 2px 0 4px; }
 .punt-dash .days button { font-family: var(--mono); font-size: 14px; font-weight: 500; padding: 5px 16px; border: none; background: none; color: var(--ink-3); cursor: pointer; border-radius: 20px; }
