@@ -161,7 +161,16 @@ export default function Meteogram(
     // tide body + stroom vanes
     const top = exp.length ? exp.map((p) => [xt(p.t), YT(p.v)] as [number, number]) : [];
     const astroPts = ast.map((p) => [xt(p.t), YT(p.v)] as [number, number]);
-    const waterFill = top.length ? smoothPath(top) + `L${X(endMs).toFixed(1)},${o.tideBot}L${X(t0).toFixed(1)},${o.tideBot}Z` : "";
+    // fill the water body under the verwachting, then continue it along the
+    // astronomical curve beyond the verwachting horizon (RWS verwachting is shorter
+    // than the astro series), so it ends at the plot edge instead of ramping down to
+    // the corner. Close vertically at the real first/last x, not the window bounds.
+    const lastExpMs = exp.length ? msT(exp[exp.length - 1].t) : -Infinity;
+    const fillPts = [...top, ...ast.filter((p) => msT(p.t) > lastExpMs)
+      .map((p) => [xt(p.t), YT(p.v)] as [number, number])];
+    const waterFill = fillPts.length
+      ? smoothPath(fillPts) + `L${fillPts[fillPts.length - 1][0].toFixed(1)},${o.tideBot}L${fillPts[0][0].toFixed(1)},${o.tideBot}Z`
+      : "";
     const vanes = showSea && stream
       ? Array.from({ length: o.compact ? 5 : 8 }, (_, i) => {
           const m = t0 + ((endMs - t0) * (i + 0.5)) / (o.compact ? 5 : 8), c = currentAt(stream, localHourDecimal(m));
