@@ -31,7 +31,7 @@ type Layout = {
   axisY: number; arrowGap: number; arrowN: number; compact: boolean;
 };
 
-const DESK: Layout = { id: "d", w: 1200, h: 470, padl: 46, padr: 18, windTop: 64, windBot: 210, navY: 246, tideTop: 280, tideBot: 422, axisY: 452, arrowGap: 30, arrowN: 8, compact: false };
+const DESK: Layout = { id: "d", w: 1200, h: 762, padl: 46, padr: 18, windTop: 104, windBot: 340, navY: 398, tideTop: 454, tideBot: 684, axisY: 732, arrowGap: 30, arrowN: 8, compact: false };
 const MOB: Layout = { id: "m", w: 400, h: 560, padl: 32, padr: 14, windTop: 56, windBot: 230, navY: 270, tideTop: 308, tideBot: 508, axisY: 540, arrowGap: 26, arrowN: 4, compact: true };
 
 export default function Meteogram(
