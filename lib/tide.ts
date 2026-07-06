@@ -31,6 +31,9 @@ export const TIDE_STATIONS: Record<string, { code: string; name: string }> = {
   hoorn: { code: "terschelling.noordzee", name: "Terschelling (Noordzee)" },
   lauwersoog: { code: "lauwersoog.waddenzee", name: "Lauwersoog (Waddenzee)" },
   huibertgat: { code: "huibertgat", name: "Huibertgat" },
+  // Harlingen: getij point with UNCORRECTED local wind (no calibratable station —
+  // see lib/borrowed.ts). RWS code verified live for verwachting + astronomisch.
+  harlingen: { code: "harlingen.waddenzee", name: "Harlingen (Waddenzee)" },
   // Noordzee-kust
   ijmuiden: { code: "ijmuiden.buitenhaven", name: "IJmuiden (buitenhaven)" },
   // Zuidwestelijke kust — now calibrated wind stations (KNMI 310/330, EDR).
