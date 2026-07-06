@@ -7,7 +7,7 @@ import { fetchModel, fetchWeek } from "./openmeteo";
 import { CORE_MODEL_IDS, TTL_MINUTES, WEATHER_MODEL } from "./constants";
 import { correctSpeed } from "./correction";
 import { hoursToLead } from "./leads";
-import { BORROWED_WIND, SYNTHETIC_LOCATIONS } from "./borrowed";
+import { BORROWED_WIND, SYNTHETIC_LOCATIONS, UNCORRECTED_WIND } from "./borrowed";
 import type {
   BiasModel, Location, RawSeries, CorrectedPoint, WeatherSeries, WeekDay,
 } from "./types";
@@ -57,23 +57,31 @@ function toTimeMap(s: RawSeries) {
 }
 
 async function ensureRaw(loc: Location, modelId: string, withWeather = false): Promise<RawSeries> {
-  const rows = (await sql`
-    SELECT payload, fetched_at FROM forecast_cache
-    WHERE location_key = ${loc.location_key} AND model_id = ${modelId}`) as
-    { payload: RawSeries; fetched_at: string }[];
-  if (rows.length) {
-    const ageMin = (Date.now() - Date.parse(rows[0].fetched_at)) / 60000;
-    // require pressure too, so payloads cached before pressure was added refetch
-    const hasWeather = !withWeather ||
-      (rows[0].payload.weather_code != null && rows[0].payload.pressure != null);
-    if (ageMin < TTL_MINUTES && hasWeather) return rows[0].payload;
+  // Synthetic points aren't in the `locations` table, and forecast_cache has a FK
+  // to it — so we can't cache under their key. Fetch them live every visit. (Texel
+  // never reaches here with its own key: it reuses the donor's real, cached row.)
+  const synthetic = !!SYNTHETIC_LOCATIONS[loc.location_key];
+  if (!synthetic) {
+    const rows = (await sql`
+      SELECT payload, fetched_at FROM forecast_cache
+      WHERE location_key = ${loc.location_key} AND model_id = ${modelId}`) as
+      { payload: RawSeries; fetched_at: string }[];
+    if (rows.length) {
+      const ageMin = (Date.now() - Date.parse(rows[0].fetched_at)) / 60000;
+      // require pressure too, so payloads cached before pressure was added refetch
+      const hasWeather = !withWeather ||
+        (rows[0].payload.weather_code != null && rows[0].payload.pressure != null);
+      if (ageMin < TTL_MINUTES && hasWeather) return rows[0].payload;
+    }
   }
   const raw = await fetchModel(loc.lat, loc.lon, modelId, withWeather);
-  await sql`
-    INSERT INTO forecast_cache (location_key, model_id, payload, fetched_at)
-    VALUES (${loc.location_key}, ${modelId}, ${JSON.stringify(raw)}, now())
-    ON CONFLICT (location_key, model_id)
-    DO UPDATE SET payload = EXCLUDED.payload, fetched_at = EXCLUDED.fetched_at`;
+  if (!synthetic) {
+    await sql`
+      INSERT INTO forecast_cache (location_key, model_id, payload, fetched_at)
+      VALUES (${loc.location_key}, ${modelId}, ${JSON.stringify(raw)}, now())
+      ON CONFLICT (location_key, model_id)
+      DO UPDATE SET payload = EXCLUDED.payload, fetched_at = EXCLUDED.fetched_at`;
+  }
   return raw;
 }
 
@@ -95,6 +103,17 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
                         WHERE location_key = ${key}`) as
     { lead: number; model_id: string; model_label: string }[];
   const serving = new Map(sv.map((r) => [r.lead, { model_id: r.model_id, model_label: r.model_label }]));
+
+  // Uncorrected local-wind points have no fase-1 serving/bias rows. Serve a default
+  // model per lead (HARMONIE NL near-term where it reaches ~day 1, ECMWF beyond) and
+  // leave `bias` empty, so correctSpeed applies no offset (level "raw") — the wind is
+  // the raw model value at this coordinate. Both model_ids are in CORE_MODEL_IDS, so
+  // rawMaps already holds them.
+  if (UNCORRECTED_WIND.has(key)) {
+    serving.set(1, { model_id: "knmi_harmonie_arome_netherlands", model_label: "HARMONIE NL" });
+    serving.set(2, { model_id: "ecmwf_ifs025", model_label: "ECMWF IFS" });
+    serving.set(3, { model_id: "ecmwf_ifs025", model_label: "ECMWF IFS" });
+  }
 
   const bs = (await sql`SELECT model_id, lead, model_json FROM bias_speed
                         WHERE location_key = ${key}`) as

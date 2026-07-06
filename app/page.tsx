@@ -8,7 +8,7 @@ import { ktsToBft, compass } from "@/lib/format";
 import { fmtTimeNL, localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { wxLabel } from "@/lib/weather";
 import { stroomForLocation } from "@/lib/stroom";
-import { BORROWED_WIND } from "@/lib/borrowed";
+import { BORROWED_WIND, UNCORRECTED_WIND } from "@/lib/borrowed";
 import type { Location, CorrectedPoint, TideData, TidePoint, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -84,6 +84,7 @@ export default function Home() {
   const wx = data?.weather;
   const isLand = !!data && /land/i.test(data.location.area);
   const borrow = key ? BORROWED_WIND[key] : undefined;
+  const uncorrected = key ? UNCORRECTED_WIND.has(key) : false;
   const streamPt = key ? stroomForLocation(key) : null;
 
   const pts = data?.points ?? [];
@@ -196,6 +197,12 @@ export default function Home() {
               <span className="borrowtag"
                     title={`De windgrafiek toont ${borrow.donorName} — Texelhors heeft geen gevalideerde meetreeks. Het getij is van Texel (Oudeschild).`}>
                 wind: {borrow.donorName}
+              </span>
+            )}
+            {uncorrected && (
+              <span className="uncorrtag"
+                    title="Wind uit een globaal model op deze locatie, zonder stationscorrectie — er is hier geen gevalideerd meetstation. Het getij komt van RWS.">
+                ongecorrigeerd
               </span>
             )}
           </div>

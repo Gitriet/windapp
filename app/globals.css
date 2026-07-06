@@ -389,6 +389,8 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .days .landtag { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--gust); }
 .punt-dash .days .borrowtag { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--magenta); cursor: help;
   border-bottom: 1px dotted var(--magenta); }
+.punt-dash .days .uncorrtag { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); cursor: help;
+  border-bottom: 1px dotted var(--ink-3); }
 
 /* meteogram */
 .punt-dash .mg { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
