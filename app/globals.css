@@ -429,7 +429,9 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .days-info .model { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
 /* meteogram */
-.punt-dash .mg { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
+/* fills the remaining column height, but capped so it never stretches unbounded on
+   a tall window (extra space then falls below the legend); shrinks to fit on short. */
+.punt-dash .mg { flex: 1; min-height: 0; max-height: 480px; display: flex; flex-direction: column; margin-top: 6px; }
 .punt-dash .mg-view { position: relative; touch-action: pan-y; }
 .punt-dash .mg-view.mob { display: none; }
 /* desktop: let the meteogram fill the remaining column height. With

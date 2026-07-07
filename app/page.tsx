@@ -4,34 +4,14 @@ import Meteogram from "@/components/Meteogram";
 import Compass from "@/components/Compass";
 import LocationPicker from "@/components/LocationPicker";
 import Nav from "@/components/Nav";
-import { ktsToBft, compass } from "@/lib/format";
-import { localHM, localWeekdayShort, dayMidnights } from "@/lib/tz";
-import { wxLabel } from "@/lib/weather";
+import { compass } from "@/lib/format";
+import { localWeekdayShort, dayMidnights } from "@/lib/tz";
 import { stroomForLocation } from "@/lib/stroom";
 import { BORROWED_WIND, UNCORRECTED_WIND } from "@/lib/borrowed";
-import type { Location, CorrectedPoint, TideData, TidePoint, WeatherSeries } from "@/lib/types";
+import type { Location, CorrectedPoint, TideData, WeatherSeries } from "@/lib/types";
 
 const DAY_MS = 24 * 3600 * 1000;
 const ms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
-const msT = (iso: string) => Date.parse(iso);
-
-// pressure tendency over the next ~3h: arrow + the change in hPa
-function pressInfo(pressure: (number | null)[], i: number): { arrow: string; d: number } | null {
-  const a = pressure[i], b = pressure[Math.min(i + 3, pressure.length - 1)];
-  if (a == null || b == null) return null;
-  const d = b - a;
-  return { arrow: d > 0.6 ? "↗" : d < -0.6 ? "↘" : "→", d };
-}
-
-function levelAt(series: TidePoint[], m: number): number {
-  if (!series.length) return 0;
-  if (m <= msT(series[0].t)) return series[0].v;
-  for (let i = 1; i < series.length; i++) {
-    const a = series[i - 1], b = series[i], ta = msT(a.t), tb = msT(b.t);
-    if (m >= ta && m <= tb) { const f = (m - ta) / Math.max(1, tb - ta); return a.v + f * (b.v - a.v); }
-  }
-  return series[series.length - 1].v;
-}
 
 export default function Home() {
   const [locs, setLocs] = useState<Location[]>([]);
@@ -114,18 +94,8 @@ export default function Home() {
 
   const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === heroMs) : -1;
   const wxHero = wx && wx.code.length && heroWxIdx >= 0
-    ? { temp: wx.temp[heroWxIdx], label: wxLabel(wx.code[heroWxIdx]),
-        pressure: wx.pressure[heroWxIdx], press: pressInfo(wx.pressure, heroWxIdx) }
+    ? { pressure: wx.pressure[heroWxIdx] }
     : null;
-
-  const tideHero = (() => {
-    if (!tide || tide.unavailable) return null;
-    const series = tide.expected.length ? tide.expected : tide.astro;
-    if (!series.length) return null;
-    const cur = levelAt(series, heroMs), ahead = levelAt(series, heroMs + 30 * 60000);
-    const nextHW = tide.extremes.find((e) => e.kind === "HW" && msT(e.t) > heroMs);
-    return { cur, rising: ahead >= cur, nextHW };
-  })();
 
   const dayStats = dayStarts.map((s, i) => {
     const cnt = pts.filter((p) => { const m = ms(p.time); return m >= s && m < s + DAY_MS; }).length;
@@ -155,34 +125,7 @@ export default function Home() {
             <div className="rose"><Compass deg={hero.dir_deg} /></div>
             <div className="main">
               <div className="num">{hero.speed_kn}<small>kn</small></div>
-              <div className="dir"><b>{compass(hero.dir_deg)} · {hero.dir_deg}°</b> &nbsp;·&nbsp; {ktsToBft(hero.speed_kn)} bft</div>
-            </div>
-            <div className="rest">
-              {tideHero && (
-                <div className="item">
-                  <div className="k">Getij</div>
-                  <div className="v">{tideHero.cur >= 0 ? "+" : ""}{Math.round(tideHero.cur)}<small> cm</small></div>
-                  <div className="s"><b>{tideHero.rising ? "vloed" : "eb"}</b>{tideHero.nextHW && ` · HW ${localHM(msT(tideHero.nextHW.t))}`}</div>
-                </div>
-              )}
-              {wxHero && wxHero.pressure != null && (
-                <div className="item">
-                  <div className="k">Luchtdruk</div>
-                  <div className="v">{Math.round(wxHero.pressure)}<small> hPa</small></div>
-                  {wxHero.press && (
-                    <div className={"s" + (wxHero.press.d > 0.6 ? " up" : wxHero.press.d < -0.6 ? " down" : "")}>
-                      {wxHero.press.arrow} {wxHero.press.d >= 0 ? "+" : ""}{wxHero.press.d.toFixed(1)} / 3 u
-                    </div>
-                  )}
-                </div>
-              )}
-              {wxHero && (
-                <div className="item">
-                  <div className="k">Weer</div>
-                  <div className="v">{wxHero.temp != null ? Math.round(wxHero.temp) : "–"}<small> °C</small></div>
-                  <div className="s">{wxHero.label}</div>
-                </div>
-              )}
+              <div className="dir"><b>{compass(hero.dir_deg)} · {hero.dir_deg}°{wxHero?.pressure != null ? ` · ${Math.round(wxHero.pressure)} hPa` : ""}</b></div>
             </div>
           </div>
 
