@@ -5,8 +5,9 @@ import { localHM, localWeekdayShort, localHourDecimal } from "@/lib/tz";
 import { compass } from "@/lib/format";
 import { sailBand } from "@/lib/sailing";
 import { smoothPath, hourTicks, dayBands } from "@/lib/chartaxis";
-import { sunEvents } from "@/lib/weather";
+import { sunEvents, wxGroup, isNight } from "@/lib/weather";
 import { currentAt, type StroomPoint } from "@/lib/stroom";
+import WeatherIcon from "@/components/WeatherIcon";
 
 // Meteogram (redesign, docs/redesign-prototype.html) rendered against the real
 // data layer. One shared renderView(layout) draws two fixed-viewBox SVGs — a wide
@@ -37,7 +38,7 @@ type Layout = {
 // overflows onto the legend (short window) nor floats letterboxed (tall window).
 // These are the tuned prototype proportions at h=470; deskLayout scales the band
 // positions to the measured height so the design stays identical at any height.
-const DESK_REF = { h: 470, windTop: 64, windBot: 210, navY: 246, tideTop: 280, tideBot: 422, axisY: 452, arrowGap: 30 };
+const DESK_REF = { h: 470, windTop: 64, windBot: 210, navY: 246, tideTop: 280, tideBot: 422, axisY: 452, arrowGap: 40 };
 function deskLayout(h: number): Layout {
   const k = h / DESK_REF.h, s = (v: number) => Math.round(v * k);
   return { id: "d", w: 1200, h: Math.round(h), padl: 46, padr: 18,
@@ -78,7 +79,10 @@ export default function Meteogram(
   const n = pts.length;
 
   // ── shared scales (layout-independent) ──
-  const ymax = Math.max(30, Math.ceil(Math.max(...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) / 10) * 10);
+  // y-as schaalt mee met de wind: rond de hoogste vlaag/spreiding af naar het
+  // volgende tiental (min. 10), i.p.v. een vaste bovengrens van 30 — bij weinig
+  // wind vullen de lijnen zo de grafiek i.p.v. onderin te blijven plakken.
+  const ymax = Math.max(10, Math.ceil(Math.max(...pts.map((p) => Math.max(p.gust_kn || 0, p.band_high_kn))) / 10) * 10);
   const yvals: number[] = []; for (let v = 0; v <= ymax; v += 10) yvals.push(v);
 
   const pv = weather
@@ -90,6 +94,12 @@ export default function Meteogram(
 
   const sunEv = (weather && range === 1 ? sunEvents(weather.sunrise, weather.sunset) : [])
     .filter((e) => e.ms > t0 && e.ms < endMs);
+
+  // weather condition per hour (for the glyphs under the direction arrows) + the
+  // full sun timeline so each glyph knows day/night (sun vs moon on "clear").
+  const wxByMs = new Map<number, number | null>();
+  if (weather) for (let i = 0; i < weather.time.length; i++) wxByMs.set(ms(weather.time[i]), weather.code[i]);
+  const sunTimeline = weather ? sunEvents(weather.sunrise, weather.sunset) : [];
 
   // vaarbaarheids-segmenten (merge consecutive equal classes, span the full window)
   type Seg = { a: number; b: number; nav: Nav };
@@ -156,7 +166,14 @@ export default function Meteogram(
     const step = Math.max(1, Math.round(n / o.arrowN));
     const arrows = pts.filter((_, i) => i % step === 0)
       .filter((p) => Math.abs(ms(p.time) - nowMs) > (endMs - t0) / (2 * o.arrowN))
-      .map((p) => { const cx = xp(p), cy = o.windTop - o.arrowGap, a = rad(p.dir_deg + 90); return { cx, cy, dx: Math.cos(a) * 9, dy: Math.sin(a) * 9, a, beyond: p.beyond }; });
+      .map((p) => {
+        const m = ms(p.time), cx = xp(p), cy = o.windTop - o.arrowGap, a = rad(p.dir_deg + 90);
+        return {
+          cx, cy, dx: Math.cos(a) * 9, dy: Math.sin(a) * 9, a, beyond: p.beyond,
+          group: weather ? wxGroup(wxByMs.get(m) ?? null) : null,
+          night: isNight(m, sunTimeline),
+        };
+      });
 
     // tide body + stroom vanes
     const top = exp.length ? exp.map((p) => [xt(p.t), YT(p.v)] as [number, number]) : [];
@@ -215,6 +232,18 @@ export default function Meteogram(
           </g>
         ))}
 
+        {/* ── weerconditie-glyph onder elke richtingpijl (zon/regen/bewolkt …) ── */}
+        {arrows.map((ar, k) => {
+          if (!ar.group) return null;
+          const is = o.compact ? 15 : 26;   // groter op desktop (SVG schaalt ~0.6× terug)
+          const cy = o.windTop - o.arrowGap * (o.compact ? 0.4 : 0.42);
+          return (
+            <WeatherIcon key={`wx${k}`} group={ar.group} night={ar.night} size={is}
+                         x={ar.cx - is / 2} y={cy - is / 2} className="mg-wx"
+                         opacity={ar.beyond ? 0.4 : 1} />
+          );
+        })}
+
         {/* ── vaarbaarheids-as (ruggengraat) ── */}
         {segs.map((s, k) => {
           const sx = X(s.a), sw = Math.max(0, X(s.b) - X(s.a)), col = NAVCOL[s.nav];
@@ -251,7 +280,7 @@ export default function Meteogram(
               return (
                 <g key={`ex${k}`}>
                   <circle className="mg-event" cx={cx} cy={cy} r={3.5} />
-                  <text className="mg-evlbl" textAnchor="middle" x={fit(cx, lab, 7.4)} y={cy - 10} fill={e.v > 0 ? "var(--ink)" : "#fff"}>{lab}</text>
+                  <text className="mg-evlbl" textAnchor="middle" x={fit(cx, lab, 7.4)} y={cy - 10} fill={e.kind === "LW" || e.v > 0 ? "var(--ink)" : "#fff"}>{lab}</text>
                 </g>
               );
             })}
@@ -266,12 +295,21 @@ export default function Meteogram(
           </>
         )}
 
-        {/* ── sun events on the time axis ── */}
-        {sunEv.map((e, k) => (
-          <text key={`su${k}`} className="mg-sun" textAnchor="middle" x={clamp(X(e.ms), o.padl + 14, o.w - o.padr - 14)} y={o.axisY - (showSea ? 16 : 0)}>
-            {(e.rise ? "☀ " : "☾ ") + localHM(e.ms)}
-          </text>
-        ))}
+        {/* ── zon op/onder op de tijdas: met een papier-achtergrondchip zodat het
+             boven de vaarbaarheids-lijn en de as-tijden leesbaar blijft ── */}
+        {sunEv.map((e, k) => {
+          const label = (e.rise ? "☀ " : "☾ ") + localHM(e.ms);
+          const sfs = o.compact ? 11 : 15;                       // matcht .mg-sun
+          const w = label.length * sfs * 0.56 + 8;
+          const sx = clamp(X(e.ms), o.padl + w / 2, o.w - o.padr - w / 2);
+          const sy = o.axisY - (showSea ? 20 : 44);              // in de vrije band, weg van de spine/as
+          return (
+            <g key={`su${k}`}>
+              <rect x={sx - w / 2} y={sy - sfs + 1} width={w} height={sfs + 5} rx={5} fill="var(--paper)" opacity={0.92} />
+              <text className="mg-sun" textAnchor="middle" x={sx} y={sy}>{label}</text>
+            </g>
+          );
+        })}
 
         {/* ── x-axis (compact single-day view labels every 6h) ── */}
         {!multi && ticks.filter((tk) => tk.label).filter((_, i) => !o.compact || i % 2 === 0).map((tk, k) => {

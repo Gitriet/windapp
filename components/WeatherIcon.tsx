@@ -64,12 +64,12 @@ function Glyph({ group, night }: { group: WxGroup; night?: boolean }) {
 }
 
 export default function WeatherIcon(
-  { group, size = 20, x, y, className, night }:
-  { group: WxGroup; size?: number; x?: number; y?: number; className?: string; night?: boolean },
+  { group, size = 20, x, y, className, night, opacity }:
+  { group: WxGroup; size?: number; x?: number; y?: number; className?: string; night?: boolean; opacity?: number },
 ) {
   const pos = x != null && y != null ? { x, y } : {};
   return (
-    <svg {...pos} width={size} height={size} viewBox="0 0 24 24" className={className}
+    <svg {...pos} width={size} height={size} viewBox="0 0 24 24" className={className} opacity={opacity}
          fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <Glyph group={group} night={night} />
     </svg>

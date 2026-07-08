@@ -94,7 +94,7 @@ export default function Home() {
 
   const heroWxIdx = wx && hero ? wx.time.findIndex((t) => ms(t) === heroMs) : -1;
   const wxHero = wx && wx.code.length && heroWxIdx >= 0
-    ? { pressure: wx.pressure[heroWxIdx] }
+    ? { pressure: wx.pressure[heroWxIdx], temp: wx.temp[heroWxIdx] }
     : null;
 
   const dayStats = dayStarts.map((s, i) => {
@@ -125,7 +125,7 @@ export default function Home() {
             <div className="rose"><Compass deg={hero.dir_deg} /></div>
             <div className="main">
               <div className="num">{hero.speed_kn}<small>kn</small></div>
-              <div className="dir"><b>{compass(hero.dir_deg)} · {hero.dir_deg}°{wxHero?.pressure != null ? ` · ${Math.round(wxHero.pressure)} hPa` : ""}</b></div>
+              <div className="dir"><b>{compass(hero.dir_deg)} · {wxHero?.temp != null ? `${Math.round(wxHero.temp)}°C` : `${hero.dir_deg}°`}{wxHero?.pressure != null ? ` · ${Math.round(wxHero.pressure)} hPa` : ""}</b></div>
             </div>
           </div>
 
