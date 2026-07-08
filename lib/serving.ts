@@ -5,7 +5,7 @@
 import { sql } from "./db";
 import { fetchModel, fetchWeek } from "./openmeteo";
 import { CORE_MODEL_IDS, TTL_MINUTES, WEATHER_MODEL } from "./constants";
-import { correctSpeed } from "./correction";
+import { correctSpeed, correctGust } from "./correction";
 import { hoursToLead } from "./leads";
 import { BORROWED_WIND, SYNTHETIC_LOCATIONS, UNCORRECTED_WIND } from "./borrowed";
 import type {
@@ -40,6 +40,7 @@ type LoadedLocation = {
   loc: Location;
   serving: Map<number, { model_id: string; model_label: string }>;
   bias: Map<string, BiasModel>;                 // key `${model_id}|${lead}`
+  gustBias: Map<string, BiasModel>;             // key `${model_id}|${lead}` — gust correction
   rawMaps: Map<string, Map<string, { speed: number; dir: number; gust: number }>>;
   times: string[];
   weather: Map<string, WeatherCell>;            // by iso, from the weather model
@@ -121,6 +122,16 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
     { model_id: string; lead: number; model_json: BiasModel }[];
   const bias = new Map(bs.map((r) => [`${r.model_id}|${r.lead}`, r.model_json]));
 
+  // gust-bias tables (same shape as bias_speed). Best-effort: if the table isn't
+  // there yet (DB not re-seeded after the gust migration), fall through to raw
+  // gusts rather than break the whole forecast.
+  let gs: { model_id: string; lead: number; model_json: BiasModel }[] = [];
+  try {
+    gs = (await sql`SELECT model_id, lead, model_json FROM bias_gust
+                    WHERE location_key = ${key}`) as typeof gs;
+  } catch { /* bias_gust missing -> raw gusts */ }
+  const gustBias = new Map(gs.map((r) => [`${r.model_id}|${r.lead}`, r.model_json]));
+
   const rawMaps = new Map<string, Map<string, { speed: number; dir: number; gust: number }>>();
   let times: string[] = [];
   for (const m of CORE_MODEL_IDS) {
@@ -145,9 +156,38 @@ async function loadLocation(key: string): Promise<LoadedLocation | null> {
     });
   }
   return {
-    loc, serving, bias, rawMaps, times, weather, weatherTimes: weatherRaw.time,
+    loc, serving, bias, gustBias, rawMaps, times, weather, weatherTimes: weatherRaw.time,
     sunrise: weatherRaw.sunrise ?? [], sunset: weatherRaw.sunset ?? [],
   };
+}
+
+const median = (xs: number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+// Calibrated gust for the served point at one timestamp, floored at floorKn (the
+// corrected mean wind). Uses the served model's own gust table when it has one;
+// otherwise (ECMWF — no historical gusts) the median of the core models that DO
+// have a fitted gust table. Falls back to the served model's raw gust if nothing
+// calibrated is available.
+function correctedGust(
+  L: LoadedLocation, servedId: string, lead: number,
+  sv: { speed: number; dir: number; gust: number }, iso: string, floorKn: number,
+): number {
+  const own = L.gustBias.get(`${servedId}|${lead}`);
+  if (own) return correctGust(own, sv.gust, sv.dir, sv.speed, iso, floorKn).gust;
+
+  const cal: number[] = [];
+  for (const m of CORE_MODEL_IDS) {
+    const gm = L.gustBias.get(`${m}|${lead}`);
+    const r = L.rawMaps.get(m)?.get(iso);
+    if (!gm || !r || r.gust == null || r.dir == null || r.speed == null) continue;
+    cal.push(correctGust(gm, r.gust, r.dir, r.speed, iso, floorKn).gust);
+  }
+  if (cal.length) return median(cal);
+  return correctGust(null, sv.gust, sv.dir, sv.speed, iso, floorKn).gust;   // raw, floored
 }
 
 // Corrected served-model value + model-spread band at one timestamp.
@@ -158,6 +198,12 @@ function pointAt(L: LoadedLocation, iso: string, lead: number): CorrectedPoint |
   if (!sv || sv.speed == null) return null;
 
   const c = correctSpeed(L.bias.get(`${served.model_id}|${lead}`) ?? null, sv.speed, sv.dir, iso);
+  // Gust: bias-corrected, floored at the corrected mean wind (a gust can't be below
+  // the mean). When the served model has its own fitted gust table (HARMONIE/ICON/
+  // GFS/UKMO), correct its gust directly. ECMWF carries no historical gusts, so a
+  // served-ECMWF point instead takes the MEDIAN of the other core models' calibrated
+  // gusts at this hour — a data-grounded gust rather than a raw, uncalibrated one.
+  const gustVal = correctedGust(L, served.model_id, lead, sv, iso, c.speed);
   const band: number[] = [];
   for (const m of CORE_MODEL_IDS) {
     const r = L.rawMaps.get(m)?.get(iso);
@@ -171,7 +217,7 @@ function pointAt(L: LoadedLocation, iso: string, lead: number): CorrectedPoint |
     model_label: served.model_label,
     speed_kn: round1(c.speed),
     dir_deg: Math.round(sv.dir),
-    gust_kn: round1(sv.gust),
+    gust_kn: round1(gustVal),
     band_low_kn: round1(Math.min(...band)),
     band_high_kn: round1(Math.max(...band)),
     corrected: c.level !== "raw",

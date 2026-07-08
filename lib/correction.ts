@@ -55,3 +55,29 @@ export function correctSpeed(
   );
   return { speed: Math.max(0, fcSpeedKn - offset), level };
 }
+
+// Corrected gust = forecast gust minus the learned gust bias (fc_gust - obs_gust).
+// The gust model uses the SAME forecast-side strata as the speed model (cell keyed
+// on fc dir sector, season, fc-speed band), so lookupOffset is reused verbatim.
+// A gust can never fall below the (corrected) mean wind, so the result is floored
+// at floorKn. Without a gust model the raw forecast gust passes through unchanged.
+export function correctGust(
+  model: BiasModel | null,
+  fcGustKn: number,
+  fcDirDeg: number,
+  fcSpeedKn: number,
+  iso: string,
+  floorKn = 0,
+): { gust: number; level: string } {
+  if (fcGustKn == null) return { gust: fcGustKn, level: "raw" };
+  // Apply the learned bias only when a gust model + cell inputs are present; a
+  // served model without a fitted gust table (e.g. ECMWF, no training gusts)
+  // keeps the raw forecast gust. Either way the gust is floored at the mean wind.
+  let offset = 0, level = "raw";
+  if (model != null && fcDirDeg != null && fcSpeedKn != null) {
+    ({ offset, level } = lookupOffset(
+      model, dirSector(fcDirDeg), seasonFromIso(iso), speedBand(fcSpeedKn),
+    ));
+  }
+  return { gust: Math.max(fcGustKn - offset, floorKn, 0), level };
+}

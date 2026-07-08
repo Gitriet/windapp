@@ -5,13 +5,14 @@ import Link from "next/link";
 // keeps the location (both pages read ?loc= on mount).
 export default function Nav(
   { active, locKey }:
-  { active: "punt" | "week"; locKey: string },
+  { active: "punt" | "week" | "ai"; locKey: string },
 ) {
   const q = locKey ? `?loc=${locKey}` : "";
   return (
     <nav className="tabs">
       <Link href={`/${q}`} className={active === "punt" ? "active" : ""}>Punt</Link>
       <Link href={`/week${q}`} className={active === "week" ? "active" : ""}>7 dagen</Link>
+      <Link href={`/ai${q}`} className={active === "ai" ? "active" : ""}>AI</Link>
     </nav>
   );
 }

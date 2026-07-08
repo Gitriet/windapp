@@ -359,7 +359,12 @@ td .sub { color: var(--muted); font-size: 12px; }
   max-width: 760px; margin: 0 auto; padding: 20px 24px 18px;
   display: flex; flex-direction: column;
 }
-@media (min-width: 901px) { .punt-dash { height: 100vh; overflow: hidden; } }
+@media (min-width: 901px) {
+  .punt-dash { height: 100vh; overflow: hidden; }
+  /* desktop only: cap the fill so a tall window doesn't stretch the graph unbounded.
+     On mobile .mg must size to its (taller, 1:1) svg in normal flow, so NO cap there. */
+  .punt-dash .mg { max-height: 480px; }
+}
 
 /* kop */
 .punt-dash .top { flex: none; display: flex; align-items: baseline; gap: 30px; flex-wrap: wrap; }
@@ -429,9 +434,9 @@ td .sub { color: var(--muted); font-size: 12px; }
 .punt-dash .days-info .model { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
 /* meteogram */
-/* fills the remaining column height, but capped so it never stretches unbounded on
-   a tall window (extra space then falls below the legend); shrinks to fit on short. */
-.punt-dash .mg { flex: 1; min-height: 0; max-height: 480px; display: flex; flex-direction: column; margin-top: 6px; }
+/* mobile: sizes to its own (1:1) svg in normal flow. Desktop adds a max-height cap
+   in the min-width:901 block so a tall window doesn't stretch the graph unbounded. */
+.punt-dash .mg { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
 .punt-dash .mg-view { position: relative; touch-action: pan-y; }
 .punt-dash .mg-view.mob { display: none; }
 /* desktop: let the meteogram fill the remaining column height. With
@@ -493,4 +498,63 @@ td .sub { color: var(--muted); font-size: 12px; }
   .punt-dash .item .s { white-space: nowrap; font-size: 13.5px; }
   .punt-dash .mg-view.desk { display: none; }
   .punt-dash .mg-view.mob { display: block; margin-top: 12px; }
+}
+
+/* ===================================================================== */
+/* AI-tab (Deel B) — zelfde light-thema, fonts en koptekst als 7 dagen /  */
+/* Punt, SCOPED to .ai-dash zodat de overige dark-theme chrome ongemoeid  */
+/* blijft (dezelfde token-remap als .week-dash).                          */
+/* ===================================================================== */
+.wrap:has(.ai-dash) { max-width: none; padding: 0; gap: 0; display: block;
+  background: #faf9f4; min-height: 100vh; }
+
+.ai-dash {
+  --paper: #faf9f4; --ink: #1a2733; --ink-2: #4c5d6a; --ink-3: #7d8b95; --rule: #e3e2da;
+  --green: #2e8b63; --amber: #d9a114; --no: #a6432f; --magenta: #c22f7f;
+  --bg: #faf9f4; --panel: #ffffff; --panel2: #f0efe8; --line: #e3e2da; --line2: #cfd3c9;
+  --text: #1a2733; --muted: #4c5d6a; --faint: #7d8b95; --accent: #c22f7f; --good: #2e8b63; --gust: #c9711c;
+  --body: var(--font-barlow), 'Barlow', sans-serif;
+  --cond: var(--font-cond), 'Barlow Condensed', sans-serif;
+  --mono: var(--font-plex), 'IBM Plex Mono', monospace;
+  background: var(--paper); color: var(--ink); font-family: var(--body);
+  max-width: 760px; margin: 0 auto; padding: 20px 24px 44px; min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* header (mirrors 7 dagen / Punt) */
+.ai-dash .top { display: flex; align-items: baseline; gap: 30px; flex-wrap: wrap; }
+.ai-dash .top h1 { font-family: var(--cond); font-size: 20px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink); }
+.ai-dash nav.tabs { display: flex; gap: 22px; }
+.ai-dash nav.tabs a { font-size: 15px; font-weight: 500; color: var(--ink-3); border: none; padding: 0; }
+.ai-dash nav.tabs a.active { color: var(--ink); box-shadow: 0 2px 0 var(--magenta); }
+
+/* chatvenster */
+.ai-dash .ai-chat { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 220px;
+  overflow-y: auto; margin-top: 20px; padding: 16px 2px; border-top: 1px solid var(--rule); }
+.ai-dash .ai-msg { max-width: 88%; padding: 11px 14px; border-radius: 14px; font-size: 14.5px;
+  line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.ai-dash .ai-msg.user { align-self: flex-end; background: var(--panel2); color: var(--ink);
+  border-bottom-right-radius: 4px; }
+.ai-dash .ai-msg.assistant { align-self: flex-start; background: #fff; border: 1px solid var(--rule);
+  color: var(--ink); border-bottom-left-radius: 4px; }
+.ai-dash .ai-msg.ai-thinking { color: var(--ink-3); letter-spacing: 3px; }
+
+/* invoer */
+.ai-dash .ai-input { display: flex; gap: 10px; align-items: flex-end; padding-top: 14px; border-top: 1px solid var(--rule); }
+.ai-dash .ai-input textarea { flex: 1; resize: none; background: #fff; border: 1px solid var(--rule);
+  border-radius: 12px; color: var(--ink); padding: 11px 13px; font-family: var(--body); font-size: 14.5px;
+  line-height: 1.45; max-height: 160px; }
+.ai-dash .ai-input textarea:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; border-color: transparent; }
+.ai-dash .ai-input textarea::placeholder { color: var(--ink-3); }
+.ai-dash .ai-input button.primary { background: var(--magenta); color: #fff; border: 1px solid var(--magenta);
+  border-radius: 12px; padding: 11px 18px; font-family: var(--cond); font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; cursor: pointer; }
+.ai-dash .ai-input button.primary:disabled { opacity: .45; cursor: default; }
+
+/* error/loading paneel, light (als 7 dagen / Punt) */
+.ai-dash .panel { background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 14px 18px; margin-top: 12px; }
+
+@media (max-width: 560px) {
+  .ai-dash { padding: 16px 16px 40px; }
+  .ai-dash .top { gap: 14px; }
 }

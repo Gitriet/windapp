@@ -29,6 +29,17 @@ CREATE TABLE IF NOT EXISTS bias_speed (
   PRIMARY KEY (location_key, model_id, lead)
 );
 
+-- Gust bias correction, same fitted shape as bias_speed (fc_gust - obs_gust in
+-- the same forecast-side strata). One table per (location, model, lead); the
+-- engine reuses the speed cell lookup, only subtracting the offset from the gust.
+CREATE TABLE IF NOT EXISTS bias_gust (
+  location_key TEXT NOT NULL REFERENCES locations(location_key),
+  model_id     TEXT NOT NULL,
+  lead         INT  NOT NULL,
+  model_json   JSONB NOT NULL,
+  PRIMARY KEY (location_key, model_id, lead)
+);
+
 -- On-demand TTL cache of raw live forecasts, one row per (location, model).
 CREATE TABLE IF NOT EXISTS forecast_cache (
   location_key TEXT NOT NULL REFERENCES locations(location_key),

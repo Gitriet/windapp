@@ -73,7 +73,27 @@ try {
     nBias++;
   }
 
-  console.log(`Seeded ${locs.length} locations, ${serv.length} serving rows, ${nBias} bias tables.`);
+  // gust-bias tables (same shape + naming as speed: gust_<station>_<model>_day<lead>.json)
+  let nGust = 0;
+  for (const file of readdirSync(ART).filter((f) => f.startsWith("gust_") && f.endsWith(".json"))) {
+    const base = file.slice("gust_".length, -".json".length);
+    const parts = base.split("_");
+    const station = parts[0];
+    const lead = Number(parts[parts.length - 1].replace("day", ""));
+    const model = parts.slice(1, -1).join("_");
+    const key = stationToKey[station];
+    if (!key || model === "ecmwf_aifs025_single") continue;
+    const json = readFileSync(new URL(file, ART), "utf8");
+    await q(
+      `INSERT INTO bias_gust (location_key,model_id,lead,model_json)
+       VALUES ($1,$2,$3,$4::jsonb)
+       ON CONFLICT (location_key,model_id,lead) DO UPDATE SET model_json=EXCLUDED.model_json`,
+      [key, model, lead, json],
+    );
+    nGust++;
+  }
+
+  console.log(`Seeded ${locs.length} locations, ${serv.length} serving rows, ${nBias} speed-bias, ${nGust} gust-bias tables.`);
 } catch (e) {
   console.error("Seed failed:", e);
   process.exit(1);
