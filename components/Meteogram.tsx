@@ -203,6 +203,20 @@ export default function Meteogram(
     const showNow = nowMs >= t0 && nowMs <= endMs + 1000;
     const gapX = showBeyond ? X(horizonMs!) : 0;
 
+    // dubbelgetij (agger): meerdere HW/LW vlak na elkaar geven overlappende
+    // tijd-labels. Toon dan maar één tijd — alle stippen blijven staan, maar een
+    // label wordt overgeslagen als het te dicht op het vorige getoonde label valt
+    // (chronologisch, greedy). Bij een normaal getij (HW/LW ~6u uiteen) raakt dit
+    // niets.
+    let lastExLblX = -Infinity;
+    const exGap = o.compact ? 42 : 64;
+    const exLbl = ext.map((e) => {
+      const cx = xt(e.t);
+      const show = cx - lastExLblX >= exGap;
+      if (show) lastExLblX = cx;
+      return show;
+    });
+
     return (
       <>
         <defs>
@@ -280,7 +294,7 @@ export default function Meteogram(
               return (
                 <g key={`ex${k}`}>
                   <circle className="mg-event" cx={cx} cy={cy} r={3.5} />
-                  <text className="mg-evlbl" textAnchor="middle" x={fit(cx, lab, 7.4)} y={cy - 10} fill={e.kind === "LW" || e.v > 0 ? "var(--ink)" : "#fff"}>{lab}</text>
+                  {exLbl[k] && <text className="mg-evlbl" textAnchor="middle" x={fit(cx, lab, 7.4)} y={cy - 10} fill={e.kind === "LW" || e.v > 0 ? "var(--ink)" : "#fff"}>{lab}</text>}
                 </g>
               );
             })}

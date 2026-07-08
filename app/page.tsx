@@ -32,13 +32,18 @@ export default function Home() {
     if (Number.isInteger(d) && d >= 0) setDayIndex(d);
     fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()).then((l: Location[]) => {
       setLocs(l);
-      const initial = l.find((x) => x.location_key === sp.get("loc")) ?? l[0];
+      const saved = localStorage.getItem("lastLoc");
+      const initial =
+        l.find((x) => x.location_key === sp.get("loc")) ??
+        l.find((x) => x.location_key === saved) ??
+        l[0];
       if (initial) setKey(initial.location_key);
     }).catch((e) => setErr(String(e)));
   }, []);
 
   useEffect(() => {
     if (!key) return;
+    localStorage.setItem("lastLoc", key);
     const url = new URL(window.location.href);
     url.search = `loc=${key}`;
     window.history.replaceState(null, "", url.href);
