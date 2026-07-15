@@ -89,6 +89,36 @@ function extrema(series: TidePoint[]): TideExtreme[] {
   return out;
 }
 
+// Fysiek onmogelijk dicht opeen liggende extrema zijn detectieruis (bv. De Kooy
+// HW 15:50 / LW 16:00), vooral rond de expected→astro-grens waar de twee reeksen
+// aan elkaar geplakt worden. Waddenzee is semidiurnaal (~12u25), dus een echte
+// HW→LW ligt ~5–6u uiteen; alles onder een kwart getij is ruis. 3u is ruim onder
+// het kortste echte been en ruim boven de ruis.
+const MIN_EXTREMA_SPACING_MS = 3 * 3600000;
+
+// Opschonen op een chronologisch gesorteerde reeks: voeg te dicht opeen liggende of
+// gelijk-getypeerde buren samen tot de meest extreme (verste van gemiddeld niveau;
+// bij gelijke amplitude de eerste). Zo blijft de reeks strikt HW/LW alterneren, ook
+// als door verwijderen twee gelijke types naast elkaar komen (backward merge).
+function dedupeExtrema(ex: TideExtreme[]): TideExtreme[] {
+  if (ex.length < 2) return ex;
+  const mid = ex.reduce((s, e) => s + e.v, 0) / ex.length;
+  const amp = (e: TideExtreme) => Math.abs(e.v - mid);
+  const out: TideExtreme[] = [];
+  for (const e of ex) {
+    let cur = e;
+    while (out.length) {
+      const last = out[out.length - 1];
+      const tooClose = Date.parse(cur.t) - Date.parse(last.t) < MIN_EXTREMA_SPACING_MS;
+      if (last.kind !== cur.kind && !tooClose) break;   // netjes gescheiden en alternerend
+      cur = amp(cur) > amp(last) ? cur : last;           // grootste amplitude wint; gelijk -> eerste
+      out.pop();
+    }
+    out.push(cur);
+  }
+  return out;
+}
+
 // Astronomical tide is weather-independent and valid for weeks, so we cache the
 // last good series per getij code (self-provisioning table) and serve it when RWS
 // is unreachable. Both cache ops are best-effort — a DB hiccup must never break
@@ -154,7 +184,7 @@ export async function buildTide(key: string): Promise<TideData | null> {
   // HW/LW from the expected curve where it reaches; from astronomical beyond it.
   const expEnd = expected.length ? Date.parse(expected[expected.length - 1].t) : 0;
   const merged = [...extrema(expected), ...extrema(astro).filter((e) => Date.parse(e.t) > expEnd)];
-  const extremes = merged.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  const extremes = dedupeExtrema(merged.sort((a, b) => Date.parse(a.t) - Date.parse(b.t)));
   return {
     code: tgt.code, name: tgt.name, expected, astro, extremes,
     expectedMissing: expected.length === 0, astroStale,
