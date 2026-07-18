@@ -78,6 +78,34 @@ export type CorrectedPoint = {
   beyond?: boolean;        // past the 72h corrected horizon — shown, but less certain
 };
 
+// Model current layer (spoor 1: operationele voorspelling), straight from the
+// stroom-ingestielaag. MODEL, niet gekalibreerd -> model_unvalidated is altijd
+// true en moet tot in de UI meereizen. u/v in m/s exact zoals geleverd; een droge/
+// ontbrekende cel is NaN in de opslag en wordt hier als null geserialiseerd (nooit 0).
+// Geen conversie server-side: knopen/magnitude/weergave doet de frontend.
+export type StroomGrid = {
+  nx: number;
+  ny: number;
+  lat: number[];                            // degrees_north, lengte ny
+  lon: number[];                            // degrees_east, lengte nx
+  bbox: [number, number, number, number];   // [lonMin, latMin, lonMax, latMax]
+};
+export type StroomSlice = {
+  valid_time: string;                       // UTC ISO
+  analysis_time: string;                    // UTC ISO — herkomst-run (latest-wins per valid_time)
+  u: (number | null)[];                     // m/s, row-major ny*nx, null = droog/ontbrekend
+  v: (number | null)[];
+};
+export type StroomData = {
+  box: string;
+  source: string;
+  units: "m/s";
+  model_unvalidated: true;
+  analysis_time: string | null;             // nieuwste run die het venster dekt; null als leeg
+  grid: StroomGrid;
+  times: StroomSlice[];                      // [] = venster buiten de horizon (expliciet leeg)
+};
+
 // Tide layer (Wad stations only): water level vs NAP in cm, straight from RWS.
 // A separate data layer beside the wind — no correction, no model blend.
 export type TidePoint = { t: string; v: number };           // t = UTC ISO, v = cm NAP

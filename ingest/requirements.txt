@@ -1,0 +1,6 @@
+# Stroom-ingestie (Fase 1-3). Draait in de GitHub Action; Python->Neon direct.
+requests>=2.32
+numpy>=1.26
+xarray>=2024.6
+netCDF4>=1.6
+psycopg[binary]>=3.2

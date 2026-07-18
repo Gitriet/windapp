@@ -1,0 +1,37 @@
+name: stroom-ingest
+
+# Fase 3 — operationele stroom-ingestie + hindcast-historie.
+# Elk uur: nieuwe Matroos-runs inlezen, hindcast bijwerken, oude runs opruimen.
+# Matroos publiceert 8 runs/dag met ~4,5u vertraging; uurlijks pollen pikt elke
+# run op en is zelfherstellend na een korte uitval (lookback in stroom_cron.py).
+
+on:
+  schedule:
+    - cron: "0 * * * *"        # elk heel uur (UTC)
+  workflow_dispatch: {}         # handmatig te starten
+
+# Nooit twee ingesties tegelijk (idempotent, maar overlap heeft geen zin).
+concurrency:
+  group: stroom-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ingest/requirements.txt
+
+      - name: Install deps
+        run: pip install -r ingest/requirements.txt
+
+      - name: Ingest marsdiep
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m ingest.stroom_cron marsdiep
