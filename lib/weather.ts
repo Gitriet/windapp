@@ -37,6 +37,17 @@ export const isThunder = (code: number | null) => code != null && code >= 95;
 export const VIS_LOW = 5000;
 export const VIS_VERYLOW = 1000;
 
+// Zicht-classificatie (goed / matig / slecht) uit het meteorologische zicht in meters.
+// Grenzen in km, los van VIS_LOW/VIS_VERYLOW (die een zachte/harde waarschuwing sturen):
+// deze drie labelen de kwaliteit van het zicht in de "nu"-weergave.
+export const VIS_GOOD_KM = 10;   // >= 10 km: goed
+export const VIS_FAIR_KM = 4;    // >= 4 km: matig; daaronder slecht
+export type VisibilityClass = "goed" | "matig" | "slecht";
+export function classifyVisibility(visM: number): VisibilityClass {
+  const km = visM / 1000;
+  return km >= VIS_GOOD_KM ? "goed" : km >= VIS_FAIR_KM ? "matig" : "slecht";
+}
+
 // Sun events as a sorted timeline, for day/night shading.
 type SunEvent = { ms: number; rise: boolean };
 export function sunEvents(sunrise: string[], sunset: string[]): SunEvent[] {

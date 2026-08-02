@@ -6,7 +6,7 @@ import RouteHeader from "@/components/route/RouteHeader";
 import TabBar from "@/components/route/TabBar";
 import LocationDetailSheet from "@/components/route/LocationDetailSheet";
 import { useRouteStroom, useTide, usePassageData } from "@/components/route/hooks";
-import { tideNow } from "@/lib/instrument";
+import { tideNow, nearestIndex } from "@/lib/instrument";
 import { MS_HOUR } from "@/lib/route";
 import { computePassage, passageOrigin } from "@/lib/passage";
 import { localHM } from "@/lib/tz";
@@ -31,15 +31,7 @@ export default function KaartPage() {
     for (let h = DAY_START_H; h <= DAY_END_H; h++) out.push(hourMsOn(trip.date, h));
     return out;
   }, [trip.date]);
-  const [idx, setIdx] = useState(() => {
-    const now = Date.now();
-    let bi = 0, best = Infinity;
-    const day = trip.date;
-    for (let h = DAY_START_H, i = 0; h <= DAY_END_H; h++, i++) {
-      const d = Math.abs(hourMsOn(day, h) - now); if (d < best) { best = d; bi = i; }
-    }
-    return bi;
-  });
+  const [idx, setIdx] = useState(() => nearestIndex(hours, Date.now()));
   const atMs = hours[Math.min(idx, hours.length - 1)];
 
   const dayStart = hours[0], dayEnd = hours[hours.length - 1];

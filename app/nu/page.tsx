@@ -8,6 +8,7 @@ import { useForecast, useTide, useRouteStroom } from "@/components/route/hooks";
 import { pointAtMs, tideNow } from "@/lib/instrument";
 import { compass, beaufort } from "@/lib/format";
 import { certaintyLabel, MS_HOUR } from "@/lib/route";
+import { classifyVisibility, VIS_GOOD_KM } from "@/lib/weather";
 import { localHM } from "@/lib/tz";
 import type { WeatherSeries } from "@/lib/types";
 
@@ -115,8 +116,8 @@ export default function NuPage() {
               <div className="k">Zicht</div>
               {vis != null ? (() => {
                 const km = vis / 1000;
-                const label = km >= 10 ? "goed" : km >= 4 ? "matig" : "slecht";
-                return (<><div className="v">{label}</div><div className="sub">{km >= 10 ? ">10 km" : `${km.toFixed(1)} km`}</div></>);
+                const label = classifyVisibility(vis);
+                return (<><div className="v">{label}</div><div className="sub">{km >= VIS_GOOD_KM ? ">10 km" : `${km.toFixed(1)} km`}</div></>);
               })() : (<><div className="v" style={{ color: "var(--t3)" }}>—</div><div className="sub">—</div></>)}
             </div>
           </div>

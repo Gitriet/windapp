@@ -41,6 +41,48 @@ export function pointAtMs(points: CorrectedPoint[], targetMs: number): Corrected
   return bp;
 }
 
+// ── worst-case wind over meerdere reeksen op één tijdstip ─────────────
+// Over de route-waypoints: zwaarste wind (max snelheid, mét de richting daarvan) en
+// zwaarste vlaag op tijd t, per reeks het dichtstbijzijnde uur. Een reeks telt niet mee
+// als dat punt verder dan `tolMs` van t ligt. `any` = of er überhaupt een reeks meedeed.
+export const WORST_CASE_TOL_MS = 90 * 60000;
+export function worstCaseWind(
+  seriesList: CorrectedPoint[][], t: number, tolMs: number = WORST_CASE_TOL_MS,
+): { windKn: number; gustKn: number; dir: number; any: boolean } {
+  let windKn = -1, gustKn = 0, dir = 0, any = false;
+  for (const points of seriesList) {
+    const p = pointAtMs(points, t);
+    if (!p || Math.abs(msZ(p.time) - t) > tolMs) continue;
+    any = true;
+    if (p.speed_kn > windKn) { windKn = p.speed_kn; dir = p.dir_deg; }
+    gustKn = Math.max(gustKn, p.gust_kn);
+  }
+  return { windKn, gustKn, dir, any };
+}
+
+// ── index van het dichtstbijzijnde tijdstip in een reeks ──────────────
+export function nearestIndex(times: number[], target: number): number {
+  let bi = 0, best = Infinity;
+  for (let i = 0; i < times.length; i++) {
+    const d = Math.abs(times[i] - target);
+    if (d < best) { best = d; bi = i; }
+  }
+  return bi;
+}
+
+// ── modelspreiding voorbij een horizon ────────────────────────────────
+// Grootste band-breedte (band_high − band_low, kn) onder de punten die minstens
+// `fromHours` vooruit liggen — de spreiding waarop het zekerheidslabel voor het verre
+// venster leunt.
+export function horizonSpread(points: CorrectedPoint[], now: number, fromHours: number): number {
+  let spread = 0;
+  for (const p of points) {
+    const h = (msZ(p.time) - now) / 3_600_000;
+    if (h >= fromHours) spread = Math.max(spread, p.band_high_kn - p.band_low_kn);
+  }
+  return spread;
+}
+
 // ── getij-nu: huidige waterstand, stijgend/dalend, eerstvolgende kentering ──
 // `next` = het eerstvolgende getij waar het water naartoe loopt (HW als het stijgt,
 // LW als het daalt), met tijd — voor het label op de getijmeter.

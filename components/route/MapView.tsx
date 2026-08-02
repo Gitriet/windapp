@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Location } from "@/lib/types";
-import { roleOf } from "@/lib/route";
+import { roleOf, currentArrow } from "@/lib/route";
 
 const ROLE_COLOR = { van: "#1DC87A", via: "#17B5EA", naar: "#8B79F5" } as const;
 
@@ -104,10 +104,9 @@ export default function MapView({ waypoints, arrows, legs, etas, onWaypointClick
     if (arrowLayerRef.current) { map.removeLayer(arrowLayerRef.current); arrowLayerRef.current = null; }
     if (!arrows.length) return;
     const layer = L.layerGroup();
-    const maxMag = Math.max(0.1, ...arrows.map((a) => Math.hypot(a.u, a.v)));
+    const maxMag = Math.max(0.1, ...arrows.map((a) => currentArrow(a.u, a.v).mag));
     for (const a of arrows) {
-      const mag = Math.hypot(a.u, a.v);
-      const bearing = (Math.atan2(a.u, a.v) * 180) / Math.PI;   // richting waarheen de stroom loopt
+      const { mag, bearingDeg: bearing } = currentArrow(a.u, a.v);   // richting waarheen de stroom loopt
       const op = 0.4 + 0.4 * (mag / maxMag);
       layer.addLayer(L.marker([a.lat, a.lon], { interactive: false, icon: L.divIcon({
         className: "", iconSize: [22, 22], iconAnchor: [11, 11],

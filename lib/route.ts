@@ -99,6 +99,56 @@ export function routeDistanceNm(pts: { lat: number; lon: number }[]): number {
   return km / 1.852;
 }
 
+// ── stroom langs de route (afgeleid uit de alongKn-reeks) ─────────────
+// Eén sample van de stroomcomponent langs de route per tijdstip (kn; >0 mee, <0 tegen).
+export type AlongSample = { t: string; alongKn: number | null };
+
+// Sterkte over een tijdvenster: grootste tegenstroom en grootste meestroom (kn,
+// positief), plus de fractie van de bruikbare samples die tegen loopt. null bij < 2
+// bruikbare samples.
+export function stroomExtremes(
+  series: AlongSample[] | undefined, start: number, end: number,
+): { maxTegen: number; maxMee: number; tegenFrac: number } | null {
+  if (!series) return null;
+  const win = series.filter((p) => { const m = Date.parse(p.t); return m >= start && m <= end && p.alongKn != null; });
+  if (win.length < 2) return null;
+  const tegen = win.filter((p) => (p.alongKn ?? 0) < 0);
+  const mee = win.filter((p) => (p.alongKn ?? 0) >= 0);
+  const maxTegen = tegen.length ? Math.max(...tegen.map((p) => -(p.alongKn ?? 0))) : 0;
+  const maxMee = mee.length ? Math.max(...mee.map((p) => p.alongKn ?? 0)) : 0;
+  return { maxTegen, maxMee, tegenFrac: tegen.length / win.length };
+}
+
+// Kenteringmoment: eerste tekenwissel van alongKn binnen [start,end], lineair
+// geïnterpoleerd op nul. leftTegen = loopt de reeks aan het begin tegen; fracLeft =
+// fractie van het venster vóór de kentering (1 als er geen kentering is). null bij < 2.
+export function stroomKentering(
+  series: AlongSample[] | undefined, start: number, end: number,
+): { leftTegen: boolean; kenteringMs: number | null; fracLeft: number } | null {
+  if (!series) return null;
+  const win = series.filter((p) => { const m = Date.parse(p.t); return m >= start && m <= end && p.alongKn != null; })
+    .map((p) => ({ m: Date.parse(p.t), v: p.alongKn as number }))
+    .sort((a, b) => a.m - b.m);
+  if (win.length < 2) return null;
+  const leftTegen = win[0].v < 0;
+  let kenteringMs: number | null = null;
+  for (let i = 1; i < win.length; i++) {
+    if ((win[i - 1].v < 0) !== (win[i].v < 0)) {
+      const f = Math.abs(win[i - 1].v) / (Math.abs(win[i - 1].v) + Math.abs(win[i].v) || 1);
+      kenteringMs = win[i - 1].m + f * (win[i].m - win[i - 1].m);
+      break;
+    }
+  }
+  const fracLeft = kenteringMs ? (kenteringMs - start) / (end - start) : 1;
+  return { leftTegen, kenteringMs, fracLeft: Math.max(0, Math.min(1, fracLeft)) };
+}
+
+// Stroompijl uit een u/v-vector (m/s): magnitude (m/s) en peiling waarheen de stroom
+// loopt (graden, 0 = noord). Voor het pijlenveld op de kaart.
+export function currentArrow(u: number, v: number): { mag: number; bearingDeg: number } {
+  return { mag: Math.hypot(u, v), bearingDeg: (Math.atan2(u, v) * 180) / Math.PI };
+}
+
 // Positie op fractie f (0–1) van de totale route-lengte, lineair binnen het been.
 export function pointAlongRoute(
   pts: { lat: number; lon: number }[], f: number,

@@ -39,3 +39,9 @@ export const WARN = {
 // wind reaches this threshold (kn). A single green→red cutoff, separate from the
 // 7-day card's amber/red triangle.
 export const WINDBAR_RED_KN = 22;
+
+// Horizon-grenzen (uren vooruit) waarop de modelzekerheid verspringt en waarop de
+// 48u-windgrafiek in zones deelt: tot 24u betrouwbaar, 24–36u wisselend, daarna
+// onzeker. (lib/route.ts `certaintyLabel` gebruikt dezelfde grenzen als drempels.)
+export const CERT_HORIZON_WISSELEND_H = 24;
+export const CERT_HORIZON_ONZEKER_H = 36;

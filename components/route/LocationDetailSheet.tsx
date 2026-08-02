@@ -4,6 +4,8 @@ import type { Location } from "@/lib/types";
 import { useForecast, useTide } from "./hooks";
 import { useRoute } from "./RouteProvider";
 import { certaintyLabel, MS_HOUR, type Certainty } from "@/lib/route";
+import { horizonSpread } from "@/lib/instrument";
+import { WINDBAR_RED_KN, CERT_HORIZON_WISSELEND_H, CERT_HORIZON_ONZEKER_H } from "@/lib/constants";
 import { evaluateGate, gateDatumFor, requiredDepthM, type GateVerdict } from "@/lib/gates";
 import { localHM } from "@/lib/tz";
 
@@ -34,8 +36,7 @@ export default function LocationDetailSheet({ location, passageMs, onClose }: {
 
   // zekerheidsbanner: zwaarste spreiding in het 24–48u venster
   const banner: { cert: Certainty; spread: number } = useMemo(() => {
-    let spread = 0;
-    for (const p of win) { const h = (ms(p.time) - now) / MS_HOUR; if (h >= 20) spread = Math.max(spread, p.band_high_kn - p.band_low_kn); }
+    const spread = horizonSpread(win, now, 20);
     return { cert: certaintyLabel(spread, 30), spread };
   }, [win, now]);
 
@@ -111,7 +112,7 @@ function WindChart({ win, now, poorts }: { win: { time: string; speed_kn: number
     ...win.map((p, i) => `${i ? "L" : "M"}${x(hOf(p)).toFixed(1)},${y(p.band_high_kn).toFixed(1)}`),
     ...win.slice().reverse().map((p) => `L${x(hOf(p)).toFixed(1)},${y(p.band_low_kn).toFixed(1)}`), "Z",
   ].join(" ");
-  const yThresh = y(22);
+  const yThresh = y(WINDBAR_RED_KN);
   const clampH = (m: number) => Math.max(0, Math.min(48, (m - now) / MS_HOUR));
   return (
     <div className="chartcard">
@@ -127,9 +128,9 @@ function WindChart({ win, now, poorts }: { win: { time: string; speed_kn: number
         <rect x="161" y="0" width="80" height={HT} fill="#1E1507" />
         <rect x="241" y="0" width="81" height={HT} fill="#0D1525" />
         <line x1="0" y1={yThresh} x2={W} y2={yThresh} stroke="var(--bd)" strokeWidth="1" strokeDasharray="3 4" />
-        <text x="-2" y={yThresh + 3} textAnchor="end" fontSize="8" fill="var(--tight)">22</text>
-        <line x1="161" y1="0" x2="161" y2={HT} stroke="var(--bd2)" strokeWidth="1" strokeDasharray="2 4" />
-        <line x1="241" y1="0" x2="241" y2={HT} stroke="var(--bd2)" strokeWidth="1" strokeDasharray="2 4" />
+        <text x="-2" y={yThresh + 3} textAnchor="end" fontSize="8" fill="var(--tight)">{WINDBAR_RED_KN}</text>
+        <line x1={x(CERT_HORIZON_WISSELEND_H)} y1="0" x2={x(CERT_HORIZON_WISSELEND_H)} y2={HT} stroke="var(--bd2)" strokeWidth="1" strokeDasharray="2 4" />
+        <line x1={x(CERT_HORIZON_ONZEKER_H)} y1="0" x2={x(CERT_HORIZON_ONZEKER_H)} y2={HT} stroke="var(--bd2)" strokeWidth="1" strokeDasharray="2 4" />
         <path d={bandPath} fill="var(--t1)" fillOpacity="0.055" />
         <path d={line((p) => p.gust_kn)} fill="none" stroke="var(--gust)" strokeWidth="1.6" strokeDasharray="5 3" opacity="0.75" />
         <path d={line((p) => p.speed_kn)} fill="none" stroke="var(--t1)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

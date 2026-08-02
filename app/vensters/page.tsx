@@ -5,12 +5,13 @@ import RouteHeader, { fmtDate } from "@/components/route/RouteHeader";
 import TabBar from "@/components/route/TabBar";
 import Eta from "@/components/route/Eta";
 import { useForecasts, useTide, useRouteStroom, usePassageData, type StroomSeriesPoint } from "@/components/route/hooks";
-import { pointAtMs } from "@/lib/instrument";
+import { pointAtMs, worstCaseWind } from "@/lib/instrument";
 import { compass } from "@/lib/format";
 import { computePassage, type PassageResult } from "@/lib/passage";
 import { evaluateGate, gateDatumFor, type GateStatus } from "@/lib/gates";
 import {
-  classifyVenster, combineVenster, certaintyLabel, MS_HOUR, type VensterStatus,
+  classifyVenster, combineVenster, certaintyLabel, stroomExtremes, stroomKentering,
+  MS_HOUR, type VensterStatus,
 } from "@/lib/route";
 import { localHM } from "@/lib/tz";
 
@@ -56,14 +57,7 @@ export default function VenstersPage() {
     let firstGo = true;
     for (let h = DAY_START_H; h <= DAY_END_H; h++) {
       const t = hourMsOn(trip.date, h);
-      let windKn = -1, gustKn = 0, dir = 0, any = false;
-      for (const k of routeKeys) {
-        const p = pointAtMs(forecasts[k].points, t);
-        if (!p || Math.abs(ms(p.time) - t) > 90 * 60000) continue;
-        any = true;
-        if (p.speed_kn > windKn) { windKn = p.speed_kn; dir = p.dir_deg; }
-        gustKn = Math.max(gustKn, p.gust_kn);
-      }
+      const { windKn, gustKn, dir, any } = worstCaseWind(routeKeys.map((k) => forecasts[k].points), t);
       if (!any) continue;
 
       // vaartijd + ETA vanaf dít vertrekuur (fase 2)
@@ -218,16 +212,7 @@ function StroomTimeline({ stroom, available, start, end }: { stroom?: StroomSeri
 
 // ── verticale stroombalk: sterkte tegen (boven) / mee (onder) + kentering ──
 function VStroom({ stroom, available, start, end }: { stroom?: StroomSeriesPoint[]; available?: boolean; start: number; end: number }) {
-  const s = useMemo(() => {
-    if (!available || !stroom) return null;
-    const win = stroom.filter((p) => { const m = Date.parse(p.t); return m >= start && m <= end && p.alongKn != null; });
-    if (win.length < 2) return null;
-    const tegen = win.filter((p) => (p.alongKn ?? 0) < 0);
-    const mee = win.filter((p) => (p.alongKn ?? 0) >= 0);
-    const maxTegen = tegen.length ? Math.max(...tegen.map((p) => -(p.alongKn ?? 0))) : 0;
-    const maxMee = mee.length ? Math.max(...mee.map((p) => p.alongKn ?? 0)) : 0;
-    return { maxTegen, maxMee, tegenFrac: tegen.length / win.length };
-  }, [stroom, available, start, end]);
+  const s = useMemo(() => (available ? stroomExtremes(stroom, start, end) : null), [stroom, available, start, end]);
   if (!s) return null;
   const H = 460, W = 48, kent = Math.round(H * s.tegenFrac);
   return (
@@ -260,20 +245,5 @@ function VStroom({ stroom, available, start, end }: { stroom?: StroomSeriesPoint
 }
 
 function stroomSegments(series: StroomSeriesPoint[] | undefined, start: number, end: number) {
-  if (!series) return null;
-  const win = series.filter((p) => { const m = Date.parse(p.t); return m >= start && m <= end && p.alongKn != null; })
-    .map((p) => ({ m: Date.parse(p.t), v: p.alongKn as number }))
-    .sort((a, b) => a.m - b.m);
-  if (win.length < 2) return null;
-  const leftTegen = win[0].v < 0;
-  let kenteringMs: number | null = null;
-  for (let i = 1; i < win.length; i++) {
-    if ((win[i - 1].v < 0) !== (win[i].v < 0)) {
-      const f = Math.abs(win[i - 1].v) / (Math.abs(win[i - 1].v) + Math.abs(win[i].v) || 1);
-      kenteringMs = win[i - 1].m + f * (win[i].m - win[i - 1].m);
-      break;
-    }
-  }
-  const fracLeft = kenteringMs ? (kenteringMs - start) / (end - start) : 1;
-  return { leftTegen, kenteringMs, fracLeft: Math.max(0, Math.min(1, fracLeft)) };
+  return stroomKentering(series, start, end);
 }
