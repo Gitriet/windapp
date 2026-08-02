@@ -56,10 +56,10 @@ class Box:
     ny: int
 
 
-# Start met alleen de bewezen Marsdiep-box (preflight). Niet blind uitbreiden.
-BOXES: dict[str, Box] = {
-    "marsdiep": Box("marsdiep", 4.75, 4.92, 52.93, 53.05, 115, 135),
-}
+# Tegels voor de NL-kust worden gegenereerd uit de regioconfig (geulen 100 m /
+# offshore-strook 300 m). Zie tiles.py. De import staat onderaan dit bestand,
+# na de Box-definitie, om circulair importeren te vermijden.
+BOXES: dict[str, Box] = {}
 
 
 @dataclass
@@ -285,6 +285,13 @@ def _cli() -> None:
         return
     from . import stroom_db
     stroom_db.ingest(field)
+
+
+# NL-kust tegels genereren en BOXES vullen. Onderaan (na Box) i.v.m. circulaire
+# import: tiles.py doet `from .stroom import Box`.
+from .tiles import build_boxes  # noqa: E402
+
+BOXES.update(build_boxes())
 
 
 if __name__ == "__main__":
