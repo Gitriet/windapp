@@ -569,3 +569,116 @@ aangeraakt (buiten de scope van deze opdracht), maar hier vastgelegd zodat ze be
   voor opgeslagen routes ("Optional in v1"). Geverifieerd: nergens in `app/`, `lib/`,
   `scripts/`, `ingest/` wordt deze tabel gelezen of geschreven — routes leven volledig in
   `localStorage` via `RouteProvider`. De tabel blijft ongemoeid in het schema.
+
+---
+
+## Uitvoering
+
+De strip is uitgevoerd als een keten van aparte, afzonderlijk terugrolbare commits op
+`main` (repo: `windapp/`). Vertrekpunt: de werkboom bevatte de volledige route-app deels
+**ongecommit** (o.a. de `route-stroom`-endpoint en de behouden libs `gates`/`passage`/
+`polar`/`route` waren untracked). Daarom is eerst één **pre-strip baseline** vastgelegd,
+zodat de per-stap-verificatie (`git diff` op de response-set = leeg) betekenis kreeg.
+
+| Stap | Commit | Wat | Verificatie |
+|---|---|---|---|
+| baseline | `6042dc2` | hele werkboom als schoon startpunt vastgelegd | — |
+| 0 | `40a2574` | RAPPORT verplaatst; `baseline/` (API-dumps, params, hashes); `scripts/snapshot-core.ts` | build+9 tests groen; snapshot 3× byte-identiek |
+| 1 | `24c654e` | dode code weg: `components/instrument/*`, `LocationPicker`, `useChartWidth`, `docs/*` | build+tests groen; `app/api`+`lib` byte-identiek; snapshot identiek |
+| 2 | `1c39ef7` | verborgen datalogica → `lib/` (weather/route/instrument/constants), + 3 unit-tests | build+9 tests groen; libs **puur additief** (109 insert, 0 delete); endpoints identieke shape; `locations` byte-identiek; snapshot identiek |
+| 3 | `bb4de6f` | UI-schermen + shell + `components/route/` weg; `app/` = alleen `app/api/**` | build compileert alleen de 6 routes; geen root-layout nodig; 6 endpoints ok; snapshot identiek |
+| 4 | `e42d1a0` | typecheck-schoon zonder UI (lege milestone) | `tsc --noEmit` schoon; `lib/` bevat geen React/DOM/`@/components`/`use client` |
+| 5a | `115baf5` | `leaflet` + `@types/leaflet` verwijderd | build groen; 6 endpoints ok; `locations` byte-identiek; snapshot identiek |
+| 5b | *(teruggerold)* | `react`/`react-dom`/`@types/react*` verwijderen | **niet doorgevoerd — zie hieronder** |
+
+### Uitkomst Stap 5b — react/react-dom NIET verwijderd (teruggerold)
+
+Conform beslissing 3 ("terugrol als `next build` klaagt") is deelstap 5b **teruggerold**.
+`react`/`react-dom` blijken **niet schoon verwijderbaar**:
+
+- `next@14.2.15` declareert `react` en `react-dom` als **`peerDependencies`** (`^18.2.0`).
+  Na `npm uninstall` bleven beide dan ook in `node_modules` staan (18.3.1); de build slaagt
+  alleen *omdat* ze daar nog fysiek aanwezig zijn. Ze uit `package.json` halen is een fictie.
+- Tijdens `next build` **her-installeerde Next zelf `@types/react`** — en bumpte het naar
+  **v19.2.18**, waarmee het `package.json` ongevraagd herschreef (weg van de gepinde `18.3.5`).
+
+Dat is precies het "Next heeft de peers nodig"-geval. `package.json`/`package-lock.json` zijn
+teruggezet naar de 5a-staat en `npm install` heeft `node_modules` daarmee verzoend. Daarna
+opnieuw geverifieerd: werkboom == `115baf5`, `next build` groen, `tsc --noEmit` schoon, alle
+9 tests groen, `core-snapshot` identiek, 6 endpoints http=200, `locations` byte-identiek.
+**De react-packages blijven staan.** Een echte verwijdering vereist eerst afscheid van de
+Next-runtime voor de API (bv. de route-handlers naar een niet-React-host verplaatsen) — buiten
+de scope van deze strip.
+
+### Afwijkingen van het plan
+
+1. **Extra baseline-commit vooraf.** Het plan ging uit van een schone werkboom; die was er niet
+   (grote delen ongecommit). Toestemming gevraagd en gekregen; `6042dc2` toegevoegd vóór Stap 0.
+2. **Stroom-dump niet als blob gecommit.** `GET /api/stroom` levert een ~19 MB dense u/v-grid,
+   inherent niet-reproduceerbaar (live). De blob blijft op schijf (`baseline/.gitignore`);
+   gecommit is een fingerprint `baseline/api/stroom.meta.json` (bbox, nx/ny, times, sha256).
+3. **`npm test` dekt maar één bestand.** Het script draait alleen `correction.test.ts`; alle 9
+   testbestanden zijn per stap expliciet gedraaid (`npx tsx test/*.test.ts`).
+4. **Verificatie-nuance.** Byte-identiek is alleen exact toetsbaar voor `/api/locations` (puur
+   Neon). De andere vijf hangen aan live bovenstroom; daar is getoetst op onveranderde
+   servercode (`git diff` = leeg) + gelijke response-shape + http=200. Waarde-drift tussen dumps
+   is bovenstroom, geen codegevolg.
+5. **`x(36)` i.p.v. `241`.** Bij het benoemen van de 36u-grens (Stap 2e) werd de handmatig
+   afgeronde SVG-positie `241` vervangen door `x(CERT_HORIZON_ONZEKER_H)` = 241,5 — een verschil
+   van 0,5 px in een scherm dat in Stap 3 tóch verdween.
+
+### Eindstructuur (getrackt, exclusief `baseline/`-vangnet en gitignored artefacten)
+
+```
+windapp/
+├─ app/api/                         # 6 route-handlers — ONGEWIJZIGD t.o.v. baseline
+│  ├─ forecast/[key]/route.ts   ├─ tide/[key]/route.ts    ├─ stroom/route.ts
+│  ├─ locations/route.ts        ├─ week/[key]/route.ts     └─ route-stroom/route.ts
+├─ lib/                             # server-datalaag + pure verwerkingslaag (19 bestanden)
+│  ├─ serving · openmeteo · correction · constants · leads · borrowed · db · tide · stroom · route · types   (voedt de API)
+│  └─ gates · passage · polar · instrument · weather · format · tz                                            (verwerkingslaag, decision 1)
+├─ ingest/                          # Python Matroos→Neon: __init__ · stroom · stroom_db · stroom_cron · tiles · requirements.txt
+├─ scripts/                         # seed.mjs · smoke.ts · snapshot-core.ts (reproduceerbare reken-kern-snapshot)
+├─ test/                            # 9 unit-tests (correction, gust, gates, passage, polar, plr, weather, route-derive, instrument-derive)
+├─ sql/schema.sql
+├─ baseline/                        # verificatie-vangnet: API-dumps, params, core-snapshot, server-hashes
+├─ .github/workflows/stroom-ingest.yml
+└─ package.json · package-lock.json · tsconfig.json · next.config.mjs · .env.example · .gitattributes · .gitignore · README.md · RAPPORT.md
+```
+
+Verdwenen t.o.v. de baseline: heel `app/` behalve `app/api/`, heel `components/`, heel `docs/`.
+
+### Eindstand `package.json`
+
+```json
+{
+  "name": "windapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "seed": "node scripts/seed.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx test/correction.test.ts",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}
+```
+
+> `leaflet`/`@types/leaflet` zijn weg (5a). `react`/`react-dom`/`@types/react*` staan er nog:
+> Next heeft ze als peer nodig (5b teruggerold). Verder alleen datalaag- en infra-packages.
