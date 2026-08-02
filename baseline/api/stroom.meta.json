@@ -1,0 +1,25 @@
+{
+  "_note": "Fingerprint of the 19MB live stroom grid; full blob kept on disk (gitignored), not committed. Verification for /api/stroom is: server code unchanged (git diff empty).",
+  "box": "marsdiep",
+  "source": "dcsm7_harmonie_bf_f2w",
+  "units": "m/s",
+  "model_unvalidated": true,
+  "analysis_time": "2026-08-02T06:00:00.000Z",
+  "grid": {
+    "bbox": [
+      4.75,
+      52.93000030517578,
+      4.920000076293945,
+      53.04999923706055
+    ],
+    "nx": 115,
+    "ny": 135,
+    "lat_len": 135,
+    "lon_len": 115
+  },
+  "times_len": 43,
+  "first_time": "2026-08-02T12:00:00.000Z",
+  "last_time": "2026-08-04T06:00:00.000Z",
+  "bytes": 19322487,
+  "sha256": "f5c8877297c0c054913d6d9bc26f5dd38df3c94f5df9a234f899794f0accc656"
+}

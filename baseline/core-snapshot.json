@@ -1,0 +1,134 @@
+{
+  "_note": "Deterministische reken-kern-snapshot (Stap 0c). Reproduceerbaar via `npx tsx scripts/snapshot-core.ts`. Bevroren fixtures, vaste klok 2026-08-02T12:00:00Z.",
+  "depart": "2026-08-02T12:00:00Z",
+  "boat": {
+    "archetype": "cruiser-racer",
+    "draftM": 1.95,
+    "keelClearanceM": 0.5,
+    "performance": 0.85,
+    "motorSpeedKn": 6
+  },
+  "passage": {
+    "etaArrival": "2026-08-02T12:43:21.005Z",
+    "currentSource": "model",
+    "legs": [
+      {
+        "fromId": "dekooy",
+        "toId": "texel",
+        "etaArrival": "2026-08-02T12:43:21.005Z",
+        "distanceNm": 4.587924,
+        "tacking": false,
+        "currentSource": "model",
+        "avgSogKn": 6.353096,
+        "unreachable": false
+      }
+    ]
+  },
+  "gate": {
+    "requiredM": 2.45,
+    "passageMs": 1785674601005,
+    "passageIso": "2026-08-02T12:43:21.005Z",
+    "status": "gehaald",
+    "marginM": 0.528001,
+    "reason": null,
+    "windows": [
+      {
+        "fromIso": "2026-08-02T12:03:45.000Z",
+        "toIso": "2026-08-02T16:33:20.000Z"
+      },
+      {
+        "fromIso": "2026-08-02T17:21:49.090Z",
+        "toIso": "2026-08-02T18:00:00.000Z"
+      }
+    ]
+  },
+  "geo": {
+    "bearing": 331.283556,
+    "legKm": 8.496835,
+    "routeNm": 4.587924
+  },
+  "classifyVenster": [
+    {
+      "windKn": 10,
+      "gustKn": 15,
+      "base": "go",
+      "combined": {
+        "gehaald": "go",
+        "net-aan": "tight",
+        "niet-gehaald": "no",
+        "onbekend": "go"
+      }
+    },
+    {
+      "windKn": 16,
+      "gustKn": 20,
+      "base": "tight",
+      "combined": {
+        "gehaald": "tight",
+        "net-aan": "tight",
+        "niet-gehaald": "no",
+        "onbekend": "tight"
+      }
+    },
+    {
+      "windKn": 18,
+      "gustKn": 24,
+      "base": "tight",
+      "combined": {
+        "gehaald": "tight",
+        "net-aan": "tight",
+        "niet-gehaald": "no",
+        "onbekend": "tight"
+      }
+    },
+    {
+      "windKn": 22,
+      "gustKn": 28,
+      "base": "no",
+      "combined": {
+        "gehaald": "no",
+        "net-aan": "no",
+        "niet-gehaald": "no",
+        "onbekend": "no"
+      }
+    },
+    {
+      "windKn": 25,
+      "gustKn": 34,
+      "base": "no",
+      "combined": {
+        "gehaald": "no",
+        "net-aan": "no",
+        "niet-gehaald": "no",
+        "onbekend": "no"
+      }
+    }
+  ],
+  "certainty": [
+    {
+      "spreadKn": 1,
+      "hoursAhead": 6,
+      "label": "betrouwbaar"
+    },
+    {
+      "spreadKn": 2,
+      "hoursAhead": 12,
+      "label": "wisselend"
+    },
+    {
+      "spreadKn": 1,
+      "hoursAhead": 30,
+      "label": "wisselend"
+    },
+    {
+      "spreadKn": 4,
+      "hoursAhead": 6,
+      "label": "onzeker"
+    },
+    {
+      "spreadKn": 1,
+      "hoursAhead": 40,
+      "label": "onzeker"
+    }
+  ]
+}
