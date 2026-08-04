@@ -24,7 +24,7 @@ oorspronkelijke Neon-bytea met wat er in R2 staat — zelfde vorm als de round-t
 
 CLI (vanuit windapp/):
   python -m ingest.migrate_marsdiep_to_r2               # echte migratie (box marsdiep)
-  python -m ingest.migrate_marsdiep_to_r2 --test        # tijdelijke prefix, verifieer, ruim ALLES op
+  python -m ingest.migrate_marsdiep_to_r2 --test        # tijdelijke R2-prefix, GEEN Neon, verifieer, ruim R2-temp op
   python -m ingest.migrate_marsdiep_to_r2 --box wad-west-00
 """
 from __future__ import annotations
@@ -195,10 +195,15 @@ def migrate(box_id: str, st, write_neon: bool = True) -> dict:
 
 # --- zelfverificatie: Neon-bytea vs R2-parquet ---------------------------
 def _cmp(name, a: np.ndarray, b: np.ndarray) -> bool:
+    # De TEST is de volledige-array-vergelijking (alle cellen, NaN==NaN).
     ok = a.shape == b.shape and np.array_equal(a, b, equal_nan=True)
-    log.info("  %-28s %s  (shape %s, cel[0,0] neon=%s r2=%s)",
-             name, "OK " if ok else "FOUT", a.shape,
-             _fmt(a.ravel()[0]), _fmt(b.ravel()[0]))
+    # Ter ILLUSTRATIE een NATTE cel (de lege hoek [0,0] bewijst niets): eerste niet-NaN.
+    af, bf = a.ravel(), b.ravel()
+    wet = np.flatnonzero(~np.isnan(af))
+    k = int(wet[0]) if wet.size else 0
+    log.info("  %-20s %s  (%d cellen, %d nat; nat-cel[%d] neon=%s r2=%s)",
+             name, "OK " if ok else "FOUT", af.size, int(wet.size),
+             k, _fmt(af[k]), _fmt(bf[k]))
     return ok
 
 
@@ -239,21 +244,15 @@ def verify(box_id: str, st, n_fc: int = 3, n_hc: int = 8) -> bool:
 
 # --- test-opruiming ------------------------------------------------------
 def _cleanup(st, box_id: str) -> None:
-    """Ruim ALLES van de testrun op: alle objecten onder de tijdelijke prefix + de
-    Neon-rijen die de test in de (voor de omslag lege) tabellen schreef."""
+    """Ruim de testrun op: alle objecten onder de tijdelijke R2-prefix. RAAKT NEON
+    NIET — de test schrijft geen Neon-rijen (write_neon=False), zodat een --test-run
+    nooit echte puntreeksen/run_log van deze box kan wissen."""
     n = 0
     for pre in ("forecast/", "arrows/", "hindcast/", "hindcast-punten/"):
         for k in st.list_keys(pre):
             st.delete(k)
             n += 1
-    log.info("opgeruimd: %d R2-object(en) onder tijdelijke prefix", n)
-    with DB.connect() as c, c.cursor() as cur:
-        cur.execute("DELETE FROM stroom_punt_forecast WHERE box_id=%s", (box_id,))
-        a = cur.rowcount
-        cur.execute("DELETE FROM stroom_run_log WHERE box_id=%s", (box_id,))
-        b = cur.rowcount
-        c.commit()
-    log.info("opgeruimd: %d punt_forecast- + %d run_log-rij(en) (Neon terug naar leeg)", a, b)
+    log.info("opgeruimd: %d R2-object(en) onder tijdelijke prefix (Neon onaangeraakt)", n)
 
 
 def _report(counts: dict) -> None:
@@ -277,10 +276,10 @@ def main() -> int:
 
     st = PrefixedStorage(storage(), TEST_PREFIX if args.test else "")
     if args.test:
-        log.info("TESTMODUS: R2-prefix %r; Neon-rijen worden na afloop opgeruimd", TEST_PREFIX)
+        log.info("TESTMODUS: R2-prefix %r; GEEN Neon-writes; R2-temp na afloop opgeruimd", TEST_PREFIX)
 
     try:
-        counts = migrate(args.box, st)
+        counts = migrate(args.box, st, write_neon=not args.test)
         _report(counts)
         ok = True
         if not args.no_verify:
