@@ -82,7 +82,7 @@ def run_box(box_id, samplepunten, st, keep, stale_h, lookback_h, leads, now):
     zodat een gloednieuwe box zijn punten in dezelfde cyclus krijgt (geen gat)."""
     if box_id not in S.BOXES:
         log.error("onbekende box %r; bekend: %s", box_id, list(S.BOXES))
-        return 2, []
+        return 2, [], []
 
     with DB.connect() as c:
         have = DB.logged_analysis_times(c, box_id)
@@ -90,13 +90,14 @@ def run_box(box_id, samplepunten, st, keep, stale_h, lookback_h, leads, now):
     avail = S.list_analysis_times(now - timedelta(hours=lookback_h), now)
     if not avail:
         log.error("STILTE: geen analysetijden van Matroos voor %s (endpoint down?)", box_id)
-        return 1, []
+        return 1, [], []
 
     todo = [t for t in avail if t not in have]          # oplopend
     keep_set = set(avail[-keep:])
     log.info("%s: %d beschikbaar, %d verwerkt, %d nieuw", box_id, len(avail), len(have), len(todo))
 
     hc_punt: list[tuple] = []
+    done: list = []            # analysetijden die vólledig verwerkt zijn; loggen doet run_cycle ná finalize
     owners: dict = {}          # (route_id,volgnr) -> (box_id,i,j); pas na eerste upsert
     owned: list = []
     failures = 0
@@ -138,8 +139,11 @@ def run_box(box_id, samplepunten, st, keep, stale_h, lookback_h, leads, now):
                 with DB.connect() as c:
                     DB.write_punt_forecast(c, at, series)
 
-            with DB.connect() as c:
-                DB.log_run(c, box_id, at)
+            # NIET hier loggen: de hindcast-punt-dagparquets worden pas na de hele
+            # cyclus weggeschreven (finalize_hindcast_punten). run_cycle logt deze
+            # analysetijd pas ná die finalize, zodat run_log nooit "klaar" zegt
+            # terwijl de dag-parquet-puntrijen nog ontbreken.
+            done.append(at)
         except Exception:
             failures += 1
             log.exception("ingestie van run %s (%s) faalde", box_id,
@@ -161,7 +165,7 @@ def run_box(box_id, samplepunten, st, keep, stale_h, lookback_h, leads, now):
     else:
         log.info("%s gezond: nieuwste run %s (%.1fu oud), %d nieuwe run(s) verwerkt",
                  box_id, newest.strftime("%Y-%m-%d %H:%MZ"), age_h, len(todo))
-    return (1 if failures else 0), hc_punt
+    return (1 if failures else 0), hc_punt, done
 
 
 # --- hindcast-punten: dag-parquet in R2 (alle routepunten samen) ----------
@@ -198,12 +202,24 @@ def run_cycle(boxes, keep=KEEP_RUNS, stale_h=STALE_H, lookback_h=LOOKBACK_H, lea
 
     rc = 0
     all_hc: list[tuple] = []
+    pending_log: list[tuple] = []      # (box, at) — pas loggen ná finalize
     for box in boxes:
-        r, hc = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
+        r, hc, done = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
         rc = max(rc, r)
         all_hc.extend(hc)
+        pending_log.extend((box, at) for at in done)
+
+    # Sluitstuk voor de héle cyclus: eerst de hindcast-punt-dagparquets wegschrijven,
+    # DAN pas de runs loggen. Zo dekt run_log altijd óók de dag-parquet — geen run die
+    # "klaar" heet terwijl zijn puntrijen ontbreken. Faalt finalize (of wordt de cyclus
+    # hier afgekapt), dan blijft ALLES van deze cyclus ongelogd en herhaalt de volgende
+    # cyclus het geheel, inclusief de al-goede hindcast- en forecast-grids: onschadelijk
+    # dankzij idempotentie, alleen wat trager (een cyclus lijkt dan werk over te doen).
     if all_hc:
         finalize_hindcast_punten(st, all_hc)
+    with DB.connect() as c:
+        for box, at in pending_log:
+            DB.log_run(c, box, at)
     return rc
 
 
