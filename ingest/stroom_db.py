@@ -316,3 +316,94 @@ def read_field(box_id: str, valid_time: datetime, conn: psycopg.Connection | Non
         "lat": unpack_axis(lat, ny), "lon": unpack_axis(lon, nx),
         "u": unpack_field(u, ny, nx), "v": unpack_field(v, ny, nx),
     }
+
+
+# --- Puntreeksen (Stap 3): forecast-stroom op de route-samplepunten -------
+# De grids verhuizen naar R2; Neon houdt alleen de dichtstbijzijnde-cel-waarden per
+# samplepunt. NaN -> NULL (nooit nul). Retentie: laatste 3 analysis_times per box.
+PUNT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS stroom_punt_forecast (
+  route_id      TEXT NOT NULL REFERENCES netwerk_routes(id) ON DELETE CASCADE,
+  volgnr        INT  NOT NULL,
+  box_id        TEXT NOT NULL,                 -- herkomst-tegel (deterministische keuzeregel)
+  analysis_time TIMESTAMPTZ NOT NULL,
+  valid_time    TIMESTAMPTZ NOT NULL,
+  u REAL, v REAL,                              -- m/s; NULL = droog/ontbrekend, nooit nul
+  PRIMARY KEY (route_id, volgnr, analysis_time, valid_time)
+);
+CREATE INDEX IF NOT EXISTS stroom_punt_fc_lookup ON stroom_punt_forecast (route_id, valid_time);
+"""
+
+
+def ensure_punt_schema(conn: psycopg.Connection) -> None:
+    with conn.cursor() as cur:
+        cur.execute(PUNT_SCHEMA)
+    conn.commit()
+
+
+def write_punt_forecast(conn: psycopg.Connection, analysis_time: datetime, rows) -> int:
+    """rows: (route_id, volgnr, box_id, valid_time, u, v). Idempotent upsert op de
+    volledige sleutel."""
+    data = [(r[0], r[1], r[2], analysis_time, r[3], r[4], r[5]) for r in rows]
+    if not data:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(
+            """INSERT INTO stroom_punt_forecast
+                 (route_id, volgnr, box_id, analysis_time, valid_time, u, v)
+               VALUES (%s,%s,%s,%s,%s,%s,%s)
+               ON CONFLICT (route_id, volgnr, analysis_time, valid_time) DO UPDATE
+                 SET box_id = EXCLUDED.box_id, u = EXCLUDED.u, v = EXCLUDED.v""", data)
+    conn.commit()
+    return len(data)
+
+
+def prune_punt_forecast(conn: psycopg.Connection, box_id: str, keep: int = 3) -> int:
+    """Verwijder analysis_times ouder dan de laatste `keep` per box (spiegelt de
+    forecast-grid-retentie in R2)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """DELETE FROM stroom_punt_forecast
+               WHERE box_id = %s AND analysis_time NOT IN (
+                 SELECT DISTINCT analysis_time FROM stroom_punt_forecast
+                 WHERE box_id = %s ORDER BY analysis_time DESC LIMIT %s)""",
+            (box_id, box_id, keep))
+        n = cur.rowcount
+    conn.commit()
+    return n
+
+
+# --- Bookkeeping: verwerkte analysetijden (permanent geheugen) ------------
+# De grids verhuizen naar R2 en de oude gridtabellen worden straks geleegd; dit log
+# maakt expliciet wat zij impliciet bijhielden — welke runs al verwerkt zijn — zodat
+# de cron ze niet elk uur opnieuw ophaalt. GEEN retentie: dit mag groeien (paar regels
+# per dag per box).
+RUN_LOG_SCHEMA = """
+CREATE TABLE IF NOT EXISTS stroom_run_log (
+  box_id        TEXT NOT NULL,
+  analysis_time TIMESTAMPTZ NOT NULL,
+  ingested_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (box_id, analysis_time)
+);
+"""
+
+
+def ensure_run_log(conn: psycopg.Connection) -> None:
+    with conn.cursor() as cur:
+        cur.execute(RUN_LOG_SCHEMA)
+    conn.commit()
+
+
+def log_run(conn: psycopg.Connection, box_id: str, analysis_time: datetime) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO stroom_run_log (box_id, analysis_time) VALUES (%s,%s) "
+            "ON CONFLICT (box_id, analysis_time) DO NOTHING",
+            (box_id, analysis_time))
+    conn.commit()
+
+
+def logged_analysis_times(conn: psycopg.Connection, box_id: str) -> set[datetime]:
+    with conn.cursor() as cur:
+        cur.execute("SELECT analysis_time FROM stroom_run_log WHERE box_id = %s", (box_id,))
+        return {r[0].astimezone(timezone.utc) for r in cur.fetchall()}

@@ -18,7 +18,11 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Alle tegels (6 regio's) in één cyclus. Ruime marge onder het uur: valt de
+    # Action een paar uur uit, dan haalt de eerstvolgende run de gemiste analysetijden
+    # in één inhaalronde in (lookback in stroom_cron.py), en dat kost extra tijd.
+    # 55 min laat die inhaalronde toe en botst niet met de volgende uurstart.
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +35,14 @@ jobs:
       - name: Install deps
         run: pip install -r ingest/requirements.txt
 
-      - name: Ingest marsdiep
+      # Zonder box-argument: alle bekende tegels (tiles.REGIONS -> stroom.BOXES).
+      # Een gloednieuwe tegel krijgt zijn grid deze cyclus geüpsert en zijn
+      # puntreeksen de volgende — zelfherstellend, geen aparte seed-stap nodig.
+      - name: Ingest alle regio's
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -m ingest.stroom_cron marsdiep
+          STORAGE_ENDPOINT: ${{ secrets.STORAGE_ENDPOINT }}
+          STORAGE_BUCKET: ${{ secrets.STORAGE_BUCKET }}
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+        run: python -m ingest.stroom_cron
