@@ -201,31 +201,18 @@ def run_cycle(boxes, keep=KEEP_RUNS, stale_h=STALE_H, lookback_h=LOOKBACK_H, lea
     log.info("cyclus: %d boxen, %d samplepunten", len(boxes), len(samplepunten))
 
     rc = 0
-    by_box_hc: dict[str, list[tuple]] = {box: [] for box in boxes}
-    by_box_done: dict[str, list] = {box: [] for box in boxes}
     for box in boxes:
         r, hc, done = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
         rc = max(rc, r)
-        by_box_hc[box] = hc
-        by_box_done[box] = done
-
-    # Sluitstuk PER box: eerst de hindcast-punt-dagparquets voor díe box wegschrijven,
-    # DAN pas die box's runs loggen. De garantie "run_log nooit vóór de dag-parquets"
-    # blijft behouden, maar de atomaire eenheid is nu per-box — box B hoeft niet te
-    # wachten op de finalize van box A. Crasht de finalize halverwege, dan blijven
-    # alleen de al-weggeschreven boxen gelogd; de volgende cyclus pikt de rest op
-    # (idempotent, dag-parquet is merge-op-nieuw-wint). Box A's gedeeltelijk
-    # weggeschreven dag-parquets worden bij de volgende cyclus correct aangevuld.
-    for box in boxes:
-        hc = by_box_hc[box]
-        done = by_box_done[box]
-        if not done:
-            continue
-        if hc:
-            finalize_hindcast_punten(st, hc)
-        with DB.connect() as c:
-            for at in done:
-                DB.log_run(c, box, at)
+        # Finalize + log direct na elke box, in dezelfde lus. Zo is elke box
+        # volledig opgeslagen zodra run_box terugkeert — een timeout of crash
+        # halverwege de lijst laat de al-verwerkte boxen intact in R2 + run_log.
+        if done:
+            if hc:
+                finalize_hindcast_punten(st, hc)
+            with DB.connect() as c:
+                for at in done:
+                    DB.log_run(c, box, at)
     return rc
 
 
