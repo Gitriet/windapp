@@ -201,25 +201,31 @@ def run_cycle(boxes, keep=KEEP_RUNS, stale_h=STALE_H, lookback_h=LOOKBACK_H, lea
     log.info("cyclus: %d boxen, %d samplepunten", len(boxes), len(samplepunten))
 
     rc = 0
-    all_hc: list[tuple] = []
-    pending_log: list[tuple] = []      # (box, at) — pas loggen ná finalize
+    by_box_hc: dict[str, list[tuple]] = {box: [] for box in boxes}
+    by_box_done: dict[str, list] = {box: [] for box in boxes}
     for box in boxes:
         r, hc, done = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
         rc = max(rc, r)
-        all_hc.extend(hc)
-        pending_log.extend((box, at) for at in done)
+        by_box_hc[box] = hc
+        by_box_done[box] = done
 
-    # Sluitstuk voor de héle cyclus: eerst de hindcast-punt-dagparquets wegschrijven,
-    # DAN pas de runs loggen. Zo dekt run_log altijd óók de dag-parquet — geen run die
-    # "klaar" heet terwijl zijn puntrijen ontbreken. Faalt finalize (of wordt de cyclus
-    # hier afgekapt), dan blijft ALLES van deze cyclus ongelogd en herhaalt de volgende
-    # cyclus het geheel, inclusief de al-goede hindcast- en forecast-grids: onschadelijk
-    # dankzij idempotentie, alleen wat trager (een cyclus lijkt dan werk over te doen).
-    if all_hc:
-        finalize_hindcast_punten(st, all_hc)
-    with DB.connect() as c:
-        for box, at in pending_log:
-            DB.log_run(c, box, at)
+    # Sluitstuk PER box: eerst de hindcast-punt-dagparquets voor díe box wegschrijven,
+    # DAN pas die box's runs loggen. De garantie "run_log nooit vóór de dag-parquets"
+    # blijft behouden, maar de atomaire eenheid is nu per-box — box B hoeft niet te
+    # wachten op de finalize van box A. Crasht de finalize halverwege, dan blijven
+    # alleen de al-weggeschreven boxen gelogd; de volgende cyclus pikt de rest op
+    # (idempotent, dag-parquet is merge-op-nieuw-wint). Box A's gedeeltelijk
+    # weggeschreven dag-parquets worden bij de volgende cyclus correct aangevuld.
+    for box in boxes:
+        hc = by_box_hc[box]
+        done = by_box_done[box]
+        if not done:
+            continue
+        if hc:
+            finalize_hindcast_punten(st, hc)
+        with DB.connect() as c:
+            for at in done:
+                DB.log_run(c, box, at)
     return rc
 
 
