@@ -1,0 +1,326 @@
+"use client";
+// SVG-componenten voor de Tocht-planner en Nu-view. Geport uit het DCLogic-prototype
+// (design_handoff_tocht_planner), maar gevoed door echte data (SimResult uit de sim,
+// AlongSample uit route-stroom, tide-extremen). Tijd-assen werken in ms; labels via
+// de Europe/Amsterdam-helpers in lib/tz.ts.
+import type { SimResult } from "@/lib/tripsim";
+import type { AlongSample } from "@/lib/route";
+import { localHM, localMidnight } from "@/lib/tz";
+import { COLORS, alpha } from "@/lib/colors";
+
+const H = 3_600_000;
+const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
+export const dirLabel16 = (d: number) => P16[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
+export const fmtDur = (min: number) => `${Math.floor(min / 60)}u${String(Math.round(min % 60)).padStart(2, "0")}`;
+const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
+
+// eerste hele lokale 3-uurs tick op of na startMs
+function threeHourTicks(startMs: number, endMs: number): number[] {
+  const out: number[] = [];
+  let m = localMidnight(startMs);
+  while (m < startMs) m += 3 * H;
+  for (; m <= endMs; m += 3 * H) out.push(m);
+  return out;
+}
+
+// ── Stroom langs de route (contexttijdlijn boven de trip) ──────────────
+export function CurrentTimeline({
+  series, depMs, arrMs, hwMs,
+}: { series: AlongSample[]; depMs: number; arrMs: number | null; hwMs: number[] }) {
+  const W = 1070, height = 82, pl = 34, pr = 10, cw = W - pl - pr, mid = 38;
+  const end = arrMs ?? depMs + 6 * H;
+  const startMs = Math.max(series.length ? tms(series[0].t) : depMs, depMs - 4 * H);
+  const endMs = Math.min(series.length ? tms(series[series.length - 1].t) : end, depMs + 22 * H);
+  const span = Math.max(1, endMs - startMs);
+  const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
+  const inWin = series.filter((p) => { const m = tms(p.t); return m >= startMs - H && m <= endMs + H; });
+  const maxAbs = Math.max(0.6, ...inWin.map((p) => Math.abs(p.alongKn ?? 0)));
+  const maxA = Math.ceil(maxAbs * 10) / 10;
+  const y = (v: number) => mid - (v / maxA) * 26;
+
+  // aaneengesloten niet-lege segmenten (nooit over een gat tekenen)
+  const segs: { ms: number; c: number }[][] = [];
+  let cur: { ms: number; c: number }[] = [];
+  for (const p of inWin) {
+    if (p.alongKn == null) { if (cur.length) { segs.push(cur); cur = []; } continue; }
+    cur.push({ ms: tms(p.t), c: p.alongKn });
+  }
+  if (cur.length) segs.push(cur);
+
+  const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      <defs>
+        <clipPath id="cPos"><rect x={0} y={0} width={W} height={mid} /></clipPath>
+        <clipPath id="cNeg"><rect x={0} y={mid} width={W} height={height} /></clipPath>
+      </defs>
+      <line x1={pl} y1={mid} x2={W - pr} y2={mid} stroke="rgba(233,233,237,.12)" />
+      {segs.map((seg, si) => {
+        if (seg.length < 2) return null;
+        const areaD = `M${x(seg[0].ms)},${mid} ${seg.map((p) => `L${x(p.ms)},${y(p.c)}`).join(" ")} L${x(seg[seg.length - 1].ms)},${mid} Z`;
+        const lineD = `M${seg.map((p) => `${x(p.ms)},${y(p.c)}`).join(" L")}`;
+        return (
+          <g key={si}>
+            <path d={areaD} fill={alpha(COLORS.stroom, 0.28)} clipPath="url(#cPos)" />
+            <path d={areaD} fill={alpha(COLORS.stroomTegen, 0.28)} clipPath="url(#cNeg)" />
+            <path d={lineD} fill="none" stroke="rgba(233,233,237,.35)" strokeWidth={1.5} />
+          </g>
+        );
+      })}
+      {wx2 > wx1 && (
+        <>
+          <rect x={wx1} y={3} width={wx2 - wx1} height={height - 14} rx={6}
+            fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
+          <line x1={wx1} y1={3} x2={wx1} y2={height - 11} stroke="#e9e9ed" strokeWidth={2} />
+          <circle cx={wx1} cy={mid} r={4} fill="#e9e9ed" stroke="#161826" strokeWidth={2} />
+          <line x1={wx2} y1={3} x2={wx2} y2={height - 11} stroke="#d2cefd" strokeWidth={1.2} strokeDasharray="3 2" />
+        </>
+      )}
+      {threeHourTicks(startMs, endMs).map((ms) => (
+        <text key={`t${ms}`} x={x(ms)} y={height - 1} textAnchor="middle" fontSize={10}
+          fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(ms)}</text>
+      ))}
+      {hwMs.filter((ms) => ms >= startMs && ms <= endMs).map((ms, i) => (
+        <g key={`hw${i}`}>
+          <text x={x(ms)} y={height - 1} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.water}>HW</text>
+          <line x1={x(ms)} y1={mid - 4} x2={x(ms)} y2={mid + 4} stroke={COLORS.water} strokeWidth={1.2} />
+        </g>
+      ))}
+      <text x={pl - 5} y={mid - 12} textAnchor="end" fontSize={9} fill={alpha(COLORS.stroom, 0.7)}>mee</text>
+      <text x={pl - 5} y={mid + 16} textAnchor="end" fontSize={9} fill="rgba(192,122,122,.55)">tegen</text>
+    </svg>
+  );
+}
+
+// ── Trip chart: SOG vs STW, met het stroomeffect als het gekleurde vlak ertussen ──
+export function TripChart({ trip }: { trip: SimResult }) {
+  const steps = trip.steps;
+  const W = 1100, pl = 48, pr = 16;
+  const sH = 210, wRowH = 52, gap = 16, labH = 20, topPad = 30;
+  const totalH = topPad + sH + gap + wRowH + labH;
+  const cw = W - pl - pr;
+  const depMs = trip.departMs, arrMs = trip.arrMs ?? steps[steps.length - 1]?.tMs ?? depMs + H;
+  const dist = trip.distanceNm;
+  const x = (ms: number) => pl + ((ms - depMs) / Math.max(1, arrMs - depMs)) * cw;
+  // y-as aangetrokken op het bereik dat ertoe doet: onderkant = floor(min − 1)
+  const lo = Math.min(...steps.map((s) => Math.min(s.stw, s.sog)));
+  const hi = Math.max(...steps.map((s) => Math.max(s.stw, s.sog)));
+  const yMin = Math.floor(lo - 1), yMax = Math.ceil(hi + 0.5);
+  const ys = (v: number) => topPad + sH - ((v - yMin) / (yMax - yMin)) * sH;
+  const wT = topPad + sH + gap, wMid = wT + wRowH / 2;
+
+  const grid: React.ReactNode[] = [];
+  const gStep = yMax - yMin > 6 ? 2 : 1;
+  for (let v = Math.ceil(yMin); v <= yMax; v += gStep) {
+    grid.push(<line key={`g${v}`} x1={pl} y1={ys(v)} x2={W - pr} y2={ys(v)} stroke="rgba(233,233,237,.06)" />);
+    grid.push(<text key={`gl${v}`} x={pl - 6} y={ys(v) + 3.5} textAnchor="end" fontSize={10}
+      fill="rgba(233,233,237,.28)" style={{ fontVariantNumeric: "tabular-nums" }}>{v} kn</text>);
+  }
+
+  // HET STROOMEFFECT = het vlak tussen SOG en STW. Groen waar SOG > STW (mee),
+  // rood waar SOG < STW (tegen). Gesegmenteerd op het teken, met stevige dekking.
+  const effect: React.ReactNode[] = [];
+  let segS = 0;
+  for (let i = 1; i <= steps.length; i++) {
+    const prev = steps[i - 1].cur >= 0;
+    const cur = i < steps.length ? steps[i].cur >= 0 : !prev;
+    if (cur !== prev || i === steps.length) {
+      const seg = steps.slice(segS, i);
+      if (seg.length > 1) {
+        const fwd = seg.map((s) => `${x(s.tMs)},${ys(s.sog)}`).join(" L");
+        const bwd = [...seg].reverse().map((s) => `${x(s.tMs)},${ys(s.stw)}`).join(" L");
+        effect.push(<path key={`ef${segS}`} d={`M${fwd} L${bwd} Z`}
+          fill={prev ? alpha(COLORS.stroom, 0.34) : alpha(COLORS.stroomTegen, 0.34)} />);
+      }
+      segS = Math.max(0, i - 1);
+    }
+  }
+
+  const sogPath = `M${steps.map((s) => `${x(s.tMs)},${ys(s.sog)}`).join(" L")}`;
+  const stwPath = `M${steps.map((s) => `${x(s.tMs)},${ys(s.stw)}`).join(" L")}`;
+
+  const winds: React.ReactNode[] = [];
+  const nBarbs = Math.min(12, Math.max(6, Math.floor(cw / 80)));
+  const barbStep = Math.max(1, Math.floor(steps.length / nBarbs));
+  for (let i = 0; i < steps.length; i += barbStep) {
+    const s = steps[i], cx = x(s.tMs), arrowLen = 14, r = (s.wDir * Math.PI) / 180;
+    const dx = Math.sin(r) * arrowLen, dy = -Math.cos(r) * arrowLen;
+    const tipX = cx + dx * 0.6, tipY = wMid - 6 + dy * 0.6;
+    const perpX = -Math.cos(r) * 3.5, perpY = -Math.sin(r) * 3.5;
+    const backX = -Math.sin(r) * 4, backY = Math.cos(r) * 4;
+    winds.push(
+      <g key={`w${i}`}>
+        <line x1={cx - dx * 0.6} y1={wMid - 6 - dy * 0.6} x2={cx + dx * 0.6} y2={wMid - 6 + dy * 0.6}
+          stroke={COLORS.wind} strokeWidth={1.8} strokeLinecap="round" />
+        <path d={`M${tipX} ${tipY} L${tipX - backX + perpX} ${tipY - backY + perpY} L${tipX - backX - perpX} ${tipY - backY - perpY} Z`} fill={COLORS.wind} />
+        <text x={cx} y={wMid + 16} textAnchor="middle" fontSize={10} fontWeight={500} fill={COLORS.wind}
+          style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(s.wSpd)}</text>
+        <text x={cx} y={wMid + 26} textAnchor="middle" fontSize={8} fill={alpha(COLORS.wind, 0.5)}>{dirLabel16(s.wDir)}</text>
+      </g>,
+    );
+  }
+
+  const dur = (arrMs - depMs) / H;
+  const tStep = dur > 5 ? 1 : dur > 2.5 ? 0.5 : 1 / 3;
+  const timeLabels: React.ReactNode[] = [];
+  for (let t = Math.ceil(depMs / (tStep * H)) * (tStep * H); t <= arrMs + 1000; t += tStep * H) {
+    timeLabels.push(<text key={`tl${t}`} x={x(t)} y={wT + wRowH + 16} textAnchor="middle" fontSize={11}
+      fill="rgba(233,233,237,.35)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(t)}</text>);
+  }
+
+  // afstandmarkers (elke hele nm + eindpunt)
+  const distMarks: number[] = [];
+  for (let d = 0; d < dist; d++) distMarks.push(d);
+  distMarks.push(dist);
+  const lg = topPad - 8;
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${totalH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      {grid}
+      {effect}
+      <path d={sogPath} fill="none" stroke="#e9e9ed" strokeWidth={2.5} strokeLinejoin="round" />
+      <path d={stwPath} fill="none" stroke={COLORS.wind} strokeWidth={2} strokeDasharray="6 4" strokeLinejoin="round" />
+      <text x={pl - 6} y={wMid - 8} textAnchor="end" fontSize={9} fill={alpha(COLORS.wind, 0.6)}>wind</text>
+      <line x1={pl} y1={wT - 2} x2={W - pr} y2={wT - 2} stroke="rgba(233,233,237,.06)" />
+      {winds}
+      {trip.kentMs && trip.kentMs > depMs && trip.kentMs < arrMs && (
+        <g>
+          <line x1={x(trip.kentMs)} y1={topPad} x2={x(trip.kentMs)} y2={wT + wRowH} stroke="#e8b94a" strokeWidth={1.5} strokeDasharray="4 3" />
+          <text x={x(trip.kentMs)} y={topPad - 6} textAnchor="middle" fontSize={10} fontWeight={500} fill="#e8b94a">kentering {localHM(trip.kentMs)}</text>
+        </g>
+      )}
+      {timeLabels}
+      {distMarks.map((d, i) => {
+        const st = steps.find((s) => s.prog >= d - 0.01);
+        if (!st) return null;
+        const mx = x(st.tMs);
+        return (
+          <g key={`dm${i}`}>
+            <text x={mx} y={topPad - 20} textAnchor="middle" fontSize={9} fill="rgba(233,233,237,.25)">
+              {i === distMarks.length - 1 ? dist.toFixed(1).replace(".", ",") : d}
+            </text>
+            <line x1={mx} y1={topPad - 16} x2={mx} y2={topPad - 12} stroke="rgba(233,233,237,.12)" />
+          </g>
+        );
+      })}
+      <text x={W - pr} y={topPad - 20} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.2)">nm</text>
+      {/* legenda */}
+      <line x1={pl + 8} y1={lg} x2={pl + 26} y2={lg} stroke="#e9e9ed" strokeWidth={2.5} />
+      <text x={pl + 30} y={lg + 4} fontSize={11} fill="rgba(233,233,237,.55)">SOG</text>
+      <line x1={pl + 74} y1={lg} x2={pl + 92} y2={lg} stroke={COLORS.wind} strokeWidth={2} strokeDasharray="6 4" />
+      <text x={pl + 96} y={lg + 4} fontSize={11} fill="rgba(233,233,237,.55)">STW (polaire)</text>
+      <rect x={pl + 210} y={lg - 5} width={12} height={10} rx={2} fill={alpha(COLORS.stroom, 0.34)} />
+      <rect x={pl + 226} y={lg - 5} width={12} height={10} rx={2} fill={alpha(COLORS.stroomTegen, 0.34)} />
+      <text x={pl + 244} y={lg + 4} fontSize={11} fill="rgba(233,233,237,.55)">vlak = stroomeffect (groen mee / rood tegen)</text>
+      {steps[0] && <circle cx={x(depMs)} cy={ys(steps[0].sog)} r={5} fill="#e9e9ed" stroke="#161826" strokeWidth={2} />}
+      {steps.length > 0 && <circle cx={x(arrMs)} cy={ys(steps[steps.length - 1].sog)} r={5} fill="#d2cefd" stroke="#161826" strokeWidth={2} />}
+    </svg>
+  );
+}
+
+// ── Samenvatting (6 metrics) ───────────────────────────────────────────
+export function SummaryRow({ trip }: { trip: SimResult }) {
+  const effCol = trip.effectMin <= 0 ? COLORS.stroom : COLORS.stroomTegen;
+  const effSign = trip.effectMin <= 0 ? "" : "+";
+  const items: [string, string, string | undefined][] = [
+    ["Aankomst", trip.arrMs ? localHM(trip.arrMs) : "—", undefined],
+    ["Vaartijd", trip.arrMs ? fmtDur(trip.tripMin) : "—", undefined],
+    ["Stroomeffect", `${effSign}${trip.effectMin} min`, effCol],
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+      {items.map(([label, value, col], i) => (
+        <div key={i} style={{ background: "rgba(15,17,25,.4)", borderRadius: 10, padding: "10px 12px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
+          <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(233,233,237,.35)", whiteSpace: "nowrap" }}>{label}</div>
+          <div className="kpi" style={{ fontSize: 18, fontWeight: 600, marginTop: 3, color: col || "#e9e9ed" }}>{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Vertrekalternatieven ───────────────────────────────────────────────
+export type DepOption = { depMs: number; result: SimResult };
+export function DepartureCards({
+  options, selMs, onSelect,
+}: { options: DepOption[]; selMs: number; onSelect: (ms: number) => void }) {
+  const reachable = options.filter((o) => o.result.arrMs != null);
+  const bestMs = reachable.length
+    ? reachable.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)).depMs : null;
+  const cols = Math.min(12, options.length || 1);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
+      {options.map((o) => {
+        const t = o.result, sel = o.depMs === selMs, best = o.depMs === bestMs;
+        const unreach = t.arrMs == null;
+        const quality = unreach ? "rgba(233,233,237,.3)"
+          : t.effectMin <= -15 ? COLORS.stroom : t.effectMin <= 10 ? "#6f6a86" : COLORS.stroomTegen;
+        return (
+          <div key={o.depMs} onClick={() => onSelect(o.depMs)} style={{
+            padding: "8px 4px 6px", borderRadius: 8, cursor: "pointer", textAlign: "center", position: "relative",
+            background: sel ? alpha(COLORS.weer, 0.16) : "rgba(15,17,25,.35)",
+            border: sel ? `1.5px solid ${COLORS.weer}` : "1px solid rgba(233,233,237,.06)", transition: "all .15s",
+          }}>
+            {best && (
+              <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", fontSize: 8, fontWeight: 700, background: COLORS.stroom, color: "#fff", padding: "1px 5px", borderRadius: 3, letterSpacing: ".04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>best</div>
+            )}
+            <div className="kpi" style={{ fontSize: 14, fontWeight: 600 }}>{localHM(o.depMs)}</div>
+            <div style={{ fontSize: 10, color: "rgba(233,233,237,.4)", marginTop: 1 }}>{unreach ? "—" : `→ ${localHM(t.arrMs!)}`}</div>
+            <div className="kpi" style={{ fontSize: 12, fontWeight: 500, marginTop: 3, color: quality }}>{unreach ? "n.b." : fmtDur(t.tripMin)}</div>
+            <div style={{ fontSize: 10, marginTop: 2, color: unreach ? "rgba(233,233,237,.3)" : t.effectMin <= 0 ? COLORS.stroom : COLORS.stroomTegen, fontWeight: 500 }}>
+              {unreach ? "" : `${t.effectMin <= 0 ? "" : "+"}${t.effectMin} min`}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Windveren (Nu-view) ────────────────────────────────────────────────
+function Barb({ kt, dir, color }: { kt: number; dir: number; color: string }) {
+  let rem = kt;
+  const flags = Math.floor(rem / 50); rem -= flags * 50;
+  const full = Math.floor(rem / 10); rem -= full * 10;
+  const half = Math.floor(rem / 5);
+  const el: React.ReactNode[] = [<line key="s" x1={24} y1={6} x2={24} y2={46} stroke={color} strokeWidth={2} strokeLinecap="round" />];
+  let y = 7;
+  for (let i = 0; i < flags; i++) { el.push(<path key={`fl${i}`} d={`M24 ${y} L37 ${y + 3} L24 ${y + 6} Z`} fill={color} />); y += 9; }
+  for (let i = 0; i < full; i++) { el.push(<line key={`f${i}`} x1={24} y1={y} x2={38} y2={y - 5} stroke={color} strokeWidth={2} strokeLinecap="round" />); y += 6; }
+  if (half) el.push(<line key="hf" x1={24} y1={y} x2={31} y2={y - 2.5} stroke={color} strokeWidth={2} strokeLinecap="round" />);
+  return <svg width={46} height={52} viewBox="0 0 48 52" style={{ transform: `rotate(${dir}deg)`, overflow: "visible" }}>{el}</svg>;
+}
+
+export function WindBarbs({ items, color = COLORS.wind }: { items: { kt: number; dir: number; label: string }[]; color?: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+      {items.map((x, i) => (
+        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flex: 1 }}>
+          <Barb kt={x.kt} dir={x.dir} color={color} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#e9e9ed", fontVariantNumeric: "tabular-nums" }}>{x.kt}</div>
+          <div style={{ fontSize: 11, color: "rgba(233,233,237,.5)" }}>{x.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Kompasroos (Nu-view) ───────────────────────────────────────────────
+export function Compass({ dir }: { dir: number }) {
+  return (
+    <svg width={172} height={172} viewBox="0 0 172 172">
+      <circle cx={86} cy={86} r={76} fill="rgba(15,17,25,.55)" stroke="#3f424d" />
+      <circle cx={86} cy={86} r={76} fill="none" stroke="#5d5294" strokeWidth={1} strokeDasharray="2 6" opacity={0.6} />
+      <text x={86} y={24} textAnchor="middle" fontSize={12} fill="rgba(233,233,237,.7)">N</text>
+      <text x={86} y={156} textAnchor="middle" fontSize={12} fill="rgba(233,233,237,.4)">Z</text>
+      <text x={150} y={90} textAnchor="middle" fontSize={12} fill="rgba(233,233,237,.4)">O</text>
+      <text x={22} y={90} textAnchor="middle" fontSize={12} fill="rgba(233,233,237,.4)">W</text>
+      <g transform={`rotate(${dir} 86 86)`}>
+        <path d="M86 26 L96 82 L86 73 L76 82 Z" fill={COLORS.wind} />
+        <line x1={86} y1={73} x2={86} y2={140} stroke="#5d5294" strokeWidth={3.5} strokeLinecap="round" />
+      </g>
+      <circle cx={86} cy={86} r={5} fill="#d2cefd" />
+      <text x={86} y={120} textAnchor="middle" fontSize={13} fontWeight={600} fill="#e9e9ed">{Math.round(dir)}°</text>
+    </svg>
+  );
+}

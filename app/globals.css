@@ -1,0 +1,135 @@
+/* Design tokens + utility classes — recreated from the Windward handoff
+   (design_handoff_tocht_planner/README.md). The prototype leaned on a private
+   "nocturne" stylesheet; these classes reproduce the same look from the tokens
+   and screenshots. */
+:root {
+  --bg-app: #0f1119;
+  --bg-card: #161826;
+  --bg-card-inner: #191c2b;
+  --border-subtle: #3f424d;
+  --text-primary: #e9e9ed;
+  --text-secondary: rgba(233, 233, 237, 0.7);
+  --text-muted: rgba(233, 233, 237, 0.35);
+  --accent-purple: #8B7DD6;
+  --accent-purple-light: #d2cefd;
+  --accent-purple-bg: rgba(139, 125, 214, 0.16);
+  --current-mee: #17A878;
+  --current-tegen: #c07a7a;
+  --wind-teal: #6ab6aa;
+  --kentering-gold: #e8b94a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.kpi { font-variant-numeric: tabular-nums; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── nav ─────────────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.nav a:hover { color: var(--text-secondary); }
+.nav a[aria-current="page"] { color: var(--accent-purple); }
+
+/* ── tags ────────────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-accent {
+  background: var(--accent-purple);
+  color: #fff;
+}
+.tag-neutral {
+  background: rgba(233, 233, 237, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(233, 233, 237, 0.1);
+}
+.tag-outline {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid rgba(233, 233, 237, 0.18);
+}
+
+/* datasoort-tags: wind (amber) · water (blauw) · stroom (groen) · weer (violet) */
+.tag-wind   { background: rgba(196, 131, 45, 0.16); color: #dda256; border: 1px solid rgba(196, 131, 45, 0.34); }
+.tag-water  { background: rgba(74, 144, 217, 0.16); color: #7fb3e8; border: 1px solid rgba(74, 144, 217, 0.34); }
+.tag-stroom { background: rgba(23, 168, 120, 0.16); color: #3fc294; border: 1px solid rgba(23, 168, 120, 0.34); }
+.tag-weer   { background: rgba(139, 125, 214, 0.16); color: #b3a8ec; border: 1px solid rgba(139, 125, 214, 0.34); }
+/* rating-tint (7-daagse): rood = let op, groen = goed */
+.tag-danger { background: rgba(192, 122, 122, 0.16); color: #d79a9a; border: 1px solid rgba(192, 122, 122, 0.34); }
+.tag-good   { background: rgba(23, 168, 120, 0.18); color: #4fce9f; border: 1px solid rgba(23, 168, 120, 0.4); }
+
+/* ── segmented control ───────────────────────────────────────────── */
+.seg {
+  display: inline-flex;
+  border: 1px solid rgba(233, 233, 237, 0.16);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg-opt {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border-radius: 7px;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+.seg-opt:hover { color: var(--text-primary); }
+.seg-opt[aria-current="true"] {
+  background: var(--accent-purple-bg);
+  color: var(--accent-purple-light);
+}
+
+/* ── table ───────────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(233, 233, 237, 0.08);
+}
+.table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(233, 233, 237, 0.05);
+  color: var(--text-secondary);
+}
+.table tbody tr:last-child td { border-bottom: none; }
