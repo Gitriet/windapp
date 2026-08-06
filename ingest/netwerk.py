@@ -176,25 +176,51 @@ def check_connected(features: list[dict], nodes: dict[str, tuple[float, float]])
 
 # --- wegschrijven (idempotent) ------------------------------------------
 def write_db(features, havens, nodes) -> dict:
+    """Idempotente rebuild ZONDER TRUNCATE/DELETE op netwerk_routes of netwerk_havens.
+
+    De FK stroom_punt_forecast.route_id -> netwerk_routes is ON DELETE CASCADE, dus zowel
+    `TRUNCATE ... CASCADE` als een gewone `DELETE FROM netwerk_routes` zou de stroom-
+    forecasttabel (~130k rijen) meesleuren. Daarom UPSERTEN we havens en routes: bestaande
+    rijen worden ge-UPDATE, nooit verwijderd, zodat de cascade nooit vuurt en stroom
+    ongemoeid blijft. Alleen netwerk_samplepunten (geen inkomende FK's) verversen we
+    volledig. Stale havens/routes die uit de bron verdwijnen worden NIET gesnoeid — juist
+    om die cascade te vermijden; in de praktijk groeit het net alleen. Een rowcount-vangnet
+    breekt af als stroom_punt_forecast tóch rijen zou verliezen."""
     conn = connect()
     n_samples = 0
+    stroom_before = stroom_after = None
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
-            cur.execute("TRUNCATE netwerk_samplepunten, netwerk_routes, netwerk_havens "
-                        "RESTART IDENTITY CASCADE")
+            # vangnet: onthoud de stroom-rowcount (indien de tabel bestaat)
+            cur.execute("SELECT to_regclass('public.stroom_punt_forecast')")
+            has_stroom = cur.fetchone()[0] is not None
+            if has_stroom:
+                cur.execute("SELECT count(*) FROM stroom_punt_forecast")
+                stroom_before = cur.fetchone()[0]
+
+            # samplepunten: geen inkomende FK's -> veilig volledig verversen
+            cur.execute("DELETE FROM netwerk_samplepunten")
 
             for s, (lat, lon) in sorted(nodes.items()):
                 h = havens[s]
                 cur.execute(
-                    "INSERT INTO netwerk_havens (id, naam, lat, lon, sluis) VALUES (%s,%s,%s,%s,%s)",
+                    """INSERT INTO netwerk_havens (id, naam, lat, lon, sluis)
+                       VALUES (%s,%s,%s,%s,%s)
+                       ON CONFLICT (id) DO UPDATE SET
+                         naam = EXCLUDED.naam, lat = EXCLUDED.lat,
+                         lon = EXCLUDED.lon, sluis = EXCLUDED.sluis""",
                     (s, h["naam"], lat, lon, bool(h["sluis"])))
 
             for f in features:
                 p = f["properties"]
                 cur.execute(
                     """INSERT INTO netwerk_routes (id, van_haven, naar_haven, via, lengte_nm, geojson)
-                       VALUES (%s,%s,%s,%s,%s,%s)""",
+                       VALUES (%s,%s,%s,%s,%s,%s)
+                       ON CONFLICT (id) DO UPDATE SET
+                         van_haven = EXCLUDED.van_haven, naar_haven = EXCLUDED.naar_haven,
+                         via = EXCLUDED.via, lengte_nm = EXCLUDED.lengte_nm,
+                         geojson = EXCLUDED.geojson""",
                     (p["id"], slug(p["van"]), slug(p["naar"]), p.get("via"),
                      p["lengte_nm"], json.dumps(f)))
 
@@ -204,10 +230,24 @@ def write_db(features, havens, nodes) -> dict:
                     """INSERT INTO netwerk_samplepunten (route_id, volgnr, afstand_nm, lat, lon)
                        VALUES (%s,%s,%s,%s,%s)""", rows)
                 n_samples += len(rows)
+
+            if has_stroom:
+                cur.execute("SELECT count(*) FROM stroom_punt_forecast")
+                stroom_after = cur.fetchone()[0]
+                # de bug manifesteert zich als VERLIES; gelijktijdige cron-inserts (toename)
+                # zijn onschuldig. Verlies -> afbreken vóór commit.
+                if stroom_after < stroom_before:
+                    raise SystemExit(
+                        f"stroom_punt_forecast verloor rijen ({stroom_before} -> {stroom_after}); "
+                        "de rebuild heeft stroomdata geraakt — afgebroken (geen commit).")
         conn.commit()
     finally:
         conn.close()
-    return {"havens": len(nodes), "routes": len(features), "samplepunten": n_samples}
+    if has_stroom:
+        log.info("stroom_punt_forecast: %d -> %d rijen (%s)", stroom_before, stroom_after,
+                 "ongewijzigd" if stroom_before == stroom_after else f"+{stroom_after - stroom_before} (gelijktijdige cron)")
+    return {"havens": len(nodes), "routes": len(features), "samplepunten": n_samples,
+            "stroom_rows": stroom_after}
 
 
 def main() -> None:
