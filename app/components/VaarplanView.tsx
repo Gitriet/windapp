@@ -180,7 +180,7 @@ export default function VaarplanView({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 16 }}>
         <MetricCard label="Vertrek" value={localHM(depMs)} />
         <MetricCard label="Aankomst" value={trip.arrMs ? localHM(trip.arrMs) : "—"} />
-        <MetricCard label="Vaartijd" value={trip.arrMs ? fmtDur(trip.tripMin) : "—"} />
+        <MetricCard label="Vaartijd" value={trip.arrMs ? fmtDur(trip.tripMin) : "—"} sub={trip.arrMs ? `gem. ${trip.avgSog.toFixed(1).replace(".", ",")} kn SOG` : undefined} />
         <MetricCard label="Afstand" value={distanceNm != null ? `${distanceNm.toFixed(1).replace(".", ",")} nm` : "—"} sub={bearingDeg != null ? `koers ${String(Math.round(bearingDeg)).padStart(3, "0")}°` : undefined} />
       </div>
 
