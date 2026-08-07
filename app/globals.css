@@ -17,6 +17,8 @@
   --current-tegen: #c07a7a;
   --wind-teal: #6ab6aa;
   --kentering-gold: #e8b94a;
+  /* gedeelde zijpadding voor de view-content (Nu + Tocht planner) */
+  --view-pad-x: 40px;
 }
 
 * { box-sizing: border-box; }
