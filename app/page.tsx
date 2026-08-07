@@ -76,7 +76,7 @@ function combineWindStations(wind: SimWind | null): WindTLSample[] {
 }
 
 export default function Page() {
-  const [page, setPage] = useState<"now" | "departure">("departure");
+  const [page, setPage] = useState<"now" | "departure">("now");
   const [locations, setLocations] = useState<Location[]>([]);
   const [locIdx, setLocIdx] = useState(0);
   const [showLocPicker, setShowLocPicker] = useState(false);
