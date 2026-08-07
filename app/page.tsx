@@ -4,7 +4,7 @@
 // /api/routes) en de bestaande libs (polar.ts, route.ts, tripsim.ts). De Nu-view volgt
 // de nav-picker; de Tocht-planner kiest uit de bekende havenroutes (netwerk_routes) en
 // zet het antwoord (beste vertrek + alternatieven) vooraan, het bewijs (grafieken) erna.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BOAT } from "@/lib/polar";
 import { localHM, localMidnight, localDateISO } from "@/lib/tz";
 import { compass, beaufort } from "@/lib/format";
@@ -80,6 +80,18 @@ export default function Page() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locIdx, setLocIdx] = useState(0);
   const [showLocPicker, setShowLocPicker] = useState(false);
+  // locatiepicker (Nu-view): knop en menu zijn losse siblings, dus check beide refs.
+  const locBtnRef = useRef<HTMLDivElement>(null);
+  const locMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showLocPicker) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!locBtnRef.current?.contains(t) && !locMenuRef.current?.contains(t)) setShowLocPicker(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showLocPicker]);
   const [depDay, setDepDay] = useState<0 | 1 | 2>(0);
   const [depRange, setDepRange] = useState<12 | 24>(12);
   const [depMs, setDepMs] = useState<number | null>(null);
@@ -322,7 +334,7 @@ export default function Page() {
           <a href="#" aria-current={page === "now" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("now"); }}>Nu</a>
           <a href="#" aria-current={page === "departure" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("departure"); }}>Tocht planner</a>
           <div style={{ flex: 1 }} />
-          <div onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13 }}>
+          <div ref={locBtnRef} onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13 }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
             <span>{loc?.name ?? "…"}</span>
             <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.4)" strokeWidth={1.5}><path d="M2.5 4 L5 6.5 L7.5 4" /></svg>
@@ -330,7 +342,7 @@ export default function Page() {
         </div>
 
         {showLocPicker && (
-          <div style={{ position: "absolute", right: 26, top: 50, zIndex: 10, background: "#1e2035", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(233,233,237,.1)", padding: 8, minWidth: 240, maxHeight: 360, overflowY: "auto" }}>
+          <div ref={locMenuRef} style={{ position: "absolute", right: 26, top: 50, zIndex: 10, background: "#1e2035", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(233,233,237,.1)", padding: 8, minWidth: 240, maxHeight: 360, overflowY: "auto" }}>
             {locations.map((l, i) => (
               <div key={l.location_key} onClick={() => { setLocIdx(i); setShowLocPicker(false); }} style={{ padding: "9px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
                 <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={i === locIdx ? COLORS.weer : "rgba(233,233,237,.3)"} strokeWidth={2}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
@@ -533,8 +545,16 @@ function RouteHavenPicker({
   label, value, options, naamOf, onSelect,
 }: { label: string; value: string; options: string[]; naamOf: (h: string) => string; onSelect: (h: string) => void }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  // klik buiten de picker sluit hem (alleen actief zolang hij open staat)
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(233,233,237,.4)", marginBottom: 3 }}>{label}</div>
       <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "7px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, minWidth: 176 }}>
         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
