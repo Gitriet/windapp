@@ -41,9 +41,20 @@ console.log("\n— referentievlak ontbreekt = gat, nooit een getal —");
   ok("geen vensters", v.windows.length === 0);
   ok("geen marge-getal", v.marginM === null);
   ok("reden benoemd", v.reason === "geen-referentievlak", String(v.reason));
-  ok("registry is leeg (geen station heeft de vlakken)", Object.keys(GATE_DATUMS).length === 0);
-  ok("gateDatumFor levert null", gateDatumFor("texel") === null);
+  // registry wordt sinds de haveninfo-koppeling gevuld uit havens-info.json: elke haven
+  // met drempel + getijstation. Vlissingen (drempel −3,30 m NAP) is de enige concrete.
+  ok("registry bevat Vlissingen", GATE_DATUMS.vlissingen != null);
+  ok("Vlissingen sillDepthChartM = +3,30 (tekencorrectie van −3,30 NAP)", GATE_DATUMS.vlissingen?.sillDepthChartM === 3.3);
+  ok("Vlissingen reductievlak 0", GATE_DATUMS.vlissingen?.reductievlakOnderNapM === 0);
+  ok("gateDatumFor levert null voor haven zonder drempel", gateDatumFor("texel") === null);
   ok("gateWindows zonder datum levert niets", gateWindows(TIDE, null, 2.45, T0, DAY_END).length === 0);
+
+  // succescriterium: boot 1,95 m past bij Vlissingen precies tot −1,35 m NAP.
+  const vl = GATE_DATUMS.vlissingen!;
+  ok("Vlissingen: bij −1,35 m NAP is de beschikbare diepte gelijk aan de diepgang 1,95 m",
+    Math.abs(depthOverSillM(vl, -135) - 1.95) < 1e-9);
+  ok("Vlissingen: net onder −1,35 m NAP past de boot niet meer", depthOverSillM(vl, -136) < 1.95);
+  ok("Vlissingen: net boven −1,35 m NAP past de boot wel", depthOverSillM(vl, -134) > 1.95);
 }
 
 console.log("\n— diepte over de drempel telt beide vlakken mee —");

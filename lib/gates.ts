@@ -28,12 +28,14 @@
 // Er is bewust geen fallback die "meestal wel klopt".
 import type { TideData } from "./types";
 import type { BoatProfile } from "./polar";
+import { havenInfoByKey } from "./haven-info";
 
 // Diepte-referentie voor één doorgang.
 //   sillDepthChartM       kaartdiepte over de drempel t.o.v. het reductievlak (m, positief)
 //   reductievlakOnderNapM hoeveel het reductievlak ónder NAP ligt (m, positief = lager dan NAP)
-// Beide zijn nodig; één van de twee is niet genoeg.
-export type GateDatum = { sillDepthChartM: number; reductievlakOnderNapM: number };
+//   tideStation           RWS getij-stationcode (referentie; zie haveninfo) — optioneel
+// Beide dieptevelden zijn nodig; één van de twee is niet genoeg.
+export type GateDatum = { sillDepthChartM: number; reductievlakOnderNapM: number; tideStation?: string };
 
 export type TidalGate = {
   locationKey: string;        // waypoint waarvan de getijcurve komt
@@ -41,14 +43,33 @@ export type TidalGate = {
   datum: GateDatum | null;    // null = referentievlak onbekend -> gat
 };
 
-// Registry van doorgangen met een bekend referentievlak.
+// Registry van doorgangen met een bekend referentievlak, opgebouwd uit
+// havens-info.json: elke haven met zowel een drempel als een getijstation.
 //
-// LEEG: voor geen enkel station zijn de kaartdiepte over de drempel én het
-// reductievlak t.o.v. NAP in de data aanwezig. Zolang dat zo is levert elke poort een
-// gat — dat is het correcte gedrag, geen tijdelijk gebrek dat met een schatting gedicht
-// mag worden. Vul een regel pas als BEIDE getallen uit een bron komen (zeekaart +
-// RWS-vlakkentabel), en let erop dat het reductievlak per water verschilt.
-export const GATE_DATUMS: Record<string, GateDatum> = {};
+// TEKEN: de drempel staat in havens-info als NAP-niveau (diepte_m_nap, negatief =
+// onder NAP), maar depthOverSillM/gateWindows verwachten sillDepthChartM als POSITIEVE
+// kaartdiepte bóven het reductievlak. Met het reductievlak op 0 (de drempel is al
+// direct in NAP gegeven, geen ALAT-conversie) is dat exact −diepte_m_nap. Vlissingen:
+// diepte_m_nap −3,30 → sillDepthChartM +3,30. Controle via gateWindows met draft 1,95:
+// minCm = (1,95 − 3,30 − 0)·100 = −135 → dicht zodra de stand < −1,35 m NAP zakt.
+//
+// Alleen havens met drempel én rws_getij_code komen erin; drempel-loze of station-loze
+// havens leveren nog steeds een gat (geen entry).
+function buildGateDatums(): Record<string, GateDatum> {
+  const out: Record<string, GateDatum> = {};
+  for (const h of Object.values(havenInfoByKey())) {
+    if (h.drempel && h.rws_getij_code) {
+      out[h.key] = {
+        sillDepthChartM: -h.drempel.diepte_m_nap,
+        reductievlakOnderNapM: 0,
+        tideStation: h.rws_getij_code,
+      };
+    }
+  }
+  return out;
+}
+
+export const GATE_DATUMS: Record<string, GateDatum> = buildGateDatums();
 
 export function gateDatumFor(locationKey: string): GateDatum | null {
   return GATE_DATUMS[locationKey] ?? null;

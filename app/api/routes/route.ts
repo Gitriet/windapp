@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { getLocations } from "@/lib/serving";
 import { haversineKm } from "@/lib/route";
+import { havenInfoByKey } from "@/lib/haven-info";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,10 @@ export async function GET() {
       }
       return { key: best.location_key, stationNaam: best.name, stationKm: Math.round(bd * 10) / 10 };
     };
+    // statische haveninfo per haven-key; havens zonder match krijgen havenInfo: null
+    const infoByKey = havenInfoByKey();
     const havenEnd = (haven: string, naam: string, lat: number, lon: number) =>
-      ({ haven, naam, lat, lon, ...nearest(lat, lon) });
+      ({ haven, naam, lat, lon, ...nearest(lat, lon), havenInfo: infoByKey[haven] ?? null });
 
     // per ongeordend haven-paar de kortste route (rows zijn al op lengte gesorteerd)
     const seen = new Set<string>();

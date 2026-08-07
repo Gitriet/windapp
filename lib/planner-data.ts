@@ -4,6 +4,7 @@
 import { bearing, projectAlongRoute, type AlongSample } from "./route";
 import type { WindSample } from "./tripsim";
 import type { CorrectedPoint, WeatherSeries, WeekDay, TideData, Location } from "./types";
+import type { HavenInfo } from "./haven-info";
 
 // Standaard-havenroute: Den Helder → Oudeschild over het Marsdiep (R09).
 export const DEFAULT_ROUTE_ID = "R09";
@@ -17,6 +18,7 @@ export type WeekResponse = { location: Location; days: WeekDay[] };
 export type RouteHaven = {
   haven: string; naam: string; lat: number; lon: number;
   key: string; stationNaam: string; stationKm: number;
+  havenInfo: HavenInfo | null;
 };
 export type RouteInfo = {
   id: string; via: string | null; lengte_nm: number; stroom: boolean;

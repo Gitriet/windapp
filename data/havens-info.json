@@ -1,0 +1,346 @@
+[
+  {
+    "key": "breskens",
+    "havenNaam": "Jachthaven Breskens",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Jachthaven Breskens" }
+    ],
+    "getij": {
+      "verval_m": "3,5-5",
+      "opmerking": "Sterke getijstroom op de Westerschelde voor de havenmond."
+    },
+    "rws_getij_code": null,
+    "opmerkingen": "Ruime, dieptevrije marina — bij alle getijden toegankelijk. Let op druk beroepsvaarwater en dwarsstroom bij de havenmond."
+  },
+  {
+    "key": "cadzand-bad",
+    "havenNaam": "Jachthaven Cadzand-Bad",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Jachthaven Cadzand" }
+    ],
+    "getij": {
+      "verval_m": "3,5-4,5",
+      "opmerking": "Getijstroom langs de kust; havenmond gevoelig voor deining."
+    },
+    "rws_getij_code": "CADZD",
+    "opmerkingen": "Nauwe havenmond tussen pieren, gevoelig voor aanzanding en deining — bij laagwater en aflandige deining beperkt toegankelijk. Geen vaste drempel bekend."
+  },
+  {
+    "key": "delfzijl",
+    "havenNaam": "Neptunus Jachthaven Delfzijl",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 14, "dienst": "Havendienst Delfzijl" }
+    ],
+    "getij": {
+      "verval_m": "3-3,5",
+      "opmerking": "Sterke stroom in de Eems voor de haven."
+    },
+    "rws_getij_code": "DELFZL",
+    "opmerkingen": "Diepe commerciële haven, bij alle getijden bereikbaar. Druk met beroeps- en zeevaart; volg de Eems-verkeersbegeleiding."
+  },
+  {
+    "key": "den-helder",
+    "havenNaam": "Jachthaven Willemsoord",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 62, "dienst": "Den Helder Traffic" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Zeer sterke getijstroom in het Marsdiep (tot 2-3 kn)."
+    },
+    "rws_getij_code": "DENHDR",
+    "opmerkingen": "Diepe haven, bij alle getijden toegankelijk. Marinehaven — houd rekening met marine- en veerverkeer en de sterke stroom in het Marsdiep."
+  },
+  {
+    "key": "den-oever",
+    "havenNaam": "Jachthaven Den Oever",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": {
+      "naam": "Stevinsluizen",
+      "vhf": 20,
+      "bediening": "Op afroep, beperkte tijden rond schutcycli",
+      "drempeldiepte_buiten_m_nap": null,
+      "drempeldiepte_binnen_m_nap": null
+    },
+    "vhf": [
+      { "kanaal": 20, "dienst": "Stevinsluizen / brug Den Oever" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Getijgeul vanaf de Waddenzee; stroom in de Visjagersgaatje-geul."
+    },
+    "rws_getij_code": "DENOVBTN",
+    "opmerkingen": "Schutten via de Stevinsluizen (Afsluitdijk) tussen Waddenzee en IJsselmeer. Wadaanloop met wisselende diepte; plan rond hoogwater en de bediening van de sluis."
+  },
+  {
+    "key": "eemshaven",
+    "havenNaam": "Eemshaven",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 14, "dienst": "Havendienst Eemshaven" }
+    ],
+    "getij": {
+      "verval_m": "3-3,5",
+      "opmerking": "Sterke stroom in de Eems."
+    },
+    "rws_getij_code": "EEMSHVN",
+    "opmerkingen": "Grote commerciële/energiehaven met weinig jachtvoorzieningen. Diep en altijd toegankelijk, maar druk met zeevaart — geen pleziervaartbestemming bij uitstek."
+  },
+  {
+    "key": "harlingen",
+    "havenNaam": "Jachthaven Harlingen (Noorderhaven)",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 11, "dienst": "Havendienst Harlingen" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Sterke getijstroom in de aanloopgeul (Blauwe Slenk / Pollendam)."
+    },
+    "rws_getij_code": "HARLGN",
+    "opmerkingen": "Diepe haven, bij alle getijden bereikbaar. Druk met veerdiensten naar Terschelling en Vlieland; houd de Pollendam-geul aan."
+  },
+  {
+    "key": "ijmuiden",
+    "havenNaam": "Seaport Marina IJmuiden",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Seaport Marina IJmuiden" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Beperkte getijstroom voor de pieren."
+    },
+    "rws_getij_code": "IJMDBTHVN",
+    "opmerkingen": "Diepe buitenhaven, bij alle getijden toegankelijk. Zeer druk met zeevaart naar de sluizen van het Noordzeekanaal — kruis het vaarwater haaks en snel."
+  },
+  {
+    "key": "kornwerderzand",
+    "havenNaam": "Kornwerderzand (Lorentzsluizen)",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": {
+      "naam": "Lorentzsluizen",
+      "vhf": 18,
+      "bediening": "Op afroep, beperkte tijden rond schutcycli",
+      "drempeldiepte_buiten_m_nap": null,
+      "drempeldiepte_binnen_m_nap": null
+    },
+    "vhf": [
+      { "kanaal": 18, "dienst": "Lorentzsluizen / brug Kornwerderzand" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Getijgeul (Boontjes / Doove Balg) vanaf de Waddenzee."
+    },
+    "rws_getij_code": "KORNWDZBTN",
+    "opmerkingen": "Schutten via de Lorentzsluizen (Afsluitdijk) tussen Waddenzee en IJsselmeer. Wadaanloop met wisselende diepte; plan rond hoogwater en de sluisbediening."
+  },
+  {
+    "key": "lauwersoog",
+    "havenNaam": "Jachthaven Noordergat",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 22, "dienst": "Havendienst Lauwersoog" }
+    ],
+    "getij": {
+      "verval_m": "2-2,5",
+      "opmerking": "Getijstroom in het Zoutkamperlaag; wadgeul met wisselende diepte."
+    },
+    "rws_getij_code": "LAUWOG",
+    "opmerkingen": "Getijdenhaven aan de Waddenzee; jachthaven Noordergat ligt aan de zeezijde. Aanloop via het Zoutkamperlaag — plan rond hoogwater. De Robbengatsluis geeft toegang tot het Lauwersmeer."
+  },
+  {
+    "key": "nes-ameland",
+    "havenNaam": "Jachthaven Ameland (Nes)",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Havendienst Ameland" }
+    ],
+    "getij": {
+      "verval_m": "2-2,5",
+      "opmerking": "Getijstroom in het Borndiep / de Reegeul; wadgeul verzandt."
+    },
+    "rws_getij_code": "NES",
+    "opmerkingen": "Getijdenhaven; alleen rond hoogwater goed bereikbaar over de wadgeulen. Geulen verleggen — vaar op de actuele betonning, niet blind op de kaart."
+  },
+  {
+    "key": "oudeschild",
+    "havenNaam": "Waddenhaven Texel (Oudeschild)",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 12, "dienst": "Havendienst Oudeschild" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Sterke getijstroom in de Texelstroom voor de haven."
+    },
+    "rws_getij_code": "OUDSD",
+    "opmerkingen": "Diepe wadhaven, bij alle getijden toegankelijk. Let op de sterke dwarsstroom in de Texelstroom bij het aanlopen van de havenmond."
+  },
+  {
+    "key": "roompotsluis",
+    "havenNaam": "Roompotsluis",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": {
+      "naam": "Roompotsluis",
+      "vhf": 18,
+      "bediening": "Op afroep",
+      "drempeldiepte_buiten_m_nap": null,
+      "drempeldiepte_binnen_m_nap": null
+    },
+    "vhf": [
+      { "kanaal": 18, "dienst": "Roompotsluis" }
+    ],
+    "getij": {
+      "verval_m": "2,5-3,5",
+      "opmerking": "Getijstroom in de Roompot (Oosterschelde-zijde) en zeewaarts."
+    },
+    "rws_getij_code": "ROOMPBTN",
+    "opmerkingen": "Schutsluis in de Oosterscheldekering tussen Noordzee en Oosterschelde. Toegang via de sluis; buitengaats sterke stroom rond de kering."
+  },
+  {
+    "key": "scheveningen",
+    "havenNaam": "Jachthaven Scheveningen",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 21, "dienst": "Scheveningen Haven (havendienst)" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Beperkte getijstroom langs de kust."
+    },
+    "rws_getij_code": "SCHEVNGN",
+    "opmerkingen": "Diepe buitenhaven, bij alle getijden toegankelijk, maar de havenmond kan bij aanlandige wind en deining onrustig zijn. Meld je aan bij de havendienst voor invaren."
+  },
+  {
+    "key": "schiermonnikoog",
+    "havenNaam": "Jachthaven Schiermonnikoog",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Havendienst Schiermonnikoog" }
+    ],
+    "getij": {
+      "verval_m": "2-2,5",
+      "opmerking": "Getijstroom in het Gat van Schiermonnikoog; wadgeul verzandt."
+    },
+    "rws_getij_code": "SCHIERMNOG",
+    "opmerkingen": "Getijdenhaven; alleen rond hoogwater goed bereikbaar over de wadgeulen. Vaar op de actuele betonning — de geulen verleggen jaarlijks."
+  },
+  {
+    "key": "stellendam",
+    "havenNaam": "Marina Stellendam",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 31, "dienst": "Marina Stellendam" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Getijstroom in het Slijkgat, de aanloopgeul vanaf zee."
+    },
+    "rws_getij_code": "STELLDBTN",
+    "opmerkingen": "Aanloop via het Slijkgat, een ondiepe en verzandende getijgeul — bij laagwater en zeegang beperkt en soms krap voor diepstekende boten. Plan rond hoogwater."
+  },
+  {
+    "key": "terneuzen",
+    "havenNaam": "Jachthaven Terneuzen (Neuzen)",
+    "getijgebonden": false,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 11, "dienst": "Havendienst Terneuzen" }
+    ],
+    "getij": {
+      "verval_m": "3,5-5",
+      "opmerking": "Sterke getijstroom op de Westerschelde voor de haven."
+    },
+    "rws_getij_code": "TERNZN",
+    "opmerkingen": "Toegankelijk bij alle getijden, maar zeer druk beroepsvaarwater met grote zeeschepen richting de sluizen naar het kanaal Gent-Terneuzen. Sterke dwarsstroom bij de havenmond."
+  },
+  {
+    "key": "vlieland",
+    "havenNaam": "Jachthaven Vlieland",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 12, "dienst": "Havendienst Vlieland" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Getijstroom in het Vliestroom / de Zuidwal; wadgeul."
+    },
+    "rws_getij_code": "VLIELHVN",
+    "opmerkingen": "Getijdenhaven; aanloop over de wadgeulen, het best rond hoogwater. Kan bij mooi weer snel vol liggen — meld je tijdig aan."
+  },
+  {
+    "key": "vlissingen",
+    "havenNaam": "Michiel de Ruyterhaven",
+    "getijgebonden": true,
+    "drempel": {
+      "diepte_m_nap": -3.30,
+      "referentie": "NAP",
+      "toelichting": "Twee drempels bij de ingang van de haven; peilschaal aanwezig."
+    },
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 9, "dienst": "Havendienst Vlissingen" },
+      { "kanaal": 14, "dienst": "Verkeerspost Vlissingen (Schelde-radar)" }
+    ],
+    "getij": {
+      "verval_m": "3,5-5",
+      "opmerking": "Sterke getijstroom voor de havenmond op de Westerschelde."
+    },
+    "rws_getij_code": "VLISSGN",
+    "opmerkingen": "Voorzorgsgebied druk met ankerliggers en kruisende vaart; grote zeeschepen varen dicht langs de havenmond. Twee rode lichten bij de ingang = invaren verboden."
+  },
+  {
+    "key": "west-terschelling",
+    "havenNaam": "Passantenhaven West-Terschelling",
+    "getijgebonden": true,
+    "drempel": null,
+    "sluis": null,
+    "vhf": [
+      { "kanaal": 2, "dienst": "Verkeerscentrale Brandaris (VTS)" },
+      { "kanaal": 12, "dienst": "Havendienst West-Terschelling" }
+    ],
+    "getij": {
+      "verval_m": "1,5-2",
+      "opmerking": "Sterke getijstroom in het Schuitengat / de Vliestroom voor de haven."
+    },
+    "rws_getij_code": "WESTTSLG",
+    "opmerkingen": "Getijdenhaven; aanloop over de wadgeulen, het best rond hoogwater. Meld je bij de Brandaris voor het kruisen van het scheepvaartverkeer."
+  }
+]

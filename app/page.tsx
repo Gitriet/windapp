@@ -16,6 +16,7 @@ import {
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
+import HavenSelector from "./components/HavenSelector";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
@@ -26,9 +27,6 @@ import { WindCanvas } from "./components/WindCanvas";
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const isTide = (t: TideData | { tide: null } | null): t is TideData => !!t && "extremes" in t;
-
-// afstand haven → weerstation, kort en eerlijk
-const stationKm = (s: RouteHaven) => (s.stationKm < 0.1 ? "op locatie" : `${s.stationKm.toFixed(1).replace(".", ",")} km`);
 
 // windrichting-waaruit → stroomrichting van de deeltjes op het canvas
 function canvasDir(dirFrom: number): number {
@@ -334,6 +332,10 @@ export default function Page() {
           <a href="#" aria-current={page === "now" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("now"); }}>Nu</a>
           <a href="#" aria-current={page === "departure" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("departure"); }}>Tocht planner</a>
           <div style={{ flex: 1 }} />
+          {/* polaire-badge: subtiel één-regel label, in de header (alle views) */}
+          <span style={{ fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
+            Winner 11.20 <span style={{ color: "rgba(233,233,237,.3)" }}>· {Math.round(DEFAULT_BOAT.performance * 100)}%</span>
+          </span>
           <div ref={locBtnRef} onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13 }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
             <span>{loc?.name ?? "…"}</span>
@@ -539,41 +541,6 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
   );
 }
 
-// Compacte havenkiezer op de Tocht-planner (los van de nav-picker). Kiest uit een
-// vaste lijst haven-slugs; de naam komt uit `naamOf`.
-function RouteHavenPicker({
-  label, value, options, naamOf, onSelect,
-}: { label: string; value: string; options: string[]; naamOf: (h: string) => string; onSelect: (h: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  // klik buiten de picker sluit hem (alleen actief zolang hij open staat)
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(233,233,237,.4)", marginBottom: 3 }}>{label}</div>
-      <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "7px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, minWidth: 176 }}>
-        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{naamOf(value)}</span>
-        <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.4)" strokeWidth={1.5}><path d="M2.5 4 L5 6.5 L7.5 4" /></svg>
-      </div>
-      {open && (
-        <div style={{ position: "absolute", left: 0, top: 60, zIndex: 20, background: "#1e2035", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(233,233,237,.1)", padding: 8, minWidth: 220, maxHeight: 340, overflowY: "auto" }}>
-          {options.map((h) => (
-            <div key={h} onClick={() => { onSelect(h); setOpen(false); }} style={{ padding: "9px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ flex: 1 }}>{naamOf(h)}</span>
-              {h === value && <svg width={14} height={14} viewBox="0 0 20 20" fill={COLORS.weer}><path d="M8.5 14.2 L4 9.7 l1.4-1.4 3.1 3.1 6.1-6.1 1.4 1.4z" /></svg>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ════════════════════ TOCHT-PLANNER ════════════════════
 // Volgorde (antwoord eerst): routekiezer → antwoordregel → vertrekalternatieven →
@@ -711,16 +678,12 @@ function DepartureView({
                 ? `Havenroute${route.viaPassage ? ` · via ${route.viaPassage}` : ""}`
                 : "Rechte lijn · geen routedata"}
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "flex-end" }}>
-            <RouteHavenPicker label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom} />
-            <span style={{ fontSize: 18, color: "rgba(233,233,237,.4)", paddingBottom: 6 }}>→</span>
-            <RouteHavenPicker label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo} />
-          </div>
-          {/* wind komt van het dichtstbijzijnde weerstation per haven — eerlijk getoond */}
-          <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: 11, color: "rgba(233,233,237,.4)" }}>
-            <span style={{ minWidth: 176 }}>{fromStation && <>wind: {fromStation.stationNaam} · {stationKm(fromStation)}</>}</span>
-            <span style={{ width: 14 }} />
-            <span style={{ minWidth: 176 }}>{toStation && <>wind: {toStation.stationNaam} · {stationKm(toStation)}</>}</span>
+          <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "flex-start" }}>
+            <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
+              havenInfo={fromStation?.havenInfo ?? null} stationKey={fromStation?.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+            <span style={{ fontSize: 18, color: "rgba(233,233,237,.4)", marginTop: 22 }}>→</span>
+            <HavenSelector label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
+              havenInfo={toStation?.havenInfo ?? null} stationKey={toStation?.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
           </div>
           <div style={{ display: "flex", gap: 24, marginTop: 12, alignItems: "baseline" }}>
             <div><span className="kpi" style={{ fontSize: 24, fontWeight: 600 }}>{routeDistNm != null ? routeDistNm.toFixed(1).replace(".", ",") : "—"}</span> <span style={{ fontSize: 13, color: "rgba(233,233,237,.5)" }}>nm</span></div>
@@ -731,11 +694,6 @@ function DepartureView({
                 : "○ Geen stroomdata voor deze route"}
             </div>
           </div>
-        </div>
-        <div style={{ flex: 1 }} />
-        {/* polaire-badge: subtiel één-regel label, geen bordered box */}
-        <div style={{ alignSelf: "flex-start", fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
-          Winner 11.20 <span style={{ color: "rgba(233,233,237,.3)" }}>· {Math.round(DEFAULT_BOAT.performance * 100)}%</span>
         </div>
       </div>
 
