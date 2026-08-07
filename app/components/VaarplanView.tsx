@@ -30,7 +30,6 @@ export interface VaarplanViewProps {
   fromTide: TideData | null;       // getijcurve vertrekhaven (routeTide) — enige beschikbare
   via: ViaHaven[];                 // tussenliggende havens (uitwijk); leeg bij directe route
   boat: BoatProfile;
-  onBack: () => void;
 }
 
 // Verkeersposten langs de NL-kust — handmatige seed, geselecteerd op de breedtegraad-
@@ -126,7 +125,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ════════════════════════════════════════════════════════════════════════
 export default function VaarplanView({
-  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, via, boat, onBack,
+  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, via, boat,
 }: VaarplanViewProps) {
   const steps = trip.steps;
 
@@ -164,12 +163,6 @@ export default function VaarplanView({
 
   return (
     <div style={{ padding: "18px var(--view-pad-x) 48px" }}>
-      <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: COLORS.weer, textDecoration: "none", marginBottom: 6 }}>
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        Terug naar planner
-      </a>
-
       {/* ── Sectie 1: Kop ─────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
         <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={5} r={2.4} /><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3M12 12l0 0" /><path d="M5 12a7 7 0 0 0 14 0" /></svg>

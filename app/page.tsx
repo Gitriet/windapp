@@ -382,11 +382,10 @@ export default function Page() {
                 depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
                 distanceNm={routeDistNm} bearingDeg={routeBearing}
                 routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
-                fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT}
-                onBack={() => setPage("departure")} />
+                fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT} />
             ) : (
-              // geen geldig vertrekmoment (bv. herladen op deze view) → terug naar planner
-              <VaarplanEmpty onBack={() => setPage("departure")} />
+              // geen geldig vertrekmoment (bv. herladen op deze view)
+              <VaarplanEmpty />
             )
           )
           : <DepartureView
@@ -396,8 +395,7 @@ export default function Page() {
               depRange={depRange} setDepRange={setDepRange} dayNames={dayNames} ready={!!routeWind}
               routes={routes} fromHaven={fromHaven} toHaven={toHaven}
               chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
-              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
-              onVaarplan={() => setPage("vaarplan")} />}
+              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null} />}
       </div>
     </div>
   );
@@ -618,7 +616,7 @@ function DepartureView({
   routeBearing, routeDistNm, route, selTrip, depMs, setDepMs, hwMs,
   depOptions, bestOption, depDay, setDepDay, depRange, setDepRange, dayNames, ready,
   routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens,
-  fromStation, toStation, onVaarplan,
+  fromStation, toStation,
 }: {
   routeBearing: number | null; routeDistNm: number | null; route: RouteMeta;
   selTrip: SimResult | null; depMs: number | null; setDepMs: (ms: number) => void; hwMs: number[];
@@ -627,7 +625,6 @@ function DepartureView({
   routes: RouteInfo[]; fromHaven: string; toHaven: string;
   chooseFrom: (h: string) => void; chooseTo: (h: string) => void;
   allHavens: string[]; fromStation: RouteHaven | null; toStation: RouteHaven | null;
-  onVaarplan: () => void;
 }) {
   const naamOf = useMemo(() => {
     const m = new Map<string, string>();
@@ -764,15 +761,6 @@ function DepartureView({
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "26px 0 14px", paddingBottom: 8, borderBottom: "1px solid rgba(233,233,237,.08)" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Detail voor vertrek {localHM(depMs)}</div>
                 <div style={{ fontSize: 11, color: "rgba(233,233,237,.3)" }}>klik een kaart hierboven voor een ander uur</div>
-                <div style={{ flex: 1 }} />
-                <button onClick={onVaarplan} style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
-                  padding: "6px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
-                  color: COLORS.weer, background: alpha(COLORS.weer, 0.12), border: `1px solid ${alpha(COLORS.weer, 0.34)}`,
-                }}>
-                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8" /><path d="M8 17h8" /><path d="M8 9h2" /></svg>
-                  Vaarplan
-                </button>
               </div>
 
               {/* tags */}
@@ -849,23 +837,12 @@ function DepartureView({
   );
 }
 
-// ── Vaarplan (placeholder t/m punt 1; echte view komt in punt 3/4) ──────
-function BackLink({ onBack }: { onBack: () => void }) {
-  return (
-    <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }}
-      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: COLORS.weer, textDecoration: "none" }}>
-      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-      Terug naar planner
-    </a>
-  );
-}
-
-function VaarplanEmpty({ onBack }: { onBack: () => void }) {
+// Vaarplan zonder geselecteerd vertrek (bv. herladen op deze tab): leeg met hint.
+function VaarplanEmpty() {
   return (
     <div style={{ padding: "20px var(--view-pad-x) 34px" }}>
-      <BackLink onBack={onBack} />
-      <div style={{ marginTop: 24, fontSize: 14, color: "rgba(233,233,237,.5)" }}>
-        Geen vertrekmoment geselecteerd. Kies eerst een vertrek in de planner.
+      <div style={{ fontSize: 14, color: "rgba(233,233,237,.5)" }}>
+        Geen vertrekmoment geselecteerd. Kies eerst een vertrek in de Tocht-planner.
       </div>
     </div>
   );
