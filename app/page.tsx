@@ -74,7 +74,7 @@ function combineWindStations(wind: SimWind | null): WindTLSample[] {
 }
 
 export default function Page() {
-  const [page, setPage] = useState<"now" | "departure">("now");
+  const [page, setPage] = useState<"now" | "departure" | "vaarplan">("now");
   const [locations, setLocations] = useState<Location[]>([]);
   const [locIdx, setLocIdx] = useState(0);
   const [showLocPicker, setShowLocPicker] = useState(false);
@@ -361,6 +361,14 @@ export default function Page() {
         {err && <div style={{ padding: 24, color: "#c07a7a", fontSize: 13 }}>Fout bij laden: {err}</div>}
 
         {page === "now" ? <NowView fc={nowFc} week={nowWeek} tide={nowTide} loc={loc} nowMs={nowMs} />
+          : page === "vaarplan" ? (
+            selTrip && depMs != null ? (
+              <VaarplanPlaceholder depMs={depMs} onBack={() => setPage("departure")} />
+            ) : (
+              // geen geldig vertrekmoment (bv. herladen op deze view) → terug naar planner
+              <VaarplanEmpty onBack={() => setPage("departure")} />
+            )
+          )
           : <DepartureView
               routeBearing={routeBearing} routeDistNm={routeDistNm} route={routeMeta}
               selTrip={selTrip} depMs={depMs} setDepMs={setDepMs} hwMs={hwMs}
@@ -806,6 +814,39 @@ function DepartureView({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ── Vaarplan (placeholder t/m punt 1; echte view komt in punt 3/4) ──────
+function BackLink({ onBack }: { onBack: () => void }) {
+  return (
+    <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: COLORS.weer, textDecoration: "none" }}>
+      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      Terug naar planner
+    </a>
+  );
+}
+
+function VaarplanPlaceholder({ depMs, onBack }: { depMs: number; onBack: () => void }) {
+  return (
+    <div style={{ padding: "20px var(--view-pad-x) 34px" }}>
+      <BackLink onBack={onBack} />
+      <div style={{ marginTop: 24, fontSize: 15, color: "rgba(233,233,237,.6)" }}>
+        Vaarplan voor vertrek {localHM(depMs)} — in aanbouw.
+      </div>
+    </div>
+  );
+}
+
+function VaarplanEmpty({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ padding: "20px var(--view-pad-x) 34px" }}>
+      <BackLink onBack={onBack} />
+      <div style={{ marginTop: 24, fontSize: 14, color: "rgba(233,233,237,.5)" }}>
+        Geen vertrekmoment geselecteerd. Kies eerst een vertrek in de planner.
+      </div>
     </div>
   );
 }
