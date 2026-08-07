@@ -345,6 +345,7 @@ export default function Page() {
           </span>
           <a href="#" aria-current={page === "now" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("now"); }}>Nu</a>
           <a href="#" aria-current={page === "departure" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("departure"); }}>Tocht planner</a>
+          <a href="#" aria-current={page === "vaarplan" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("vaarplan"); }}>Vaarplan</a>
           <div style={{ flex: 1 }} />
           {/* polaire-badge: subtiel één-regel label, in de header (alle views) */}
           <span style={{ fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
