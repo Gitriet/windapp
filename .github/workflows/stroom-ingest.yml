@@ -18,10 +18,23 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    # Alle tegels (6 regio's) in één cyclus. Ruime marge onder het uur: valt de
-    # Action een paar uur uit, dan haalt de eerstvolgende run de gemiste analysetijden
-    # in één inhaalronde in (lookback in stroom_cron.py), en dat kost extra tijd.
-    # 55 min laat die inhaalronde toe en botst niet met de volgende uurstart.
+    # Twee tegelgroepen, ELK een eigen job met eigen 55-min budget:
+    #   inshore  = 100 m geul/estuarium-tegels (wad/zeeland/rijnmond)
+    #   offshore = 300 m open-Noordzee-strook (nz-zuid/nz-noord)
+    # Waarom gesplitst: in één cyclus staan de offshore-tegels achteraan; bij een
+    # koude start of achterstand slurpt het bijwerken van de geul-tegels het hele
+    # uur op en worden de offshore-tegels nooit bereikt (het duurde ~3 dagen voordat
+    # de cron ze voor het eerst haalde). Een eigen job garandeert offshore z'n tijd.
+    #
+    # max-parallel: 1 -> STRIKT sequentieel (niet parallel): finalize_hindcast_punten
+    # doet read-modify-write op één dag-parquet per dag, dus twee tegelijk lopende
+    # jobs zouden elkaars hindcast-punten overschrijven. fail-fast: false -> offshore
+    # draait ook als inshore faalt of z'n timeout raakt (anders opnieuw verhongering).
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        group: [inshore, offshore]
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
@@ -35,14 +48,13 @@ jobs:
       - name: Install deps
         run: pip install -r ingest/requirements.txt
 
-      # Zonder box-argument: alle bekende tegels (tiles.REGIONS -> stroom.BOXES).
       # Een gloednieuwe tegel krijgt zijn grid deze cyclus geüpsert en zijn
       # puntreeksen de volgende — zelfherstellend, geen aparte seed-stap nodig.
-      - name: Ingest alle regio's
+      - name: Ingest ${{ matrix.group }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           STORAGE_ENDPOINT: ${{ secrets.STORAGE_ENDPOINT }}
           STORAGE_BUCKET: ${{ secrets.STORAGE_BUCKET }}
           STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
           STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
-        run: python -m ingest.stroom_cron
+        run: python -m ingest.stroom_cron --${{ matrix.group }}
