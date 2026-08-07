@@ -35,6 +35,7 @@ from . import stroom as S
 from . import stroom_db as DB
 from . import stroom_grid_io as GIO
 from . import stroom_punten as PU
+from . import tiles as T
 from .storage import storage
 
 log = logging.getLogger("ingest.stroom_cron")
@@ -219,7 +220,15 @@ def run_cycle(boxes, keep=KEEP_RUNS, stale_h=STALE_H, lookback_h=LOOKBACK_H, lea
 def _cli() -> None:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    boxes = sys.argv[1:] or list(S.BOXES)
+    # --inshore/--offshore draaien de twee tegelgroepen apart (elk een eigen job +
+    # timeout in stroom-ingest.yml), zodat de offshore-strook niet achteraan één
+    # cyclus verhongert. Zonder argument: alle bekende tegels. Anders: expliciete ids.
+    args = sys.argv[1:]
+    if args and args[0] in ("--inshore", "--offshore"):
+        want = args[0][2:]
+        boxes = [b for b in S.BOXES if T.box_group(b) == want]
+    else:
+        boxes = args or list(S.BOXES)
     keep = int(os.environ.get("STROOM_KEEP_RUNS", KEEP_RUNS))
     stale = int(os.environ.get("STROOM_STALE_H", STALE_H))
     raise SystemExit(run_cycle(boxes, keep=keep, stale_h=stale))
