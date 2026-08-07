@@ -20,20 +20,46 @@ type WeatherCell = {
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const HORIZON_HOURS = 72;   // 3 equal-length leads (day1/2/3); cap the 4-day fetch
 
+// Display-naam overrides: alleen de GETOONDE naam wijkt af van de DB. De haven/regio
+// heet in de UI "Den Helder" (het weerstation De Kooy ligt op ~4,6 km). De key
+// `dekooy`, de DB-rij, de KNMI-koppeling en het API-contract blijven ongewijzigd.
+const DISPLAY_NAME: Record<string, string> = { dekooy: "Den Helder" };
+// Area (sub-label) overrides: waar de DB-area na een naam-override een stale sub-label
+// draagt. dekooy stond op "Waddenzee (Den Oever)" — Den Oever ligt ~15 km verderop en
+// leest verwarrend naast "Den Helder"; toon alleen het watergebied.
+const DISPLAY_AREA: Record<string, string> = { dekooy: "Waddenzee" };
+
+// Strip een sub-label dat de hoofdnaam al bevat: verwijder elke "(…)"-groep in `area`
+// waarvan álle woorden ook in de naam voorkomen (bv. "Harlingen" + "Waddenzee
+// (Harlingen)" -> "Waddenzee"; "Texel (Oudeschild)" + "Waddenzee (Texel)" -> "Waddenzee").
+function cleanArea(name: string, area: string): string {
+  const nameTokens = new Set((name.toLowerCase().match(/[a-z0-9]+/g) ?? []));
+  return area.replace(/\s*\(([^)]*)\)/g, (m, inner: string) => {
+    const toks = inner.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+    return toks.length && toks.every((t) => nameTokens.has(t)) ? "" : m;
+  }).trim();
+}
+
+const withDisplayName = (l: Location): Location => {
+  const name = DISPLAY_NAME[l.location_key] ?? l.name;
+  const area = DISPLAY_AREA[l.location_key] ?? cleanArea(name, l.area);
+  return name === l.name && area === l.area ? l : { ...l, name, area };
+};
+
 export async function getLocations(): Promise<Location[]> {
   const rows = (await sql`SELECT location_key, name, station, area, lat, lon
                           FROM locations ORDER BY name`) as Location[];
   // append borrowed-wind points (not in the DB), then sort by name for the picker
   const have = new Set(rows.map((r) => r.location_key));
   const extra = Object.values(SYNTHETIC_LOCATIONS).filter((l) => !have.has(l.location_key));
-  return [...rows, ...extra].sort((a, b) => a.name.localeCompare(b.name, "nl"));
+  return [...rows, ...extra].map(withDisplayName).sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
 
 async function getLocation(key: string): Promise<Location | undefined> {
-  if (SYNTHETIC_LOCATIONS[key]) return SYNTHETIC_LOCATIONS[key];
+  if (SYNTHETIC_LOCATIONS[key]) return withDisplayName(SYNTHETIC_LOCATIONS[key]);
   const r = (await sql`SELECT location_key, name, station, area, lat, lon
                        FROM locations WHERE location_key = ${key}`) as Location[];
-  return r[0];
+  return r[0] ? withDisplayName(r[0]) : undefined;
 }
 
 type LoadedLocation = {
