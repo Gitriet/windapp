@@ -53,6 +53,19 @@ REGIONS: list[Region] = [
     Region("nz-noord", 4.20, 6.95, 52.45, 53.95, 300),   # Holland..Wad-eilanden zeewaarts
 ]
 
+# De 300 m open-Noordzee-regio's; de rest zijn de 100 m geul/estuarium-tegels.
+# Gebruikt om de ingest-cron in twee jobs te splitsen (offshore krijgt zo een eigen
+# timeout-budget i.p.v. achteraan in één cyclus te verhongeren). Zie stroom-ingest.yml.
+OFFSHORE_REGION_IDS = frozenset({"nz-zuid", "nz-noord"})
+
+# Tegels die uit de gegenereerde box-set worden gehouden. nz-noord-01 (ZO-hoek van
+# nz-noord: lon 5,55–6,95 x lat 52,45–53,22) bestaat vrijwel geheel uit IJsselmeer
+# + land en valt buiten het DCSM-Noordzeedomein: Matroos geeft er een interpolate-
+# fout (geen NetCDF) i.p.v. NaN's, dus de cron faalde er elke cyclus op (rode Action).
+# De tegel bezit 0 routepunten. Uitgesloten zodat de overige nz-noord-tegels
+# (00/10/11) hun bestaande box-id's houden (geen her-ingest).
+EXCLUDE_TILES = frozenset({"nz-noord-01"})
+
 
 def _m_per_deg_lon(lat_deg: float) -> float:
     return M_PER_DEG_LAT * math.cos(math.radians(lat_deg))
@@ -109,10 +122,21 @@ def build_boxes(regions: list[Region] = REGIONS) -> dict[str, Box]:
     out: dict[str, Box] = {}
     for r in regions:
         for t in make_tiles(r):
+            if t.id in EXCLUDE_TILES:
+                continue
             if t.id in out:
                 raise ValueError(f"dubbele box-id {t.id!r}")
             out[t.id] = t
     return out
+
+
+def box_group(box_id: str) -> str:
+    """'offshore' voor de 300 m open-Noordzee-tegels (nz-zuid/nz-noord), anders
+    'inshore'. Voedt de --inshore/--offshore selectie in de cron."""
+    for rid in OFFSHORE_REGION_IDS:
+        if box_id == rid or box_id.startswith(rid + "-"):
+            return "offshore"
+    return "inshore"
 
 
 def _report() -> None:
