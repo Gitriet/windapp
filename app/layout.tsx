@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Windward — Tocht planner",
+  title: "Tidan — Tocht planner",
   description: "Windvoorspelling, getijstroom en polaire-ETA voor de kust en Wadden.",
 };
 

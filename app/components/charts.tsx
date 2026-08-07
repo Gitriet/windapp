@@ -3,7 +3,7 @@
 // (design_handoff_tocht_planner), maar gevoed door echte data (SimResult uit de sim,
 // AlongSample uit route-stroom, tide-extremen). Tijd-assen werken in ms; labels via
 // de Europe/Amsterdam-helpers in lib/tz.ts.
-import type { SimResult } from "@/lib/tripsim";
+import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { AlongSample } from "@/lib/route";
 import { localHM, localMidnight } from "@/lib/tz";
 import { COLORS, alpha } from "@/lib/colors";
@@ -13,6 +13,50 @@ const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW",
 export const dirLabel16 = (d: number) => P16[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
 export const fmtDur = (min: number) => `${Math.floor(min / 60)}u${String(Math.round(min % 60)).padStart(2, "0")}`;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
+
+// waarschuwingskleur voor wind-tegen-stroom (oranje-rood, los van de amberkleur van wind)
+const WARN = "#E0794B";
+
+const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+// Zeilhoek in woorden uit de TWA (0–180). Grenzen exact zoals gevraagd.
+export function sailPhrase(twa: number): string {
+  const a = Math.abs(twa);
+  return a < 45 ? "aan de wind" : a < 90 ? "halve wind" : a < 135 ? "ruime wind" : "voor de wind";
+}
+
+// Gemiddelde wind over de tocht: scalaire gemiddelde snelheid + vector-gemiddelde
+// richting (over de body-stappen; de laatste stap is een duplicaat-aankomststap).
+export function tripWind(steps: SimStep[]): { spd: number; dir: number; twa: number } {
+  const body = steps.length > 1 ? steps.slice(0, -1) : steps;
+  if (!body.length) return { spd: 0, dir: 0, twa: 0 };
+  let e = 0, n = 0, spd = 0, twa = 0;
+  for (const s of body) {
+    const r = (s.wDir * Math.PI) / 180;
+    e += Math.sin(r); n += Math.cos(r); spd += s.wSpd; twa += s.twa;
+  }
+  const k = body.length;
+  const dir = ((Math.atan2(e / k, n / k) * 180) / Math.PI + 360) % 360;
+  return { spd: spd / k, dir, twa: twa / k };
+}
+
+// Wind-tegen-stroom: waar wind > 15 kn EN |stroom| > 0,5 kn EN wind en stroom
+// tegengesteld (hoek tussen wind-heen en stroom-heen > 90°). De stroomrichting leiden
+// we af uit het teken van de langs-koers-component (cur ≥ 0 → met de koers mee) plus de
+// routekoers — de sim levert geen stroomvector, dus dit is de eerlijkste benadering.
+// Vlag de tocht als een noemenswaardig deel (≥ 25%) van de stappen eraan voldoet.
+export function windAgainstCurrent(steps: SimStep[], courseDeg: number): boolean {
+  const body = steps.length > 1 ? steps.slice(0, -1) : steps;
+  if (!body.length) return false;
+  let bad = 0;
+  for (const s of body) {
+    if (s.wSpd <= 15 || Math.abs(s.cur) <= 0.5) continue;
+    const windToward = (s.wDir + 180) % 360;
+    const curToward = s.cur >= 0 ? courseDeg : (courseDeg + 180) % 360;
+    if (angleDiff(windToward, curToward) > 90) bad++;
+  }
+  return bad / body.length >= 0.25;
+}
 
 // eerste hele lokale 3-uurs tick op of na startMs
 function threeHourTicks(startMs: number, endMs: number): number[] {
@@ -88,6 +132,102 @@ export function CurrentTimeline({
       ))}
       <text x={pl - 5} y={mid - 12} textAnchor="end" fontSize={9} fill={alpha(COLORS.stroom, 0.7)}>mee</text>
       <text x={pl - 5} y={mid + 16} textAnchor="end" fontSize={9} fill="rgba(192,122,122,.55)">tegen</text>
+    </svg>
+  );
+}
+
+// ── Wind langs de route (contexttijdlijn onder de stroom) ──────────────
+// Zelfde tijdas-logica als CurrentTimeline (depMs−4u … depMs+22u, geklemd op de
+// reeks) zodat wind en stroom op dezelfde as staan. Ambervulling + amberlijn,
+// knopenschaal links, dezelfde gestreepte trip-window en kleine richtingpijlen.
+// tMin/tMax: als meegegeven, exact de as-grenzen van de stroomtijdlijn — zo staan de
+// selectiekaders van beide tijdlijnen pixel-identiek boven elkaar. Zonder → eigen extent.
+export type WindTLSample = { t: string; speedKn: number; dirDeg: number };
+export function WindTimeline({
+  series, depMs, arrMs, tMin, tMax,
+}: { series: WindTLSample[]; depMs: number; arrMs: number | null; tMin?: number; tMax?: number; }) {
+  const W = 1070, height = 96, pl = 34, pr = 10, cw = W - pl - pr, top = 22, bot = height - 16;
+  const end = arrMs ?? depMs + 6 * H;
+  const startMs = tMin ?? Math.max(series.length ? tms(series[0].t) : depMs, depMs - 4 * H);
+  const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, depMs + 22 * H);
+  const span = Math.max(1, endMs - startMs);
+  const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
+  const inWin = series.filter((p) => { const m = tms(p.t); return m >= startMs - H && m <= endMs + H; });
+  const maxKn = Math.max(6, Math.ceil(Math.max(...inWin.map((p) => p.speedKn), 0) / 2) * 2);
+  const y = (v: number) => bot - (v / maxKn) * (bot - top);
+
+  const pts = inWin.map((p) => ({ ms: tms(p.t), v: p.speedKn, d: p.dirDeg }));
+  const lineD = pts.length ? `M${pts.map((p) => `${x(p.ms)},${y(p.v)}`).join(" L")}` : "";
+  const areaD = pts.length ? `M${x(pts[0].ms)},${bot} ${pts.map((p) => `L${x(p.ms)},${y(p.v)}`).join(" ")} L${x(pts[pts.length - 1].ms)},${bot} Z` : "";
+
+  // richtingpijlen op de windlijn, om de 2 uur op de tijdas. Elke pijl wijst naar de
+  // richting WAARUIT de wind komt — zelfde conventie als de windveren op de Nu-view
+  // (r = wDir, dx = sin r, dy = −cos r; punt naar het bron-peiling). Snelheid/richting
+  // op elk 2-uurs-moment lineair (richting: vector-)geïnterpoleerd uit de reeks.
+  const windAt = (ms: number) => {
+    if (ms <= pts[0].ms) return pts[0];
+    if (ms >= pts[pts.length - 1].ms) return pts[pts.length - 1];
+    for (let i = 1; i < pts.length; i++) {
+      if (ms <= pts[i].ms) {
+        const a = pts[i - 1], b = pts[i], f = (ms - a.ms) / ((b.ms - a.ms) || 1);
+        const da = (a.d * Math.PI) / 180, db = (b.d * Math.PI) / 180;
+        const se = Math.sin(da) + (Math.sin(db) - Math.sin(da)) * f;
+        const co = Math.cos(da) + (Math.cos(db) - Math.cos(da)) * f;
+        return { ms, v: a.v + (b.v - a.v) * f, d: ((Math.atan2(se, co) * 180) / Math.PI + 360) % 360 };
+      }
+    }
+    return pts[pts.length - 1];
+  };
+  const arrows: React.ReactNode[] = [];
+  if (pts.length) {
+    for (let ms = Math.ceil(startMs / H) * H; ms <= endMs; ms += 2 * H) {
+      const p = windAt(ms), cx = x(ms), cy = Math.max(top + 8, y(p.v) - 12);
+      const r = (p.d * Math.PI) / 180, arrowLen = 11;
+      const dx = Math.sin(r) * arrowLen, dy = -Math.cos(r) * arrowLen;
+      const tipX = cx + dx * 0.6, tipY = cy + dy * 0.6;
+      const perpX = -Math.cos(r) * 3, perpY = -Math.sin(r) * 3;
+      const backX = -Math.sin(r) * 3.5, backY = Math.cos(r) * 3.5;
+      arrows.push(
+        <g key={`a${ms}`}>
+          <line x1={cx - dx * 0.6} y1={cy - dy * 0.6} x2={tipX} y2={tipY} stroke={COLORS.wind} strokeWidth={1.6} strokeLinecap="round" />
+          <path d={`M${tipX} ${tipY} L${tipX - backX + perpX} ${tipY - backY + perpY} L${tipX - backX - perpX} ${tipY - backY - perpY} Z`} fill={COLORS.wind} />
+        </g>,
+      );
+    }
+  }
+
+  const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
+  const gridK = [0, maxKn / 2, maxKn];
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="windFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={alpha(COLORS.wind, 0.4)} />
+          <stop offset="100%" stopColor={alpha(COLORS.wind, 0.02)} />
+        </linearGradient>
+      </defs>
+      {gridK.map((v) => (
+        <g key={`g${v}`}>
+          <line x1={pl} y1={y(v)} x2={W - pr} y2={y(v)} stroke="rgba(233,233,237,.08)" />
+          <text x={pl - 5} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(v)}</text>
+        </g>
+      ))}
+      {areaD && <path d={areaD} fill="url(#windFill)" />}
+      {lineD && <path d={lineD} fill="none" stroke={COLORS.wind} strokeWidth={2} strokeLinejoin="round" />}
+      {arrows}
+      {wx2 > wx1 && (
+        <>
+          <rect x={wx1} y={3} width={wx2 - wx1} height={height - 20} rx={6}
+            fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
+          <line x1={wx1} y1={3} x2={wx1} y2={height - 17} stroke="#e9e9ed" strokeWidth={2} />
+          <line x1={wx2} y1={3} x2={wx2} y2={height - 17} stroke="#d2cefd" strokeWidth={1.2} strokeDasharray="3 2" />
+        </>
+      )}
+      {threeHourTicks(startMs, endMs).map((ms) => (
+        <text key={`t${ms}`} x={x(ms)} y={height - 2} textAnchor="middle" fontSize={10}
+          fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(ms)}</text>
+      ))}
+      <text x={pl - 5} y={top - 6} textAnchor="end" fontSize={9} fill={alpha(COLORS.wind, 0.7)}>kn</text>
     </svg>
   );
 }
@@ -242,8 +382,8 @@ export function SummaryRow({ trip }: { trip: SimResult }) {
 // ── Vertrekalternatieven ───────────────────────────────────────────────
 export type DepOption = { depMs: number; result: SimResult };
 export function DepartureCards({
-  options, selMs, onSelect,
-}: { options: DepOption[]; selMs: number; onSelect: (ms: number) => void }) {
+  options, selMs, onSelect, courseDeg,
+}: { options: DepOption[]; selMs: number; onSelect: (ms: number) => void; courseDeg: number }) {
   const reachable = options.filter((o) => o.result.arrMs != null);
   const bestMs = reachable.length
     ? reachable.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)).depMs : null;
@@ -255,6 +395,9 @@ export function DepartureCards({
         const unreach = t.arrMs == null;
         const quality = unreach ? "rgba(233,233,237,.3)"
           : t.effectMin <= -15 ? COLORS.stroom : t.effectMin <= 10 ? "#6f6a86" : COLORS.stroomTegen;
+        // zeilconditie (amber) + wind-tegen-stroom-vlag uit de sim-stappen
+        const w = tripWind(t.steps);
+        const warn = !unreach && windAgainstCurrent(t.steps, courseDeg);
         return (
           <div key={o.depMs} onClick={() => onSelect(o.depMs)} style={{
             padding: "8px 4px 6px", borderRadius: 8, cursor: "pointer", textAlign: "center", position: "relative",
@@ -264,12 +407,21 @@ export function DepartureCards({
             {best && (
               <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", fontSize: 8, fontWeight: 700, background: COLORS.stroom, color: "#fff", padding: "1px 5px", borderRadius: 3, letterSpacing: ".04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>best</div>
             )}
+            {warn && (
+              <div title="Wind tegen stroom" style={{ position: "absolute", top: 3, right: 3, fontSize: 10, lineHeight: 1, color: WARN }}>⚠</div>
+            )}
             <div className="kpi" style={{ fontSize: 14, fontWeight: 600 }}>{localHM(o.depMs)}</div>
             <div style={{ fontSize: 10, color: "rgba(233,233,237,.4)", marginTop: 1 }}>{unreach ? "—" : `→ ${localHM(t.arrMs!)}`}</div>
             <div className="kpi" style={{ fontSize: 12, fontWeight: 500, marginTop: 3, color: quality }}>{unreach ? "n.b." : fmtDur(t.tripMin)}</div>
             <div style={{ fontSize: 10, marginTop: 2, color: unreach ? "rgba(233,233,237,.3)" : t.effectMin <= 0 ? COLORS.stroom : COLORS.stroomTegen, fontWeight: 500 }}>
               {unreach ? "" : `${t.effectMin <= 0 ? "" : "+"}${t.effectMin} min`}
             </div>
+            {!unreach && (
+              <div style={{ fontSize: 9, marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(233,233,237,.06)", color: COLORS.wind, fontWeight: 500, lineHeight: 1.3 }}>
+                <div style={{ fontVariantNumeric: "tabular-nums" }}>{dirLabel16(w.dir)} {Math.round(w.spd)} kt</div>
+                <div style={{ color: alpha(COLORS.wind, 0.75) }}>{sailPhrase(w.twa)}</div>
+              </div>
+            )}
           </div>
         );
       })}

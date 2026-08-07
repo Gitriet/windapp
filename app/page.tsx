@@ -1,5 +1,5 @@
 "use client";
-// Windward — Nu-view + Tocht-planner, nagebouwd uit het design-handoff-prototype maar
+// Tidan — Nu-view + Tocht-planner, nagebouwd uit het design-handoff-prototype maar
 // gevoed door de echte API's (/api/forecast, /api/tide, /api/week, /api/route-stroom,
 // /api/routes) en de bestaande libs (polar.ts, route.ts, tripsim.ts). De Nu-view volgt
 // de nav-picker; de Tocht-planner kiest uit de bekende havenroutes (netwerk_routes) en
@@ -18,8 +18,8 @@ import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
-  CurrentTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
-  dirLabel16, type DepOption,
+  CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
+  dirLabel16, windAgainstCurrent, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
 
@@ -34,6 +34,45 @@ const stationKm = (s: RouteHaven) => (s.stationKm < 0.1 ? "op locatie" : `${s.st
 function canvasDir(dirFrom: number): number {
   const t = ((dirFrom + 180) * Math.PI) / 180;
   return (Math.atan2(-Math.cos(t), Math.sin(t)) * 180) / Math.PI;
+}
+
+// Eén dynamische contextzin uit de forecast: trend (bouwt op / neemt af / vrij
+// constant, met de doelwaarde ~6u vooruit), draaiing (draait naar … / blijft …) en de
+// bron (meting = gekalibreerd, anders model). Onder de tags in de hero.
+function windContext(pts: ForecastResponse["points"]): string {
+  const p0 = pts[0];
+  const t = pts[Math.min(6, pts.length - 1)];
+  const d = t.speed_kn - p0.speed_kn;
+  const trend = d > 2 ? `bouwt op naar ${Math.round(t.speed_kn)} kn`
+    : d < -2 ? `neemt af naar ${Math.round(t.speed_kn)} kn`
+    : "vrij constant";
+  const turn = Math.abs(((t.dir_deg - p0.dir_deg + 540) % 360) - 180);
+  const draai = turn >= 25 ? `draait naar ${dirLabel16(t.dir_deg)}` : `blijft ${dirLabel16(p0.dir_deg)}`;
+  const bron = p0.corrected ? "meting" : "model";
+  const s = `${trend}, ${draai} · ${bron}`;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Combineert de wind-per-station (SimWind) tot één route-reeks voor de windtijdlijn:
+// per tijdstip de scalaire gemiddelde snelheid + vector-gemiddelde richting over de
+// stations die op dat moment data hebben. De stations delen hetzelfde forecast-grid.
+function combineWindStations(wind: SimWind | null): WindTLSample[] {
+  if (!wind) return [];
+  const series = Object.values(wind).filter((s) => s.length);
+  if (!series.length) return [];
+  const times = Array.from(new Set(series.flatMap((s) => s.map((x) => x.time)))).sort();
+  const maps = series.map((s) => new Map(s.map((x) => [x.time, x])));
+  return times.map((t) => {
+    let e = 0, n = 0, spd = 0, k = 0;
+    for (const m of maps) {
+      const x = m.get(t);
+      if (!x) continue;
+      const r = (x.dir_deg * Math.PI) / 180;
+      e += Math.sin(r); n += Math.cos(r); spd += x.speed_kn; k++;
+    }
+    if (!k) return { t, speedKn: 0, dirDeg: 0 };
+    return { t, speedKn: spd / k, dirDeg: ((Math.atan2(e / k, n / k) * 180) / Math.PI + 360) % 360 };
+  });
 }
 
 export default function Page() {
@@ -185,11 +224,16 @@ export default function Page() {
     return () => { ignore = true; };
   }, [locKey]);
 
+  // Altijd 12 kaarten in één rij. 12u → interval 1u, 24u → interval 2u (dekt 24u af).
+  // Vandaag start op het eerstvolgende hele uur na nu (verstreken uren weglaten);
+  // morgen/overmorgen op 06:00 lokaal.
   const candidates = useMemo(() => {
     if (!nowMs) return [];
-    const base = localMidnight(nowMs + depDay * 24 * H);
-    const startHour = 6;
-    return Array.from({ length: depRange }, (_, i) => base + (startHour + i) * H);
+    const stepH = depRange === 24 ? 2 : 1;
+    const start = depDay === 0
+      ? Math.ceil(nowMs / H) * H
+      : localMidnight(nowMs + depDay * 24 * H) + 6 * H;
+    return Array.from({ length: 12 }, (_, i) => start + i * stepH * H);
   }, [nowMs, depDay, depRange]);
 
   // stroom per been in sim-vorm (index = leg); lege reeks = been zonder stroomdata
@@ -233,6 +277,13 @@ export default function Page() {
     [routeTide],
   );
 
+  // wind langs de route (gecombineerd over de stations) + de station-namen voor het label
+  const windSeries = useMemo(() => combineWindStations(routeWind), [routeWind]);
+  const windStations = useMemo(() => {
+    const hs = chain ? chain.havens : endpoints ? [endpoints.van, endpoints.naar] : [];
+    return Array.from(new Set(hs.map((h) => h.stationNaam)));
+  }, [chain, endpoints]);
+
   // route-descriptor voor de planner-UI: het pad, per-segment stroomtijdlijnen en de
   // stroom-dekkingsvlaggen. Bij 1 leg gedraagt dit zich als de oude directe route.
   const routeMeta: RouteMeta = {
@@ -242,20 +293,21 @@ export default function Page() {
     viaHavens: chain?.viaNamen ?? [],
     viaPassage: chain && chain.legs.length === 1 ? (chain.legs[0].route.via ?? null) : null,
     stroomComplete, stroomPartial, legsZonderStroom,
-    legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null })),
+    legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
+    windSeries, windStations,
   };
 
   const dayNames = ["Vandaag", "Morgen", "Overmorgen"];
   const loc = locations[locIdx];
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", padding: "48px 24px" }}>
-      <div style={{ width: 1280, maxWidth: "100%", background: "#161826", borderRadius: 14, boxShadow: "0 0 0 1px #3f424d, 0 24px 60px rgba(0,0,0,.6)", overflow: "hidden", position: "relative" }}>
+    <div style={{ padding: "16px 24px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
         {/* nav */}
         <div className="nav" style={{ padding: "14px 26px", borderBottom: "1px solid rgba(233,233,237,.08)" }}>
           <span className="nav-brand" style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M3 8h11a3 3 0 1 0-3-3" /><path d="M3 12h15a3 3 0 1 1-3 3" /><path d="M3 16h9" /></svg>
-            Windward
+            Tidan
           </span>
           <a href="#" aria-current={page === "now" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("now"); }}>Nu</a>
           <a href="#" aria-current={page === "departure" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("departure"); }}>Tocht planner</a>
@@ -309,10 +361,6 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   const bft = beaufort(p0.speed_kn);
   const nextHW = isTide(tide) ? (tide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= nowMs) ?? tide.extremes.find((e) => e.kind === "HW")) : null;
 
-  // trend uit de eerste ~4 uur
-  const later = pts[Math.min(4, pts.length - 1)];
-  const trend = later.speed_kn - p0.speed_kn > 2 ? "toenemend" : p0.speed_kn - later.speed_kn > 2 ? "afnemend" : "vrij constant";
-
   const chartPts = pts.slice(0, 13);
   const barbItems = Array.from({ length: 6 }, (_, i) => {
     const idx = Math.min(pts.length - 1, i * 2);
@@ -321,35 +369,33 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   });
 
   return (
-    <div style={{ padding: "30px 40px 34px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 40, position: "relative", overflow: "hidden", borderRadius: 14, padding: "28px 30px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
+    <div style={{ padding: "14px 40px 34px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
         <div style={{ position: "relative", flex: 1 }}>
           <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: COLORS.weer }}>
             {loc.name} · {new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" }).format(nowMs)}
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginTop: 8 }}>
-            <span className="kpi" style={{ fontSize: 104, lineHeight: 0.82, fontWeight: 600, letterSpacing: "-.04em", color: COLORS.wind }}>{Math.round(p0.speed_kn)}</span>
-            <div style={{ paddingBottom: 12 }}>
-              <div style={{ fontSize: 22, color: "rgba(233,233,237,.7)", lineHeight: 1 }}>knopen</div>
-              <div style={{ fontSize: 15, color: COLORS.wind, marginTop: 6 }}>vlagen {Math.round(p0.gust_kn)}</div>
-            </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 4 }}>
+            <span className="kpi" style={{ fontSize: 52, lineHeight: 0.9, fontWeight: 600, letterSpacing: "-.03em", color: COLORS.wind }}>{Math.round(p0.speed_kn)}</span>
+            <span style={{ fontSize: 18, color: "rgba(233,233,237,.6)" }}>kn</span>
+            <span style={{ fontSize: 22, fontWeight: 600, color: "rgba(233,233,237,.85)", marginLeft: 4 }}>{dirLabel16(p0.dir_deg)}</span>
+            <span style={{ fontSize: 16, color: "rgba(233,233,237,.5)", fontVariantNumeric: "tabular-nums" }}>{Math.round(p0.dir_deg)}°</span>
           </div>
-          <div style={{ fontSize: 16, color: "rgba(233,233,237,.75)", marginTop: 14, maxWidth: "44ch" }}>
-            <b>{dirLabel16(p0.dir_deg)}</b> wind, windkracht {bft}, {trend} in de komende uren.
-            {p0.corrected ? " Gekalibreerd op het meetstation." : " Ongecorrigeerd lokaal model."}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-            <span className="tag tag-wind">Windkracht {bft}</span>
-            <span className="tag tag-wind">Vlaag {Math.round(p0.gust_kn)} kt</span>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <span className="tag tag-wind">bft {bft}</span>
+            <span className="tag tag-wind">vlaag {Math.round(p0.gust_kn)}</span>
             {nextHW && <span className="tag tag-water">HW {localHM(tms(nextHW.t))}</span>}
-            <span className="tag tag-weer">Model {p0.model_label}</span>
+            <span className="tag tag-weer">{p0.model_label}</span>
           </div>
+          <div style={{ fontSize: 13, color: "rgba(233,233,237,.6)", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>{windContext(pts)}</div>
         </div>
-        <div style={{ position: "relative", flex: "none" }}><Compass dir={p0.dir_deg} /></div>
+        <div style={{ position: "relative", flex: "none", width: 96, height: 96 }}>
+          <div style={{ transform: "scale(0.558)", transformOrigin: "top left" }}><Compass dir={p0.dir_deg} /></div>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, marginTop: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, marginTop: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Komende 12 uur</span>
@@ -506,8 +552,40 @@ function RouteHavenPicker({
 type RouteMeta = {
   hasRoute: boolean; legCount: number; pathNamen: string[]; viaHavens: string[];
   viaPassage: string | null; stroomComplete: boolean; stroomPartial: boolean;
-  legsZonderStroom: string[]; legTimelines: { label: string; cur: RouteCurrent | null }[];
+  legsZonderStroom: string[]; legTimelines: { label: string; cur: RouteCurrent | null; distNm: number }[];
+  windSeries: WindTLSample[]; windStations: string[];
 };
+
+// Combineert de per-leg stroomreeksen tot ÉÉN gewogen-gemiddelde tijdlijn langs de
+// hele tocht. Weging = beenlengte (nm): een langer been telt zwaarder mee. Per tijdstip
+// middelen we alleen de legs met echte data (>0 gewicht); een tijdstip zonder enkel
+// been met data blijft een gat (alongKn null). Bij 1 been = die reeks ongewijzigd.
+function combineLegTimelines(
+  legs: { cur: RouteCurrent | null; distNm: number }[],
+): { series: { t: string; alongKn: number | null }[]; modelUnvalidated: boolean } {
+  const withData = legs.filter((l) => l.cur && l.cur.series.length);
+  if (!withData.length) return { series: [], modelUnvalidated: false };
+  const modelUnvalidated = withData.some((l) => l.cur!.modelUnvalidated);
+
+  // per been een tijd→waarde-map; de tijdstippen zijn het hetzelfde forecast-grid
+  const maps = withData.map((l) => ({
+    w: l.distNm > 0 ? l.distNm : 1,
+    m: new Map(l.cur!.series.map((s) => [s.t, s.alongKn])),
+  }));
+  // vereniging van alle tijdstippen, chronologisch
+  const times = Array.from(new Set(withData.flatMap((l) => l.cur!.series.map((s) => s.t)))).sort();
+
+  const series = times.map((t) => {
+    let sum = 0, wsum = 0;
+    for (const { w, m } of maps) {
+      const v = m.get(t);
+      if (v == null) continue;
+      sum += v * w; wsum += w;
+    }
+    return { t, alongKn: wsum > 0 ? sum / wsum : null };
+  });
+  return { series, modelUnvalidated };
+}
 
 function DepartureView({
   routeBearing, routeDistNm, route, selTrip, depMs, setDepMs, hwMs,
@@ -537,6 +615,7 @@ function DepartureView({
   const twa0 = w0?.twa ?? 0;
   const sailLabel = twa0 < 50 ? "Aan de wind" : twa0 < 80 ? "Halve wind" : twa0 < 120 ? "Ruime wind" : twa0 < 160 ? "Bakstag" : "Voor de wind";
   const c0 = w0?.cur ?? 0;
+  const selWarn = selTrip ? windAgainstCurrent(selTrip.steps, routeBearing ?? 0) : false;
   const anyStroom = route.stroomComplete || route.stroomPartial;
   const anyModelUnvalidated = route.legTimelines.some((s) => s.cur?.modelUnvalidated);
 
@@ -579,9 +658,6 @@ function DepartureView({
             <span style={{ width: 14 }} />
             <span style={{ minWidth: 176 }}>{toStation && <>wind: {toStation.stationNaam} · {stationKm(toStation)}</>}</span>
           </div>
-          {route.viaHavens.length > 0 && (
-            <div style={{ marginTop: 6, fontSize: 11, color: alpha(COLORS.weer, 0.85) }}>via {route.viaHavens.join(" · ")}</div>
-          )}
           <div style={{ display: "flex", gap: 24, marginTop: 12, alignItems: "baseline" }}>
             <div><span className="kpi" style={{ fontSize: 24, fontWeight: 600 }}>{routeDistNm != null ? routeDistNm.toFixed(1).replace(".", ",") : "—"}</span> <span style={{ fontSize: 13, color: "rgba(233,233,237,.5)" }}>nm</span></div>
             <div><span className="kpi" style={{ fontSize: 24, fontWeight: 600 }}>{routeBearing != null ? String(Math.round(routeBearing)).padStart(3, "0") : "—"}°</span> <span style={{ fontSize: 13, color: "rgba(233,233,237,.5)" }}>koers</span></div>
@@ -624,7 +700,7 @@ function DepartureView({
               <div style={{ flex: 1 }} />
               <div style={{ fontSize: 11, color: "rgba(233,233,237,.3)" }}>klik een kaart voor het detail</div>
             </div>
-            <DepartureCards options={depOptions} selMs={depMs ?? -1} onSelect={setDepMs} />
+            <DepartureCards options={depOptions} selMs={depMs ?? -1} onSelect={setDepMs} courseDeg={routeBearing ?? 0} />
           </div>
 
           {/* 4 + 5. detail — verschijnt pas als een kaart is geselecteerd */}
@@ -641,34 +717,59 @@ function DepartureView({
                 <span className="tag tag-wind" style={{ fontSize: 11 }}>Wind {w0 ? dirLabel16(w0.wDir) : "—"} {w0 ? Math.round(w0.wSpd) : "—"} kt</span>
                 <span className="tag tag-wind" style={{ fontSize: 11 }}>STW {selTrip.avgStw.toFixed(1)} kn</span>
                 <span className="tag tag-stroom" style={{ fontSize: 11 }}>{c0 > 0.2 ? `Stroom mee ${c0.toFixed(1)} kn` : c0 < -0.2 ? `Stroom tegen ${Math.abs(c0).toFixed(1)} kn` : "Kentering"}</span>
+                {selWarn && (
+                  <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, fontWeight: 600, color: "#E0794B", background: "rgba(224,121,75,.12)", border: "1px solid rgba(224,121,75,.4)" }}>⚠ Wind tegen stroom · verwacht korte steile golf</span>
+                )}
               </div>
 
               {/* summary — drie kaarten */}
               <div style={{ marginBottom: 20 }}><SummaryRow trip={selTrip} /></div>
 
-              {/* getijstroom — per segment (bij 1 leg gewoon één tijdlijn) */}
+              {/* getijstroom — altijd één tijdlijn: gewogen gemiddelde over alle legs */}
               {route.hasRoute && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Getijstroom langs de route</div>
                     <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>▲ mee · ▼ tegen · gestreept = de tocht{anyModelUnvalidated ? " · model (ongevalideerd)" : ""}</div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {route.legTimelines.map((seg, i) => (
-                      <div key={i}>
-                        {route.legCount > 1 && (
-                          <div style={{ fontSize: 11, color: "rgba(233,233,237,.5)", marginBottom: 3 }}>
-                            {seg.label}{!seg.cur && " · geen stroomdata"}
-                          </div>
-                        )}
-                        <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
-                          {seg.cur
-                            ? <CurrentTimeline series={seg.cur.series} depMs={selTrip.departMs} arrMs={selTrip.arrMs} hwMs={hwMs} />
-                            : <div style={{ padding: 20, fontSize: 12, color: "rgba(233,233,237,.4)" }}>Geen stroomdata voor dit segment — zonder stroom gerekend.</div>}
-                        </div>
+                  {(() => {
+                    // altijd ÉÉN tijdlijn: gewogen gemiddelde over alle legs (op beenlengte)
+                    const { series } = combineLegTimelines(route.legTimelines);
+                    return (
+                      <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
+                        {series.length
+                          ? <CurrentTimeline series={series} depMs={selTrip.departMs} arrMs={selTrip.arrMs} hwMs={hwMs} />
+                          : <div style={{ padding: 20, fontSize: 12, color: "rgba(233,233,237,.4)" }}>Geen stroomdata voor deze route — zonder stroom gerekend.</div>}
                       </div>
-                    ))}
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* wind langs de route — zelfde tijdas als de stroomtijdlijn */}
+              {route.hasRoute && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Wind langs de route</div>
+                    {route.windStations.length > 0 && (
+                      <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>{route.windStations.join(" · ")}</div>
+                    )}
                   </div>
+                  {(() => {
+                    // dezelfde as-grenzen als de stroomtijdlijn (zelfde formule als in
+                    // CurrentTimeline, op dezelfde stroomreeks) zodat de trip-windows exact
+                    // uitlijnen. Zonder stroomreeks valt WindTimeline terug op eigen extent.
+                    const stroom = combineLegTimelines(route.legTimelines).series;
+                    const tMin = stroom.length ? Math.max(tms(stroom[0].t), selTrip.departMs - 4 * H) : undefined;
+                    const tMax = stroom.length ? Math.min(tms(stroom[stroom.length - 1].t), selTrip.departMs + 22 * H) : undefined;
+                    return (
+                      <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
+                        {route.windSeries.length
+                          ? <WindTimeline series={route.windSeries} depMs={selTrip.departMs} arrMs={selTrip.arrMs} tMin={tMin} tMax={tMax} />
+                          : <div style={{ padding: 20, fontSize: 12, color: "rgba(233,233,237,.4)" }}>Geen winddata voor deze route.</div>}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

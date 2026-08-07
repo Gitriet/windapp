@@ -1,4 +1,4 @@
-/* Design tokens + utility classes — recreated from the Windward handoff
+/* Design tokens + utility classes — recreated from the Tidan handoff
    (design_handoff_tocht_planner/README.md). The prototype leaned on a private
    "nocturne" stylesheet; these classes reproduce the same look from the tokens
    and screenshots. */
@@ -23,7 +23,7 @@
 
 body {
   margin: 0;
-  background: var(--bg-app);
+  background: var(--bg-card);
   font-family: Inter, system-ui, -apple-system, sans-serif;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
