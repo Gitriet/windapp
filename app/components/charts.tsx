@@ -11,7 +11,9 @@ import { COLORS, alpha } from "@/lib/colors";
 const H = 3_600_000;
 const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
 export const dirLabel16 = (d: number) => P16[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
-export const fmtDur = (min: number) => `${Math.floor(min / 60)}u${String(Math.round(min % 60)).padStart(2, "0")}`;
+// Rond eerst de totale minuten af, splits dan pas — anders kan Math.round(min % 60)
+// naar 60 afronden terwijl het uur al is afgekapt (1859,6 min → "30u60" i.p.v. "31u00").
+export const fmtDur = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}u${String(m % 60).padStart(2, "0")}`; };
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 // waarschuwingskleur voor wind-tegen-stroom (oranje-rood, los van de amberkleur van wind)
@@ -25,10 +27,16 @@ export function sailPhrase(twa: number): string {
   return a < 45 ? "aan de wind" : a < 90 ? "halve wind" : a < 135 ? "ruime wind" : "voor de wind";
 }
 
-// Gemiddelde wind over de tocht: scalaire gemiddelde snelheid + vector-gemiddelde
-// richting (over de body-stappen; de laatste stap is een duplicaat-aankomststap).
-export function tripWind(steps: SimStep[]): { spd: number; dir: number; twa: number } {
-  const body = steps.length > 1 ? steps.slice(0, -1) : steps;
+// Gemiddelde wind: scalaire gemiddelde snelheid + vector-gemiddelde richting over de
+// body-stappen (de laatste stap is een duplicaat-aankomststap). Met `windowMs` middelt
+// hij alleen de stappen in [vertrek, vertrek+windowMs] — het VERTREKVENSTER — zodat een
+// windstille start niet wordt weggemiddeld door een windrijke staart. Bij een tocht
+// korter dan het venster vallen alle stappen erbinnen: dan is dit het tocht-gemiddelde.
+export function tripWind(steps: SimStep[], windowMs?: number): { spd: number; dir: number; twa: number } {
+  const all = steps.length > 1 ? steps.slice(0, -1) : steps;
+  const t0 = all[0]?.tMs ?? 0;
+  const win = windowMs != null ? all.filter((s) => s.tMs <= t0 + windowMs) : all;
+  const body = win.length ? win : all;
   if (!body.length) return { spd: 0, dir: 0, twa: 0 };
   let e = 0, n = 0, spd = 0, twa = 0;
   for (const s of body) {
@@ -236,8 +244,8 @@ export function WindTimeline({
 export function TripChart({ trip }: { trip: SimResult }) {
   const steps = trip.steps;
   const W = 1100, pl = 48, pr = 16;
-  const sH = 210, wRowH = 52, gap = 16, labH = 20, topPad = 30;
-  const totalH = topPad + sH + gap + wRowH + labH;
+  const sH = 210, wRowH = 52, gap = 16, labH = 20, topPad = 30, legendH = 20;
+  const totalH = topPad + sH + gap + wRowH + labH + legendH;
   const cw = W - pl - pr;
   const depMs = trip.departMs, arrMs = trip.arrMs ?? steps[steps.length - 1]?.tMs ?? depMs + H;
   const dist = trip.distanceNm;
@@ -280,8 +288,9 @@ export function TripChart({ trip }: { trip: SimResult }) {
   const stwPath = `M${steps.map((s) => `${x(s.tMs)},${ys(s.stw)}`).join(" L")}`;
 
   const winds: React.ReactNode[] = [];
-  const nBarbs = Math.min(12, Math.max(6, Math.floor(cw / 80)));
-  const barbStep = Math.max(1, Math.floor(steps.length / nBarbs));
+  // hoogstens ~12 pijlen, ongeacht de tochtlengte (31 u → elke ~2,5 u een pijl)
+  const nBarbs = 12;
+  const barbStep = Math.max(1, Math.ceil(steps.length / nBarbs));
   for (let i = 0; i < steps.length; i += barbStep) {
     const s = steps[i], cx = x(s.tMs), arrowLen = 14, r = (s.wDir * Math.PI) / 180;
     const dx = Math.sin(r) * arrowLen, dy = -Math.cos(r) * arrowLen;
@@ -300,19 +309,23 @@ export function TripChart({ trip }: { trip: SimResult }) {
     );
   }
 
-  const dur = (arrMs - depMs) / H;
-  const tStep = dur > 5 ? 1 : dur > 2.5 ? 0.5 : 1 / 3;
+  const dur = (arrMs - depMs) / H;  // uren; label-interval adaptief op de tochtlengte
+  const tStep = dur > 36 ? 6 : dur > 12 ? 3 : dur >= 3 ? 1 : 0.25;   // uur
   const timeLabels: React.ReactNode[] = [];
   for (let t = Math.ceil(depMs / (tStep * H)) * (tStep * H); t <= arrMs + 1000; t += tStep * H) {
     timeLabels.push(<text key={`tl${t}`} x={x(t)} y={wT + wRowH + 16} textAnchor="middle" fontSize={11}
       fill="rgba(233,233,237,.35)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(t)}</text>);
   }
 
-  // afstandmarkers (elke hele nm + eindpunt)
+  // afstandmarkers: interval adaptief op de tochtlengte + altijd het eindpunt.
+  // De laatste veelvoud vlak vóór het eind wordt overgeslagen zodat hij niet op het
+  // eindpunt-label botst.
+  const nmStep = dist < 10 ? 1 : dist <= 50 ? 5 : dist <= 150 ? 10 : 25;
   const distMarks: number[] = [];
-  for (let d = 0; d < dist; d++) distMarks.push(d);
+  for (let d = 0; d < dist - nmStep * 0.5; d += nmStep) distMarks.push(d);
   distMarks.push(dist);
-  const lg = topPad - 8;
+  // legenda staat onderaan (eigen regel), zodat "kentering HH:MM" bovenaan hem nooit raakt
+  const lg = totalH - 6;
 
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${totalH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
@@ -385,18 +398,25 @@ export function DepartureCards({
   options, selMs, onSelect, courseDeg,
 }: { options: DepOption[]; selMs: number; onSelect: (ms: number) => void; courseDeg: number }) {
   const reachable = options.filter((o) => o.result.arrMs != null);
-  const bestMs = reachable.length
-    ? reachable.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)).depMs : null;
+  const bestOpt = reachable.length
+    ? reachable.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)) : null;
+  const bestMs = bestOpt?.depMs ?? null;
+  const bestMin = bestOpt?.result.tripMin ?? null;   // snelste vaartijd — ijkpunt voor de kleur
   const cols = Math.min(12, options.length || 1);
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
       {options.map((o) => {
         const t = o.result, sel = o.depMs === selMs, best = o.depMs === bestMs;
         const unreach = t.arrMs == null;
+        // vaartijd-kleur = SNELHEID t.o.v. het snelste vertrek: BEST groen, binnen 30 min
+        // neutraal, meer dan 30 min trager rood. (Niet het stroomeffect — dat is maar één
+        // component en blijft los als getal staan.)
+        const slowerMin = bestMin != null ? t.tripMin - bestMin : 0;
         const quality = unreach ? "rgba(233,233,237,.3)"
-          : t.effectMin <= -15 ? COLORS.stroom : t.effectMin <= 10 ? "#6f6a86" : COLORS.stroomTegen;
-        // zeilconditie (amber) + wind-tegen-stroom-vlag uit de sim-stappen
-        const w = tripWind(t.steps);
+          : slowerMin <= 0 ? COLORS.stroom : slowerMin <= 30 ? "#6f6a86" : COLORS.stroomTegen;
+        // zeilconditie (amber) + wind-tegen-stroom-vlag uit de sim-stappen. Wind = het
+        // VERTREKVENSTER (eerste 2 u), niet het tocht-gemiddelde.
+        const w = tripWind(t.steps, 2 * 3600_000);
         const warn = !unreach && windAgainstCurrent(t.steps, courseDeg);
         return (
           <div key={o.depMs} onClick={() => onSelect(o.depMs)} style={{
@@ -411,15 +431,17 @@ export function DepartureCards({
               <div title="Wind tegen stroom" style={{ position: "absolute", top: 3, right: 3, fontSize: 10, lineHeight: 1, color: WARN }}>⚠</div>
             )}
             <div className="kpi" style={{ fontSize: 14, fontWeight: 600 }}>{localHM(o.depMs)}</div>
-            <div style={{ fontSize: 10, color: "rgba(233,233,237,.4)", marginTop: 1 }}>{unreach ? "—" : `→ ${localHM(t.arrMs!)}`}</div>
+            <div style={{ fontSize: 10, color: "rgba(233,233,237,.4)", marginTop: 1, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{unreach ? "—" : `→ ${localHM(t.arrMs!)}`}</div>
             <div className="kpi" style={{ fontSize: 12, fontWeight: 500, marginTop: 3, color: quality }}>{unreach ? "n.b." : fmtDur(t.tripMin)}</div>
-            <div style={{ fontSize: 10, marginTop: 2, color: unreach ? "rgba(233,233,237,.3)" : t.effectMin <= 0 ? COLORS.stroom : COLORS.stroomTegen, fontWeight: 500 }}>
+            <div style={{ fontSize: 10, marginTop: 2, color: "rgba(233,233,237,.4)", fontWeight: 500 }}>
               {unreach ? "" : `${t.effectMin <= 0 ? "" : "+"}${t.effectMin} min`}
             </div>
             {!unreach && (
               <div style={{ fontSize: 9, marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(233,233,237,.06)", color: COLORS.wind, fontWeight: 500, lineHeight: 1.3 }}>
-                <div style={{ fontVariantNumeric: "tabular-nums" }}>{dirLabel16(w.dir)} {Math.round(w.spd)} kt</div>
-                <div style={{ color: alpha(COLORS.wind, 0.75) }}>{sailPhrase(w.twa)}</div>
+                {/* elke regel op één lijn houden zodat elk windblok exact 2 regels is
+                    (gelijke kaarthoogte); clip met ellipsis als een label te breed is */}
+                <div style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dirLabel16(w.dir)} {Math.round(w.spd)} kt</div>
+                <div style={{ color: alpha(COLORS.wind, 0.75), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sailPhrase(w.twa)}</div>
               </div>
             )}
           </div>
