@@ -17,6 +17,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import HavenSelector from "./components/HavenSelector";
+import VaarplanView, { type ViaHaven } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
@@ -297,6 +298,19 @@ export default function Page() {
     [routeTide],
   );
 
+  // tussenliggende havens (uitwijk) + cumulatieve nm-vanaf-vertrek, voor het vaarplan.
+  // Alleen de binnen-havens van de keten (begin/eind zijn vertrek/aankomst).
+  const viaHavens = useMemo<ViaHaven[]>(() => {
+    if (!chain) return [];
+    const out: ViaHaven[] = [];
+    let acc = 0;
+    for (let i = 0; i < chain.legs.length; i++) {
+      acc += chain.legs[i].route.lengte_nm;
+      if (i < chain.legs.length - 1) out.push({ haven: chain.havens[i + 1], nmFromStart: acc });
+    }
+    return out;
+  }, [chain]);
+
   // wind langs de route (gecombineerd over de stations) + de station-namen voor het label
   const windSeries = useMemo(() => combineWindStations(routeWind), [routeWind]);
   const windStations = useMemo(() => {
@@ -362,8 +376,13 @@ export default function Page() {
 
         {page === "now" ? <NowView fc={nowFc} week={nowWeek} tide={nowTide} loc={loc} nowMs={nowMs} />
           : page === "vaarplan" ? (
-            selTrip && depMs != null ? (
-              <VaarplanPlaceholder depMs={depMs} onBack={() => setPage("departure")} />
+            selTrip && depMs != null && endpoints ? (
+              <VaarplanView
+                depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
+                distanceNm={routeDistNm} bearingDeg={routeBearing}
+                routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
+                fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT}
+                onBack={() => setPage("departure")} />
             ) : (
               // geen geldig vertrekmoment (bv. herladen op deze view) → terug naar planner
               <VaarplanEmpty onBack={() => setPage("departure")} />
@@ -837,17 +856,6 @@ function BackLink({ onBack }: { onBack: () => void }) {
       <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
       Terug naar planner
     </a>
-  );
-}
-
-function VaarplanPlaceholder({ depMs, onBack }: { depMs: number; onBack: () => void }) {
-  return (
-    <div style={{ padding: "20px var(--view-pad-x) 34px" }}>
-      <BackLink onBack={onBack} />
-      <div style={{ marginTop: 24, fontSize: 15, color: "rgba(233,233,237,.6)" }}>
-        Vaarplan voor vertrek {localHM(depMs)} — in aanbouw.
-      </div>
-    </div>
   );
 }
 
