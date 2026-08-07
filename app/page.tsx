@@ -19,7 +19,7 @@ import { shortestPath } from "@/lib/netwerk-path";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
-  dirLabel16, windAgainstCurrent, type DepOption, type WindTLSample,
+  dirLabel16, sailPhrase, windAgainstCurrent, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
 
@@ -181,12 +181,14 @@ export default function Page() {
   // ── Tocht-planner data bij tochtwissel ──
   // Wind per DISTINCT station in de keten; stroom per been (elk op de eigen leg-peiling,
   // teken-omgekeerd als het been tegen de opslagrichting in gevaren wordt — dat zit al in
-  // fetchRouteCurrent). Getij aan de eindhaven. Bij een rechte-lijn-fallback (geen keten):
-  // geen stroom, wind aan de twee uiteinden.
+  // fetchRouteCurrent). Getij bij de VERTREKHAVEN (het getijstation van waaruit je
+  // vertrekt is relevanter voor de tocht dan dat van de eindhaven; bv. Den Helder →
+  // denhelder.marsdiep i.p.v. Texel). Bij een rechte-lijn-fallback (geen keten): geen
+  // stroom, wind aan de twee uiteinden.
   useEffect(() => {
     if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); return; }
     const keys = [...new Set(waypoints.map((w) => w.location_key))];
-    const naarKey = waypoints[waypoints.length - 1].location_key;
+    const vanKey = waypoints[0].location_key;
     const legs = chain?.legs ?? [];
     let ignore = false;
     (async () => {
@@ -194,7 +196,7 @@ export default function Page() {
         const [winds, curs, tide] = await Promise.all([
           Promise.all(keys.map((k) => fetchForecast(k))),
           Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
-          fetchTide(naarKey),
+          fetchTide(vanKey),
         ]);
         if (ignore) return;
         const wind: SimWind = {};
@@ -270,6 +272,14 @@ export default function Page() {
     if (depMs < candidates[0] || depMs > candidates[candidates.length - 1]) setDepMs(null);
   }, [candidates]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Toon het detail meteen voor het BESTE vertrek: selecteer de BEST-kaart automatisch
+  // zolang de gebruiker zelf niets koos (depMs == null). Bij het laden staat het detail
+  // dus direct open; een route-/dag-/range-wissel zet depMs op null, waarna de selectie
+  // meeschuift naar het nieuwe beste uur. Een eigen kaartkeuze (depMs != null) blijft staan.
+  useEffect(() => {
+    if (depMs == null && bestOption) setDepMs(bestOption.depMs);
+  }, [depMs, bestOption]);
+
   const selTrip = useMemo(() => (depMs != null ? runSim(depMs) : null), [depMs, runSim]);
 
   const hwMs = useMemo(
@@ -317,7 +327,6 @@ export default function Page() {
             <span>{loc?.name ?? "…"}</span>
             <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.4)" strokeWidth={1.5}><path d="M2.5 4 L5 6.5 L7.5 4" /></svg>
           </div>
-          <span className="tag tag-outline">kt</span>
         </div>
 
         {showLocPicker && (
@@ -369,7 +378,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   });
 
   return (
-    <div style={{ padding: "14px 40px 34px" }}>
+    <div style={{ padding: "14px var(--view-pad-x) 34px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
         <div style={{ position: "relative", flex: 1 }}>
@@ -635,8 +644,43 @@ function DepartureView({
     answer = `Best vertrek: ${localHM(bestOption!.depMs)} · ${kent} · aankomst ${localHM(b.arrMs)} · ${eff}${caveat}`;
   }
 
+  // redenregel: waarom dit vertrekuur gunstig is — combineert stroom + wind uit de
+  // sim-stappen van het BESTE vertrek (geen sim-wijziging, alleen afgeleide tekst).
+  let reason: string | null = null;
+  if (b && b.arrMs && b.steps.length) {
+    const s0 = b.steps[0];
+    const body = b.steps.length > 1 ? b.steps.slice(0, -1) : b.steps;
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    // stroom-component (alleen als de route stroomdata heeft)
+    let stroomStr = "";
+    if (anyStroom) {
+      const startMee = (s0.cur ?? 0) >= 0;
+      const kent = b.kentMs && b.kentMs > b.departMs && b.kentMs < b.arrMs;
+      if (kent) {
+        const hrs = Math.max(1, Math.round((b.kentMs! - b.departMs) / 3600000));
+        stroomStr = startMee
+          ? `meestroom eerste ${hrs} uur, kentering om ${localHM(b.kentMs!)}`
+          : `tegenstroom tot kentering ${localHM(b.kentMs!)}`;
+      } else {
+        stroomStr = startMee ? "stroom mee vrijwel de hele tocht" : "stroom overwegend tegen";
+      }
+    }
+
+    // wind-component: richting + kracht + zeilhoek bij vertrek, plus opbouw/draaiing
+    let windStr = `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)} kn ${sailPhrase(s0.twa)}`;
+    const maxSpd = Math.max(...body.map((s) => s.wSpd));
+    if (maxSpd - s0.wSpd >= 4) windStr += `, bouwt op naar ${Math.round(maxSpd)} kn`;
+    const sEnd = body[body.length - 1];
+    const veer = sEnd ? Math.abs(((sEnd.wDir - s0.wDir + 540) % 360) - 180) : 0;
+    if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
+
+    const tail = anyStroom ? "snelste combinatie van stroom en zeilhoek" : "gunstigste zeilhoek van de dag";
+    reason = (stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr)) + ` — ${tail}.`;
+  }
+
   return (
-    <div style={{ padding: "24px 40px 34px" }}>
+    <div style={{ padding: "24px var(--view-pad-x) 34px" }}>
       {/* 1. routekiezer header */}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         <div>
@@ -669,18 +713,19 @@ function DepartureView({
           </div>
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ padding: "8px 16px", borderRadius: 10, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}` }}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(233,233,237,.4)" }}>Boot · Polaire</div>
-          <div style={{ fontSize: 14, fontWeight: 500, marginTop: 3 }}>Winner 11.20 <span style={{ color: "rgba(233,233,237,.5)" }}>· perf {Math.round(DEFAULT_BOAT.performance * 100)}%</span></div>
+        {/* polaire-badge: subtiel één-regel label, geen bordered box */}
+        <div style={{ alignSelf: "flex-start", fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
+          Winner 11.20 <span style={{ color: "rgba(233,233,237,.3)" }}>· {Math.round(DEFAULT_BOAT.performance * 100)}%</span>
         </div>
       </div>
 
       {!ready ? <Loading label="route + wind laden…" /> : (
         <>
-          {/* 2. antwoordregel — het antwoord vooraan, zeegroen */}
+          {/* 2. antwoordregel — het antwoord vooraan, zeegroen; redenregel eronder */}
           {answer && (
-            <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: alpha(COLORS.stroom, 0.1), border: `1px solid ${alpha(COLORS.stroom, 0.3)}`, fontSize: 15, fontWeight: 500, color: COLORS.stroom, fontVariantNumeric: "tabular-nums" }}>
-              {answer}
+            <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: alpha(COLORS.stroom, 0.1), border: `1px solid ${alpha(COLORS.stroom, 0.3)}`, color: COLORS.stroom, fontVariantNumeric: "tabular-nums" }}>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>{answer}</div>
+              {reason && <div style={{ fontSize: 12.5, fontWeight: 400, marginTop: 5, color: alpha(COLORS.stroom, 0.82) }}>{reason}</div>}
             </div>
           )}
 
