@@ -177,10 +177,11 @@ export default function VaarplanView({
       </div>
       <div style={{ fontSize: 13, color: "rgba(233,233,237,.5)", marginTop: 3, marginLeft: 32 }}>{routeSub}</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginTop: 16 }}>
         <MetricCard label="Vertrek" value={localHM(depMs)} />
         <MetricCard label="Aankomst" value={trip.arrMs ? localHM(trip.arrMs) : "—"} />
-        <MetricCard label="Vaartijd" value={trip.arrMs ? fmtDur(trip.tripMin) : "—"} sub={trip.arrMs ? `gem. ${trip.avgSog.toFixed(1).replace(".", ",")} kn SOG` : undefined} />
+        <MetricCard label="Vaartijd" value={trip.arrMs ? fmtDur(trip.tripMin) : "—"} />
+        <MetricCard label="Gem. snelheid" value={trip.arrMs ? `${trip.avgSog.toFixed(1).replace(".", ",")} kn` : "—"} sub="SOG" />
         <MetricCard label="Afstand" value={distanceNm != null ? `${distanceNm.toFixed(1).replace(".", ",")} nm` : "—"} sub={bearingDeg != null ? `koers ${String(Math.round(bearingDeg)).padStart(3, "0")}°` : undefined} />
       </div>
 
