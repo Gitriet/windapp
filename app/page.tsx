@@ -376,7 +376,8 @@ export default function Page() {
               depRange={depRange} setDepRange={setDepRange} dayNames={dayNames} ready={!!routeWind}
               routes={routes} fromHaven={fromHaven} toHaven={toHaven}
               chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
-              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null} />}
+              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
+              onVaarplan={() => setPage("vaarplan")} />}
       </div>
     </div>
   );
@@ -597,7 +598,7 @@ function DepartureView({
   routeBearing, routeDistNm, route, selTrip, depMs, setDepMs, hwMs,
   depOptions, bestOption, depDay, setDepDay, depRange, setDepRange, dayNames, ready,
   routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens,
-  fromStation, toStation,
+  fromStation, toStation, onVaarplan,
 }: {
   routeBearing: number | null; routeDistNm: number | null; route: RouteMeta;
   selTrip: SimResult | null; depMs: number | null; setDepMs: (ms: number) => void; hwMs: number[];
@@ -606,6 +607,7 @@ function DepartureView({
   routes: RouteInfo[]; fromHaven: string; toHaven: string;
   chooseFrom: (h: string) => void; chooseTo: (h: string) => void;
   allHavens: string[]; fromStation: RouteHaven | null; toStation: RouteHaven | null;
+  onVaarplan: () => void;
 }) {
   const naamOf = useMemo(() => {
     const m = new Map<string, string>();
@@ -742,6 +744,15 @@ function DepartureView({
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "26px 0 14px", paddingBottom: 8, borderBottom: "1px solid rgba(233,233,237,.08)" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Detail voor vertrek {localHM(depMs)}</div>
                 <div style={{ fontSize: 11, color: "rgba(233,233,237,.3)" }}>klik een kaart hierboven voor een ander uur</div>
+                <div style={{ flex: 1 }} />
+                <button onClick={onVaarplan} style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+                  padding: "6px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
+                  color: COLORS.weer, background: alpha(COLORS.weer, 0.12), border: `1px solid ${alpha(COLORS.weer, 0.34)}`,
+                }}>
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8" /><path d="M8 17h8" /><path d="M8 9h2" /></svg>
+                  Vaarplan
+                </button>
               </div>
 
               {/* tags */}
