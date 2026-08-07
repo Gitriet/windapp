@@ -136,15 +136,20 @@ export default function HavenSelector({
         </div>
       )}
 
-      {/* detail — klapt binnen de kaart open (max-height transition, geen overlay) */}
+      {/* detail — zweeft als overlay over de onderliggende content (geen layout-sprong) */}
       {havenInfo && (
-        <div style={{ maxHeight: detail ? 640 : 0, opacity: detail ? 1 : 0, overflow: "hidden", transition: "max-height .26s ease, opacity .2s ease" }}>
-          <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: alpha(COLORS.water, 0.05), border: `1px solid ${alpha(COLORS.water, 0.14)}` }}>
-            {(status.kind === "open" || status.kind === "dicht") && (
-              <TijdBalk windows={status.windows} />
-            )}
-            <Detail havenInfo={havenInfo} bootDiepgang={bootDiepgang} />
-          </div>
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10, marginTop: 6,
+          background: "#1e2035", border: `1px solid ${alpha(COLORS.water, 0.18)}`, borderRadius: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,.5)", padding: "10px 12px",
+          opacity: detail ? 1 : 0, transform: detail ? "translateY(0)" : "translateY(-4px)",
+          pointerEvents: detail ? "auto" : "none",
+          transition: "opacity .18s ease, transform .18s ease",
+        }}>
+          {(status.kind === "open" || status.kind === "dicht") && (
+            <TijdBalk windows={status.windows} />
+          )}
+          <Detail havenInfo={havenInfo} bootDiepgang={bootDiepgang} />
         </div>
       )}
     </div>
