@@ -7,6 +7,8 @@ import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { AlongSample } from "@/lib/route";
 import { localHM, localMidnight } from "@/lib/tz";
 import { COLORS, alpha } from "@/lib/colors";
+import { relativeWindAngle } from "@/lib/wind";
+import { WindRoseIcon } from "./WindRoseIcon";
 
 const H = 3_600_000;
 const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
@@ -437,11 +439,8 @@ export function DepartureCards({
               {unreach ? "" : `${t.effectMin <= 0 ? "" : "+"}${t.effectMin} min`}
             </div>
             {!unreach && (
-              <div style={{ fontSize: 9, marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(233,233,237,.06)", color: COLORS.wind, fontWeight: 500, lineHeight: 1.3 }}>
-                {/* elke regel op één lijn houden zodat elk windblok exact 2 regels is
-                    (gelijke kaarthoogte); clip met ellipsis als een label te breed is */}
-                <div style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dirLabel16(w.dir)} {Math.round(w.spd)} kt</div>
-                <div style={{ color: alpha(COLORS.wind, 0.75), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sailPhrase(w.twa)}</div>
+              <div style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(233,233,237,.06)", display: "flex", justifyContent: "center" }}>
+                <WindRoseIcon speed={w.spd} angle={relativeWindAngle(w.dir, courseDeg)} />
               </div>
             )}
           </div>
