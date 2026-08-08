@@ -8,6 +8,8 @@ import { Fragment, useMemo } from "react";
 import { COLORS, alpha } from "@/lib/colors";
 import { localHM } from "@/lib/tz";
 import { dirLabel16, sailPhrase, fmtDur, tripWind } from "./charts";
+import { WindRoseIcon } from "./WindRoseIcon";
+import { relativeWindAngle } from "@/lib/wind";
 import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
 import type { TideData, TideExtreme } from "@/lib/types";
@@ -228,7 +230,7 @@ export default function VaarplanView({
                   <tr style={{ borderTop: "1px solid rgba(233,233,237,.05)" }}>
                     <td style={{ padding: "9px 14px", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: "#e9e9ed" }}>{localHM(s.tMs)}</td>
                     <td style={{ padding: "9px 14px", color: "rgba(233,233,237,.7)" }}>{positionName(s.prog, milestones)}</td>
-                    <td style={{ padding: "9px 14px", color: COLORS.wind, fontVariantNumeric: "tabular-nums" }}>{dirLabel16(s.wDir)} {Math.round(s.wSpd)} kn</td>
+                    <td style={{ padding: "5px 14px" }}><WindRoseIcon speed={s.wSpd} angle={bearingDeg != null ? relativeWindAngle(s.wDir, bearingDeg) : null} size={44} showCourseArrow={false} /></td>
                     <td style={{ padding: "9px 14px", color: curCol, fontVariantNumeric: "tabular-nums" }}>{curTxt}</td>
                     <td style={{ padding: "9px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#e9e9ed" }}>{s.sog.toFixed(1)} kn</td>
                   </tr>
