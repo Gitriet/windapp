@@ -11,7 +11,7 @@ import { compass, beaufort } from "@/lib/format";
 import { COLORS, alpha } from "@/lib/colors";
 import { simulateTrip, type SimResult, type SimWind } from "@/lib/tripsim";
 import {
-  DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchTide, fetchRouteCurrent, fetchRoutes,
+  DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchTide, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
@@ -108,7 +108,8 @@ export default function Page() {
   // Tocht-planner data (volgt de gekozen van→naar-tocht; per been een stroomreeks)
   const [routeWind, setRouteWind] = useState<SimWind | null>(null);
   const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
-  const [routeTide, setRouteTide] = useState<TideData | null>(null);
+  const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
+  const [routeTideTo, setRouteTideTo] = useState<TideData | null>(null);  // aankomsthaven
   const [nowMs, setNowMs] = useState<number>(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -197,17 +198,20 @@ export default function Page() {
   // denhelder.marsdiep i.p.v. Texel). Bij een rechte-lijn-fallback (geen keten): geen
   // stroom, wind aan de twee uiteinden.
   useEffect(() => {
-    if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); return; }
+    if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); setRouteTideTo(null); return; }
     const keys = [...new Set(waypoints.map((w) => w.location_key))];
-    const vanKey = waypoints[0].location_key;
+    // getij bij BEIDE havens via het EIGEN station (haven slug), niet de gedeelde wind-key
+    const vanSlug = (chain ? chain.havens[0] : endpoints?.van)?.haven ?? null;
+    const naarSlug = (chain ? chain.havens[chain.havens.length - 1] : endpoints?.naar)?.haven ?? null;
     const legs = chain?.legs ?? [];
     let ignore = false;
     (async () => {
       try {
-        const [winds, curs, tide] = await Promise.all([
+        const [winds, curs, tide, tideTo] = await Promise.all([
           Promise.all(keys.map((k) => fetchForecast(k))),
           Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
-          fetchTide(vanKey),
+          vanSlug ? fetchHavenTide(vanSlug) : Promise.resolve(null),
+          naarSlug ? fetchHavenTide(naarSlug) : Promise.resolve(null),
         ]);
         if (ignore) return;
         const wind: SimWind = {};
@@ -215,6 +219,7 @@ export default function Page() {
         setRouteWind(wind);
         setLegCurrents(curs);
         setRouteTide(isTide(tide) ? tide : null);
+        setRouteTideTo(isTide(tideTo) ? tideTo : null);
       } catch (e) {
         if (!ignore) setErr(String(e));
       }
@@ -382,7 +387,7 @@ export default function Page() {
                 depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
                 distanceNm={routeDistNm} bearingDeg={routeBearing}
                 routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
-                fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT} />
+                fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT} />
             ) : (
               // geen geldig vertrekmoment (bv. herladen op deze view)
               <VaarplanEmpty />

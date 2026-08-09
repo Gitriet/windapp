@@ -146,9 +146,51 @@ async function readAstroCache(code: string): Promise<TidePoint[] | null> {
   } catch { return null; }
 }
 
+// Per-harbour tide station (keyed by haven slug), used for the arrival-harbour
+// tide in the vaarplan. Unlike TIDE_STATIONS (keyed by the shared wind-station
+// location_key), this resolves each harbour to its OWN nearest RWS getij station
+// — so Delfzijl uses `delfzijl`, not the offshore Huibertgat wind-station key.
+// Codes verified live 2026-08-08 (nearest station carrying verwachting+astronomisch,
+// or — where none exists — astronomisch only, which still yields HW/LW times):
+//   astronomisch-only: cadzand-bad, eemshaven.
+export const HAVEN_TIDE_STATIONS: Record<string, { code: string; name: string }> = {
+  "den-helder": { code: "denhelder.marsdiep", name: "Den Helder (Marsdiep)" },
+  "oudeschild": { code: "texel.oudeschild", name: "Texel (Oudeschild)" },
+  "lauwersoog": { code: "lauwersoog.waddenzee", name: "Lauwersoog (Waddenzee)" },
+  "schiermonnikoog": { code: "schiermonnikoog.waddenzee", name: "Schiermonnikoog (Waddenzee)" },
+  "vlieland": { code: "vlieland.haven", name: "Vlieland (haven)" },
+  "west-terschelling": { code: "terschelling.west", name: "West-Terschelling" },
+  "kornwerderzand": { code: "kornwerderzand.waddenzee.buitenhaven", name: "Kornwerderzand (buitenhaven)" },
+  "harlingen": { code: "harlingen.waddenzee", name: "Harlingen (Waddenzee)" },
+  "cadzand-bad": { code: "cadzand.2", name: "Cadzand" },
+  "breskens": { code: "vlissingen", name: "Vlissingen" },
+  "vlissingen": { code: "vlissingen", name: "Vlissingen" },
+  "den-oever": { code: "denoever.waddenzee.voorhaven", name: "Den Oever (voorhaven)" },
+  "eemshaven": { code: "eemshaven.waddenzee", name: "Eemshaven (Waddenzee)" },
+  "delfzijl": { code: "delfzijl", name: "Delfzijl" },
+  "terneuzen": { code: "terneuzen", name: "Terneuzen" },
+  "roompotsluis": { code: "oosterschelde.roompotsluis.buiten", name: "Roompotsluis (buiten)" },
+  "scheveningen": { code: "scheveningen", name: "Scheveningen" },
+  "ijmuiden": { code: "ijmuiden.buitenhaven", name: "IJmuiden (buitenhaven)" },
+  "stellendam": { code: "stellendam.buitenhaven", name: "Stellendam (buitenhaven)" },
+  "nes-ameland": { code: "ameland.nes", name: "Ameland (Nes)" },
+};
+
+// Resolve a coastal wind-station key to its curated RWS getij station.
 export async function buildTide(key: string): Promise<TideData | null> {
   const tgt = TIDE_STATIONS[key];
   if (!tgt) return null;                          // no coupled getij point -> no tide block
+  return buildTideForStation(tgt.code, tgt.name);
+}
+
+// Resolve a haven slug to its own nearest RWS getij station (arrival-harbour tide).
+export async function buildHavenTide(havenSlug: string): Promise<TideData | null> {
+  const tgt = HAVEN_TIDE_STATIONS[havenSlug];
+  if (!tgt) return null;                          // no coupled getij station for this harbour
+  return buildTideForStation(tgt.code, tgt.name);
+}
+
+async function buildTideForStation(code: string, name: string): Promise<TideData | null> {
   const now = Date.now();
   const begin = now - 3600000;
   // the last day-tab (za) reaches into the 4th day ahead, so the visible slice +
@@ -159,17 +201,17 @@ export async function buildTide(key: string): Promise<TideData | null> {
   // each series independently — one failing must not take down the other (RWS can
   // 204/error per ProcesType), and a total RWS outage falls back to the cache.
   const [expRes, astroRes] = await Promise.allSettled([
-    fetchSeries(tgt.code, "verwachting", begin, end),
-    fetchSeries(tgt.code, "astronomisch", begin, astroEnd),
+    fetchSeries(code, "verwachting", begin, end),
+    fetchSeries(code, "astronomisch", begin, astroEnd),
   ]);
   const expected = expRes.status === "fulfilled" ? expRes.value : [];
   let astroFull = astroRes.status === "fulfilled" ? astroRes.value : [];
   let astroStale = false;
 
   if (astroFull.length) {
-    await writeAstroCache(tgt.code, astroFull);   // refresh last-known on success
+    await writeAstroCache(code, astroFull);   // refresh last-known on success
   } else {
-    const cached = await readAstroCache(tgt.code);
+    const cached = await readAstroCache(code);
     if (cached && cached.length) { astroFull = cached; astroStale = true; }
   }
   // client only needs the visible window slice (cache holds the wider series)
@@ -178,7 +220,7 @@ export async function buildTide(key: string): Promise<TideData | null> {
   if (!expected.length && !astro.length) {
     // tide station, but nothing to show (RWS down and no cache yet) — render a
     // clear "unavailable" card rather than silently dropping the whole section.
-    return { code: tgt.code, name: tgt.name, expected: [], astro: [], extremes: [], unavailable: true };
+    return { code, name, expected: [], astro: [], extremes: [], unavailable: true };
   }
 
   // HW/LW from the expected curve where it reaches; from astronomical beyond it.
@@ -186,7 +228,7 @@ export async function buildTide(key: string): Promise<TideData | null> {
   const merged = [...extrema(expected), ...extrema(astro).filter((e) => Date.parse(e.t) > expEnd)];
   const extremes = dedupeExtrema(merged.sort((a, b) => Date.parse(a.t) - Date.parse(b.t)));
   return {
-    code: tgt.code, name: tgt.name, expected, astro, extremes,
+    code, name, expected, astro, extremes,
     expectedMissing: expected.length === 0, astroStale,
   };
 }

@@ -36,6 +36,8 @@ export const fetchRoutes = () => getJSON<{ routes: RouteInfo[] }>("/api/routes")
 export const fetchForecast = (key: string) => getJSON<ForecastResponse>(`/api/forecast/${key}`);
 export const fetchWeek = (key: string) => getJSON<WeekResponse>(`/api/week/${key}`);
 export const fetchTide = (key: string) => getJSON<TideData | { tide: null }>(`/api/tide/${key}`);
+// aankomsthaven-getij via de eigen-station-map (haven slug), niet de wind-station-key
+export const fetchHavenTide = (slug: string) => getJSON<TideData | { tide: null }>(`/api/tide/haven/${slug}`);
 
 // Windreeks per waypoint zoals de sim die leest (richting = waaruit de wind komt).
 export function toWindSamples(points: CorrectedPoint[]): WindSample[] {

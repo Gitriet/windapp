@@ -29,7 +29,8 @@ export interface VaarplanViewProps {
   distanceNm: number | null;
   bearingDeg: number | null;
   routeLabel: { pathNamen: string[]; viaPassage: string | null; legCount: number };
-  fromTide: TideData | null;       // getijcurve vertrekhaven (routeTide) — enige beschikbare
+  fromTide: TideData | null;       // getijcurve vertrekhaven (routeTide)
+  toTide: TideData | null;         // getijcurve aankomsthaven (via eigen key-station)
   via: ViaHaven[];                 // tussenliggende havens (uitwijk); leeg bij directe route
   boat: BoatProfile;
 }
@@ -127,7 +128,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ════════════════════════════════════════════════════════════════════════
 export default function VaarplanView({
-  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, via, boat,
+  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, toTide, via, boat,
 }: VaarplanViewProps) {
   const steps = trip.steps;
 
@@ -162,6 +163,10 @@ export default function VaarplanView({
 
   const hwV = nextExtreme(fromTide, depMs, "HW");
   const lwV = nextExtreme(fromTide, depMs, "LW");
+  // aankomsthaven: eerstvolgend HW/LW ná de aankomsttijd (val terug op vertrek als arrMs ontbreekt)
+  const arrRef = trip.arrMs ?? depMs;
+  const hwT = nextExtreme(toTide, arrRef, "HW");
+  const lwT = nextExtreme(toTide, arrRef, "LW");
 
   return (
     <div style={{ padding: "18px var(--view-pad-x) 48px" }}>
@@ -193,8 +198,8 @@ export default function VaarplanView({
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
         <TidePanel titel={`Getij ${from.naam}`} hw={hwV} lw={lwV} available={!!fromTide} />
-        <TidePanel titel={`Getij ${to.naam}`} hw={null} lw={null} available={false}
-          note="Getijcurve aankomsthaven niet in de planner-state — open de haven in de planner voor het getij." />
+        <TidePanel titel={`Getij ${to.naam}`} hw={hwT} lw={lwT} available={!!toTide}
+          note="Geen getijstation gekoppeld aan deze aankomsthaven." />
       </div>
 
       {/* ── Sectie 3: Tijdlijn ────────────────────────────────────────── */}
