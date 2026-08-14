@@ -135,3 +135,25 @@ body {
   color: var(--text-secondary);
 }
 .table tbody tr:last-child td { border-bottom: none; }
+
+/* ══ Mobiel fundament ═══════════════════════════════════════════════
+   Eén mobiele breakpoint voor de hele app: 640px. Latere mobiel-
+   opdrachten hergebruiken exact deze grens — introduceer geen
+   afwijkende breakpoints. */
+
+/* overflow-x-vangnet: de pagina zelf mag nooit horizontaal scrollen.
+   Neutraal op desktop (content past al binnen de breedte). */
+html, body { overflow-x: hidden; }
+
+@media (max-width: 640px) {
+  /* Flex-rijen die smaller dan hun inhoud worden, laten doorlopen naar
+     een volgende regel i.p.v. buiten beeld te vallen — zo blijven de
+     locatie-picker (nav, rechts) en de tweede haven-selector bereikbaar. */
+  .nav { flex-wrap: wrap; }
+  .haven-row { flex-wrap: wrap; }
+
+  /* Tap-doelen ≥44px — alleen mobiel; desktop-hoogtes blijven ongemoeid. */
+  .nav a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .loc-picker { min-height: 44px; }
+  .haven-trigger { min-height: 44px; }
+}

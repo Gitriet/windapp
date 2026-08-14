@@ -1,9 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tidan — Tocht planner",
   description: "Windvoorspelling, getijstroom en polaire-ETA voor de kust en Wadden.",
+};
+
+// viewport-fit=cover: nodig zodat env(safe-area-inset-*) op notch/Dynamic-Island-
+// toestellen echte waarden krijgt (op desktop blijven de insets 0).
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -340,7 +340,7 @@ export default function Page() {
   const loc = locations[locIdx];
 
   return (
-    <div style={{ padding: "16px 24px" }}>
+    <div style={{ padding: "calc(16px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left))" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
         {/* nav */}
         <div className="nav" style={{ padding: "14px 26px", borderBottom: "1px solid rgba(233,233,237,.08)" }}>
@@ -358,7 +358,7 @@ export default function Page() {
           </span>
           {/* locatiepicker is alleen relevant voor de Nu-view; in de Tocht-planner onzichtbaar
               maar wél renderend, zodat de ruimte behouden blijft en de header niet verspringt */}
-          <div ref={locBtnRef} onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13, visibility: page === "now" ? "visible" : "hidden", pointerEvents: page === "now" ? "auto" : "none" }}>
+          <div ref={locBtnRef} className="loc-picker" onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13, visibility: page === "now" ? "visible" : "hidden", pointerEvents: page === "now" ? "auto" : "none" }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
             <span>{loc?.name ?? "…"}</span>
             <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.4)" strokeWidth={1.5}><path d="M2.5 4 L5 6.5 L7.5 4" /></svg>
@@ -712,7 +712,7 @@ function DepartureView({
                 ? `Havenroute${route.viaPassage ? ` · via ${route.viaPassage}` : ""}`
                 : "Rechte lijn · geen routedata"}
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "flex-start" }}>
+          <div className="haven-row" style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "flex-start" }}>
             <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
               havenInfo={fromStation?.havenInfo ?? null} stationKey={fromStation?.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
             <span style={{ fontSize: 18, color: "rgba(233,233,237,.4)", marginTop: 22 }}>→</span>
