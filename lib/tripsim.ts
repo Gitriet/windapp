@@ -50,6 +50,11 @@ export type SimResult = {
   kentMs: number | null;     // eerste tekenwissel van de stroom binnen de tocht
   distanceNm: number;
   unreachable: boolean;
+  voorbijHorizon: boolean;   // ≥1 stap gebruikte stroom die niet volledig door de
+                             // forecast wordt gedekt: ofwel de cur=0-fallback (ontbrekende
+                             // data / een gat), ofwel de geëxtrapoleerde clamp voorbij de
+                             // laatste sample. Puur bestaand gedrag gelabeld; geen extra
+                             // stroomberekening, geen wijziging aan duur/ETA.
 };
 
 // Windvector (kn, oost/noord) die WIJST WAARHEEN de wind waait.
@@ -146,7 +151,14 @@ export function simulateTrip(input: {
   const stepH = STEP_MIN / 60;
   const deadline = departMs + MAX_PASSAGE_HOURS * 3600_000;
   const steps: SimStep[] = [];
-  let t = departMs, unreachable = false;
+  let t = departMs, unreachable = false, voorbijHorizon = false;
+  // laatste tijdstip met échte stroomdata per leg — voorbij dit punt clampt alongAt naar
+  // de laatste waarde (extrapolatie); dat markeren we als 'voorbij horizon'.
+  const legLastData = along.map((s) => {
+    let last: number | null = null;
+    for (const p of s ?? []) if (p.alongKn != null) { const m = tms(p.t); if (last == null || m > last) last = m; }
+    return last;
+  });
 
   outer: for (let li = 0; li < legDist.length; li++) {
     const from = waypoints[li], to = waypoints[li + 1];
@@ -160,7 +172,11 @@ export function simulateTrip(input: {
       const va = windVecAt(sA, t), vb = windVecAt(sB, t);
       const wg = va && vb ? { e: va.e + (vb.e - va.e) * fLeg, n: va.n + (vb.n - va.n) * fLeg } : (va ?? vb);
       if (!wg) { unreachable = true; break outer; }
-      const cur = alongAt(along[li] ?? [], t) ?? 0;
+      const alongVal = alongAt(along[li] ?? [], t);
+      // stroom onzeker als de data ontbreekt (cur=0-fallback) of als we voorbij de
+      // laatste sample zitten (alongAt clampt dan naar de laatste waarde).
+      if (alongVal == null || (legLastData[li] != null && t > legLastData[li]!)) voorbijHorizon = true;
+      const cur = alongVal ?? 0;
       const { stw, twa, wDir, wSpd } = throughWaterAt(boat, wg, course, cur);
       const sog = stw + cur;                         // cur is al langs de koers
       if (sog < MIN_SOG_KN) { unreachable = true; break outer; }
@@ -216,6 +232,6 @@ export function simulateTrip(input: {
   return {
     steps, departMs, arrMs, tripMin, tripNcMin, effectMin,
     avgSog, avgStw, kentMs, distanceNm: totalNm,
-    unreachable: unreachable || ncUnreach,
+    unreachable: unreachable || ncUnreach, voorbijHorizon,
   };
 }

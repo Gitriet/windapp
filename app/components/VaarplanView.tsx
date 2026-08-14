@@ -77,7 +77,7 @@ function nextExtreme(tide: TideData | null, afterMs: number, kind: "HW" | "LW"):
 }
 
 // Sampling van de sim-stappen op heel-uur-intervallen + de eerste en laatste stap.
-function sampleHourly(steps: SimStep[]): SimStep[] {
+export function sampleHourly(steps: SimStep[]): SimStep[] {
   if (!steps.length) return [];
   const dep = steps[0].tMs, arr = steps[steps.length - 1].tMs;
   const nearest = (target: number) =>
@@ -94,7 +94,7 @@ function sampleHourly(steps: SimStep[]): SimStep[] {
 
 // Positienaam uit prog (nm langs de route): dichtstbijzijnde milestone-haven binnen 2 nm,
 // anders de simpele fallback "~X nm gevaren". (Kustplaats-namen zijn nice-to-have; buiten scope.)
-function positionName(progNm: number, milestones: { naam: string; nm: number }[]): string {
+export function positionName(progNm: number, milestones: { naam: string; nm: number }[]): string {
   let near: { naam: string; nm: number } | null = null;
   for (const m of milestones) {
     if (near == null || Math.abs(m.nm - progNm) < Math.abs(near.nm - progNm)) near = m;

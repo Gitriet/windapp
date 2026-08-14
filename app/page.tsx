@@ -4,7 +4,7 @@
 // /api/routes) en de bestaande libs (polar.ts, route.ts, tripsim.ts). De Nu-view volgt
 // de nav-picker; de Tocht-planner kiest uit de bekende havenroutes (netwerk_routes) en
 // zet het antwoord (beste vertrek + alternatieven) vooraan, het bewijs (grafieken) erna.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BOAT } from "@/lib/polar";
 import { localHM, localMidnight, localDateISO } from "@/lib/tz";
 import { compass, beaufort } from "@/lib/format";
@@ -17,11 +17,11 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import HavenSelector from "./components/HavenSelector";
-import VaarplanView, { type ViaHaven } from "./components/VaarplanView";
+import VaarplanView, { type ViaHaven, sampleHourly, positionName } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
-  dirLabel16, sailPhrase, windAgainstCurrent, type DepOption, type WindTLSample,
+  dirLabel16, sailPhrase, windAgainstCurrent, fmtDur, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -113,6 +113,10 @@ export default function Page() {
   const [routeTideTo, setRouteTideTo] = useState<TideData | null>(null);  // aankomsthaven
   const [nowMs, setNowMs] = useState<number>(0);
   const [err, setErr] = useState<string | null>(null);
+  // De 12-kaart-selectielogica (clamp + auto-best) is desktop-specifiek; de mobiele
+  // Tocht-tak draait op een eigen 48u-sweep met eigen beste-vertrek. Op mobiel zetten
+  // we die effecten uit zodat ze de sweep-selectie niet overschrijven.
+  const isMobile = useIsMobile();
 
   // ── mount: klok + locatielijst + havenroutes ──
   useEffect(() => {
@@ -285,6 +289,7 @@ export default function Page() {
 
   // clamp een gekozen vertrek in de zichtbare dag (alleen als er iets gekozen is)
   useEffect(() => {
+    if (isMobile) return;   // mobiel: sweep-selectie mag buiten de 12-kaart-dag vallen
     if (!candidates.length || depMs == null) return;
     if (depMs < candidates[0] || depMs > candidates[candidates.length - 1]) setDepMs(null);
   }, [candidates]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -294,8 +299,15 @@ export default function Page() {
   // dus direct open; een route-/dag-/range-wissel zet depMs op null, waarna de selectie
   // meeschuift naar het nieuwe beste uur. Een eigen kaartkeuze (depMs != null) blijft staan.
   useEffect(() => {
+    if (isMobile) return;   // mobiel: DepartureMobile kiest zelf het sweep-beste vertrek
     if (depMs == null && bestOption) setDepMs(bestOption.depMs);
-  }, [depMs, bestOption]);
+  }, [depMs, bestOption, isMobile]);
+
+  // Bij het omschakelen naar mobiel de (desktop-)selectie één keer wissen, zodat de
+  // mobiele tak vanaf null naar zijn eigen 48u-sweep-beste vertrek kan defaulten.
+  useEffect(() => {
+    if (isMobile) setDepMs(null);
+  }, [isMobile]);
 
   const selTrip = useMemo(() => (depMs != null ? runSim(depMs) : null), [depMs, runSim]);
 
@@ -401,7 +413,8 @@ export default function Page() {
               depRange={depRange} setDepRange={setDepRange} dayNames={dayNames} ready={!!routeWind}
               routes={routes} fromHaven={fromHaven} toHaven={toHaven}
               chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
-              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null} />}
+              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
+              runSim={runSim} nowMs={nowMs} viaHavens={viaHavens} />}
       </div>
     </div>
   );
@@ -689,7 +702,7 @@ function DepartureView({
   routeBearing, routeDistNm, route, selTrip, depMs, setDepMs, hwMs,
   depOptions, bestOption, depDay, setDepDay, depRange, setDepRange, dayNames, ready,
   routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens,
-  fromStation, toStation,
+  fromStation, toStation, runSim, nowMs, viaHavens,
 }: {
   routeBearing: number | null; routeDistNm: number | null; route: RouteMeta;
   selTrip: SimResult | null; depMs: number | null; setDepMs: (ms: number) => void; hwMs: number[];
@@ -698,7 +711,9 @@ function DepartureView({
   routes: RouteInfo[]; fromHaven: string; toHaven: string;
   chooseFrom: (h: string) => void; chooseTo: (h: string) => void;
   allHavens: string[]; fromStation: RouteHaven | null; toStation: RouteHaven | null;
+  runSim: (dep: number) => SimResult | null; nowMs: number; viaHavens: ViaHaven[];
 }) {
+  const isMobile = useIsMobile();
   const naamOf = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of routes) { m.set(r.van.haven, r.van.naam); m.set(r.naar.haven, r.naar.naam); }
@@ -708,6 +723,17 @@ function DepartureView({
   // veld staat (Van ≠ Naar). allHavens is al op naam gesorteerd.
   const vanOptions = useMemo(() => allHavens.filter((h) => h !== toHaven), [allHavens, toHaven]);
   const naarOptions = useMemo(() => allHavens.filter((h) => h !== fromHaven), [allHavens, fromHaven]);
+
+  // ── mobiele Tocht-tak (≤640px): eigen route-pill + 48u-sweep + vensters + strip.
+  // Desktop-tak hieronder blijft ongewijzigd. Deelt route-/vertrek-state en runSim.
+  if (isMobile) return (
+    <DepartureMobile
+      route={route} routeDistNm={routeDistNm} ready={ready}
+      selTrip={selTrip} depMs={depMs} setDepMs={setDepMs} runSim={runSim} nowMs={nowMs}
+      fromHaven={fromHaven} toHaven={toHaven} chooseFrom={chooseFrom} chooseTo={chooseTo}
+      naamOf={naamOf} vanOptions={vanOptions} naarOptions={naarOptions}
+      fromStation={fromStation} toStation={toStation} viaHavens={viaHavens} />
+  );
 
   const w0 = selTrip?.steps[0];
   const twa0 = w0?.twa ?? 0;
@@ -906,6 +932,364 @@ function DepartureView({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ════════════════════ MOBIELE TOCHT-VIEW (≤640px) ════════════════════
+// Eigen variant conform de iPhone-mocks: route-pill → 48u-sweep → antwoord → andere
+// vensters → passage-strip ("antwoord eerst, bewijs eronder"). Deelt route-/vertrek-
+// state en runSim met de desktop-tak; geen nieuwe fetches of fysica. De sweep draait
+// runSim over een 48u-raster (elk half uur) en leest per kandidaat de bestaande
+// voorbijHorizon-vlag uit tripsim.
+
+// neutrale UI-grijs voor 'traag' in het sweep-kleurverloop (geen semantisch token;
+// alleen het eindpunt van de groen→grijs-fade, conform de mock)
+const SLATE = [120, 124, 140] as const;
+
+// lokaal uur (Europe/Amsterdam) + dag-label voor de vensterlijst
+const amsHour = (ms: number) =>
+  +new Intl.DateTimeFormat("nl-NL", { hour: "2-digit", hourCycle: "h23", timeZone: "Europe/Amsterdam" }).format(ms);
+function mobileDayLabel(ms: number, nowMs: number): string {
+  const d = localDateISO(ms);
+  if (d === localDateISO(nowMs)) return "vandaag";
+  if (d === localDateISO(nowMs + 24 * H)) return "morgen";
+  if (d === localDateISO(nowMs + 48 * H)) return "overmorgen";
+  return new Intl.DateTimeFormat("nl-NL", { weekday: "long", timeZone: "Europe/Amsterdam" }).format(ms);
+}
+
+function DepartureMobile({
+  route, routeDistNm, ready, selTrip, depMs, setDepMs, runSim, nowMs,
+  fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
+  fromStation, toStation, viaHavens,
+}: {
+  route: RouteMeta; routeDistNm: number | null; ready: boolean;
+  selTrip: SimResult | null; depMs: number | null; setDepMs: (ms: number) => void;
+  runSim: (dep: number) => SimResult | null; nowMs: number;
+  fromHaven: string; toHaven: string; chooseFrom: (h: string) => void; chooseTo: (h: string) => void;
+  naamOf: (h: string) => string; vanOptions: string[]; naarOptions: string[];
+  fromStation: RouteHaven | null; toStation: RouteHaven | null; viaHavens: ViaHaven[];
+}) {
+  const HALF = 30 * 60_000;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: MouseEvent) => { if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [pickerOpen]);
+
+  // 48u-sweep: elk half uur vanaf het eerstvolgende hele half uur, door dezelfde runSim.
+  const sweep = useMemo<DepOption[]>(() => {
+    if (!ready || !nowMs) return [];
+    const start = Math.ceil(nowMs / HALF) * HALF;
+    const out: DepOption[] = [];
+    for (let i = 0; i < 96; i++) {
+      const dep = start + i * HALF;
+      const r = runSim(dep);
+      if (r) out.push({ depMs: dep, result: r });
+    }
+    return out;
+  }, [ready, nowMs, runSim]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // globaal beste vertrek (kortste haalbare vaartijd) over de 48u
+  const best = useMemo(() => {
+    const reach = sweep.filter((o) => o.result.arrMs != null);
+    return reach.length ? reach.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)) : null;
+  }, [sweep]);
+
+  // default: het sweep-beste vertrek zolang de gebruiker zelf niets koos (depMs == null).
+  // Een route-wissel zet depMs op null (chooseFrom/To) → schuift mee naar het nieuwe beste.
+  useEffect(() => {
+    if (depMs == null && best) setDepMs(best.depMs);
+  }, [depMs, best]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // andere vensters = lokale duur-minima (excl. de beste), ≥4u uit elkaar, kortste eerst
+  const vensters = useMemo(() => {
+    const locMin = sweep.filter((o, i, a) => {
+      if (o.result.arrMs == null) return false;
+      const L = a[i - 1], R = a[i + 1];
+      const lok = !L || L.result.arrMs == null || o.result.tripMin <= L.result.tripMin;
+      const rok = !R || R.result.arrMs == null || o.result.tripMin <= R.result.tripMin;
+      return lok && rok;
+    });
+    const picked: DepOption[] = [];
+    for (const o of [...locMin].sort((a, b) => a.result.tripMin - b.result.tripMin)) {
+      if (best && o.depMs === best.depMs) continue;
+      if (picked.some((p) => Math.abs(p.depMs - o.depMs) < 4 * H)) continue;
+      picked.push(o);
+      if (picked.length >= 4) break;
+    }
+    return picked.sort((a, b) => a.depMs - b.depMs);
+  }, [sweep, best]);
+
+  // kentering-momenten over 48u = nuldoorgangen van de gecombineerde stroom-langs-reeks
+  const kentTicks = useMemo(() => {
+    const s = combineLegTimelines(route.legTimelines).series
+      .filter((p) => p.alongKn != null).map((p) => ({ m: tms(p.t), v: p.alongKn as number }));
+    const out: number[] = [];
+    for (let i = 1; i < s.length; i++) {
+      if ((s[i - 1].v >= 0) !== (s[i].v >= 0)) {
+        const a = Math.abs(s[i - 1].v), b = Math.abs(s[i].v);
+        const f = a + b === 0 ? 0 : a / (a + b);
+        out.push(s[i - 1].m + f * (s[i].m - s[i - 1].m));
+      }
+    }
+    return out;
+  }, [route.legTimelines]);
+
+  // stroom-dekkingsvenster (voor de strip: buiten dit bereik → '—', nooit een verzonnen 0)
+  const stroomSpan = useMemo(() => {
+    const ms = combineLegTimelines(route.legTimelines).series
+      .filter((p) => p.alongKn != null).map((p) => tms(p.t));
+    return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
+  }, [route.legTimelines]);
+
+  const vanNaam = fromStation?.naam ?? naamOf(fromHaven);
+  const naarNaam = toStation?.naam ?? naamOf(toHaven);
+  const routeSub = route.legCount > 1 ? `${route.legCount} legs`
+    : route.viaPassage ? `via ${route.viaPassage}` : "directe route";
+
+  return (
+    <div style={{ padding: "12px var(--view-pad-x) 40px", position: "relative" }}>
+      {/* 1. route-pill → overlay met de twee bestaande HavenSelectors */}
+      <div ref={pickerRef} style={{ position: "relative" }}>
+        <div onClick={() => setPickerOpen((o) => !o)} className="haven-trigger"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", cursor: "pointer" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#e9e9ed" }}>{vanNaam} → {naarNaam}</div>
+            <div style={{ fontSize: 11, color: "rgba(233,233,237,.45)", marginTop: 2 }}>
+              {routeSub}{routeDistNm != null ? ` · ${routeDistNm.toFixed(1).replace(".", ",")} NM` : ""}
+            </div>
+          </div>
+          <span style={{ fontSize: 18, color: "rgba(233,233,237,.4)" }}>⌄</span>
+        </div>
+        {pickerOpen && (
+          <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 6px)", zIndex: 30, background: "#1e2035", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(233,233,237,.1)", padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+            <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
+              havenInfo={fromStation?.havenInfo ?? null} stationKey={fromStation?.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+            <HavenSelector label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
+              havenInfo={toStation?.havenInfo ?? null} stationKey={toStation?.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+          </div>
+        )}
+      </div>
+
+      {!ready ? <Loading label="route + wind laden…" /> : (
+        <>
+          {/* 2. sweep */}
+          <div style={{ marginTop: 14, padding: "14px 12px 8px", borderRadius: 16, background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.07)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px 6px" }}>
+              <span style={{ fontSize: 12, color: "rgba(233,233,237,.55)" }}>Vertrek — komende 48u</span>
+              <span style={{ fontSize: 10, color: "rgba(233,233,237,.4)" }}>as: duur</span>
+            </div>
+            <MobileSweep sweep={sweep} selMs={depMs} onSelect={setDepMs} kentTicks={kentTicks} />
+            <div style={{ display: "flex", gap: 12, padding: "6px 4px 0", fontSize: 10, color: "rgba(233,233,237,.45)" }}>
+              <span><Dot c={COLORS.stroom} />gunstig</span>
+              <span><Dot c={COLORS.kentering} />kentering</span>
+              <span><Dot c="rgba(233,233,237,.25)" />onzeker</span>
+            </div>
+          </div>
+
+          {/* 3. antwoord (beste vertrek) */}
+          {best && <MobileAnswer best={best} />}
+
+          {/* 4. andere vensters (lokale optima, beste uitgesloten) */}
+          {vensters.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ margin: "0 4px 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Andere vensters</div>
+              {vensters.map((o) => (
+                <VensterRow key={o.depMs} opt={o} best={best} nowMs={nowMs} selected={depMs === o.depMs} onSelect={() => setDepMs(o.depMs)} />
+              ))}
+            </div>
+          )}
+
+          {/* 5. passage-strip bij het gekozen vertrek */}
+          {selTrip && depMs != null && (
+            <PassageStrip trip={selTrip} depMs={depMs} routeDistNm={routeDistNm}
+              fromStation={fromStation} toStation={toStation} viaHavens={viaHavens} stroomSpan={stroomSpan} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Dot({ c }: { c: string }) {
+  return <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: c, verticalAlign: "middle", marginRight: 4 }} />;
+}
+
+// Verticale-balken-sweep: omgekeerde duur-as (hoog = snel), kwaliteitskleur groen→grijs,
+// kentering-tikken, onzeker-hatch (voorbijHorizon), gekozen-marker, tik-select per kolom.
+function MobileSweep({ sweep, selMs, onSelect, kentTicks }: {
+  sweep: DepOption[]; selMs: number | null; onSelect: (ms: number) => void; kentTicks: number[];
+}) {
+  if (!sweep.length) return null;
+  const W = 351, Hg = 132, X0 = 40, X1 = 340, Y0 = 16, YB = 100;
+  const start = sweep[0].depMs, end = sweep[sweep.length - 1].depMs;
+  const span = Math.max(1, end - start);
+  const tx = (ms: number) => X0 + ((ms - start) / span) * (X1 - X0);
+  const durs = sweep.filter((o) => o.result.arrMs != null).map((o) => o.result.tripMin);
+  const dMin = durs.length ? Math.min(...durs) : 0, dMax = durs.length ? Math.max(...durs) : 1;
+  const dSpan = Math.max(1e-6, dMax - dMin);
+  const pitch = (X1 - X0) / sweep.length;
+  const bw = Math.max(1.6, pitch * 0.62);
+  const HMIN = 10, HMAX = 78, G = [23, 168, 120];
+  const firstUnc = sweep.find((o) => o.result.voorbijHorizon);
+  const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, "0")}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${Hg}`} width="100%" style={{ display: "block" }}>
+      <defs>
+        <pattern id="mSweepHatch" width={6} height={6} patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1={0} y1={0} x2={0} y2={6} stroke="rgba(233,233,237,.18)" strokeWidth={1} />
+        </pattern>
+      </defs>
+      <line x1={X0} y1={YB} x2={X1} y2={YB} stroke="rgba(255,255,255,.1)" strokeWidth={1} />
+      {durs.length > 0 && <text x={34} y={24} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">{hm(dMin)}</text>}
+      {durs.length > 0 && <text x={34} y={YB} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">{hm(dMax)}</text>}
+      <text x={6} y={64} fontSize={9} fill="rgba(233,233,237,.35)" transform="rotate(-90 6 64)">duur</text>
+      {sweep.map((o) => {
+        const reach = o.result.arrMs != null;
+        const norm = reach ? (o.result.tripMin - dMin) / dSpan : 1;   // 0 = snelst
+        const hpx = reach ? HMIN + (1 - norm) * (HMAX - HMIN) : 6;
+        const c = G.map((v, i) => Math.round(v + (SLATE[i] - v) * norm));
+        const op = o.result.voorbijHorizon ? 0.28 : 1 - norm * 0.55;
+        return (
+          <rect key={o.depMs} x={tx(o.depMs) - bw / 2} y={YB - hpx} width={bw} height={hpx}
+            fill={`rgb(${c[0]},${c[1]},${c[2]})`} fillOpacity={op} rx={0.8} />
+        );
+      })}
+      {firstUnc && (
+        <>
+          <rect x={tx(firstUnc.depMs)} y={Y0} width={X1 - tx(firstUnc.depMs)} height={YB - Y0} fill="url(#mSweepHatch)" />
+          <text x={(tx(firstUnc.depMs) + X1) / 2} y={12} textAnchor="middle" fontSize={8} fill="rgba(233,233,237,.4)">onzeker</text>
+        </>
+      )}
+      {selMs != null && selMs >= start && selMs <= end && (
+        <>
+          <line x1={tx(selMs)} y1={14} x2={tx(selMs)} y2={YB} stroke={alpha(COLORS.stroom, 0.6)} strokeWidth={1} strokeDasharray="3 3" />
+          <polygon points={`${tx(selMs) - 4},14 ${tx(selMs) + 4},14 ${tx(selMs)},20`} fill={COLORS.stroom} />
+          <text x={tx(selMs)} y={122} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.stroom}>{localHM(selMs)}</text>
+        </>
+      )}
+      {kentTicks.filter((k) => k >= start && k <= end).map((k, i) => (
+        <line key={`k${i}`} x1={tx(k)} y1={YB} x2={tx(k)} y2={YB + 6} stroke={COLORS.kentering} strokeWidth={1.5} strokeOpacity={0.7} />
+      ))}
+      <text x={tx(start)} y={115} textAnchor="start" fontSize={9} fill="rgba(233,233,237,.4)">nu</text>
+      <text x={tx(start + 24 * H)} y={115} textAnchor="middle" fontSize={9} fill="rgba(233,233,237,.4)">+24u</text>
+      <text x={tx(end)} y={115} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">+48u</text>
+      {/* tik-select: onzichtbare kolommen die de as vullen (nearest-kolom bij tik) */}
+      {sweep.map((o) => (
+        <rect key={`h${o.depMs}`} x={tx(o.depMs) - pitch / 2} y={Y0} width={pitch} height={YB - Y0}
+          fill="transparent" style={{ cursor: "pointer" }} onClick={() => onSelect(o.depMs)} />
+      ))}
+    </svg>
+  );
+}
+
+function MobileAnswer({ best }: { best: DepOption }) {
+  const r = best.result;
+  const startMee = (r.steps[0]?.cur ?? 0) >= 0;
+  const kent = r.kentMs && r.kentMs > r.departMs && (r.arrMs == null || r.kentMs < r.arrMs);
+  const why = r.voorbijHorizon ? "Beste haalbare venster · stroomdata deels onzeker."
+    : kent ? `Grootste deel ${startMee ? "mee" : "tegen"}-stroom · kentering rond ${localHM(r.kentMs!)}.`
+    : startMee ? "Grootste deel mee-stroom." : "Overwegend tegenstroom — gunstigste zeilhoek.";
+  return (
+    <div style={{ marginTop: 14, padding: 16, borderRadius: 16, background: alpha(COLORS.stroom, 0.08), border: `1px solid ${alpha(COLORS.stroom, 0.3)}` }}>
+      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px", color: alpha(COLORS.stroom, 0.85) }}>Beste vertrek</div>
+      <div className="kpi" style={{ fontSize: 26, fontWeight: 700, marginTop: 4, color: COLORS.sog }}>{localHM(best.depMs)}</div>
+      <div style={{ fontSize: 13, color: "rgba(233,233,237,.6)", marginTop: 6, lineHeight: 1.4 }}>{why}</div>
+      <div style={{ fontSize: 13, color: "rgba(233,233,237,.8)", marginTop: 8, display: "flex", gap: 16, flexWrap: "wrap", fontVariantNumeric: "tabular-nums" }}>
+        <span>ETA <b style={{ color: COLORS.sog }}>{r.arrMs ? localHM(r.arrMs) : "—"}</b></span>
+        <span>Duur <b style={{ color: COLORS.sog }}>{r.arrMs ? fmtDur(r.tripMin) : "—"}</b></span>
+        <span>Ø <b style={{ color: COLORS.sog }}>{r.arrMs ? `${r.avgSog.toFixed(1).replace(".", ",")} kn` : "—"}</b></span>
+      </div>
+    </div>
+  );
+}
+
+function VensterRow({ opt, best, nowMs, selected, onSelect }: {
+  opt: DepOption; best: DepOption | null; nowMs: number; selected: boolean; onSelect: () => void;
+}) {
+  const r = opt.result;
+  const delta = best ? Math.round(r.tripMin - best.result.tripMin) : 0;
+  const startMee = (r.steps[0]?.cur ?? 0) >= 0;
+  const kent = r.kentMs && r.kentMs > r.departMs && (r.arrMs == null || r.kentMs < r.arrMs);
+  const char = r.voorbijHorizon ? "stroom-data onzeker"
+    : kent ? `${startMee ? "mee" : "tegen"}, kentering ${localHM(r.kentMs!)}`
+    : startMee ? "mee-stroom" : "tegenstroom";
+  const h = amsHour(opt.depMs);
+  const dayTxt = `${mobileDayLabel(opt.depMs, nowMs)}${h >= 22 || h < 6 ? " · nacht" : ""}`;
+  return (
+    <div onClick={onSelect} className="haven-trigger" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, marginBottom: 6, cursor: "pointer", background: selected ? alpha(COLORS.stroom, 0.09) : "rgba(255,255,255,.03)", border: `1px solid ${selected ? alpha(COLORS.stroom, 0.35) : "rgba(255,255,255,.06)"}` }}>
+      <div style={{ flex: "0 0 auto", minWidth: 74 }}>
+        <div className="kpi" style={{ fontSize: 16, fontWeight: 700, color: COLORS.sog, lineHeight: 1 }}>{localHM(opt.depMs)}</div>
+        <div style={{ fontSize: 11, color: "rgba(233,233,237,.45)", marginTop: 3 }}>{dayTxt}</div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.75)" }}>{r.arrMs ? fmtDur(r.tripMin) : "n.b."}</div>
+        <div style={{ fontSize: 11, color: "rgba(233,233,237,.45)", marginTop: 2 }}>{char}</div>
+      </div>
+      {r.voorbijHorizon
+        ? <span style={{ flex: "0 0 auto", fontSize: 11, fontWeight: 600, padding: "4px 9px", borderRadius: 20, color: COLORS.kentering, background: alpha(COLORS.kentering, 0.12) }}>onzeker</span>
+        : <span style={{ flex: "0 0 auto", fontSize: 11, fontWeight: 600, padding: "4px 9px", borderRadius: 20, color: "rgba(233,233,237,.55)", background: "rgba(255,255,255,.05)" }}>{delta >= 0 ? "+" : ""}{delta} min</span>}
+    </div>
+  );
+}
+
+// Passage-strip: verticale rijen (geen h-scroll) uit het tripsim-verloop. Hergebruikt
+// sampleHourly + positionName uit VaarplanView; kentering als gele scheiding; ontbrekende
+// stroom (buiten het dekkingsvenster) → '—', nooit een verzonnen 0.
+function PassageStrip({ trip, depMs, routeDistNm, fromStation, toStation, viaHavens, stroomSpan }: {
+  trip: SimResult; depMs: number; routeDistNm: number | null;
+  fromStation: RouteHaven | null; toStation: RouteHaven | null; viaHavens: ViaHaven[];
+  stroomSpan: { first: number; last: number } | null;
+}) {
+  const rows = useMemo(() => sampleHourly(trip.steps), [trip]);
+  const milestones = useMemo(() => {
+    const ms: { naam: string; nm: number }[] = [];
+    if (fromStation) ms.push({ naam: fromStation.naam, nm: 0 });
+    for (const v of viaHavens) ms.push({ naam: v.haven.naam, nm: v.nmFromStart });
+    if (toStation && routeDistNm != null) ms.push({ naam: toStation.naam, nm: routeDistNm });
+    return ms;
+  }, [fromStation, toStation, viaHavens, routeDistNm]);
+  const kentMs = trip.kentMs;
+  const hasStroom = (ms: number) => stroomSpan != null && ms >= stroomSpan.first && ms <= stroomSpan.last;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ margin: "0 4px 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Verloop bij {localHM(depMs)} — wind · stroom · SOG</div>
+      {rows.map((s, i) => {
+        const prev = rows[i - 1];
+        const flip = prev && (prev.cur >= 0) !== (s.cur >= 0);
+        const kMs = kentMs && kentMs > (prev?.tMs ?? -Infinity) && kentMs <= s.tMs ? kentMs : null;
+        const noData = !hasStroom(s.tMs);
+        const mee = s.cur >= 0;
+        return (
+          <Fragment key={i}>
+            {flip && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", margin: "2px 6px" }}>
+                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
+                <div style={{ fontSize: 11, color: COLORS.kentering, whiteSpace: "nowrap" }}>kentering {localHM(kMs ?? s.tMs)}</div>
+                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 6px", borderRadius: 10, background: i % 2 ? "transparent" : "rgba(255,255,255,.02)" }}>
+              <div style={{ flex: "0 0 42px", fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.7)", fontVariantNumeric: "tabular-nums" }}>{localHM(s.tMs)}</div>
+              <div style={{ flex: "0 0 62px", fontSize: 11, color: "rgba(233,233,237,.45)", lineHeight: 1.2 }}>{positionName(s.prog, milestones)}</div>
+              <div style={{ flex: "0 0 46px", display: "flex", alignItems: "center", gap: 3, fontSize: 13, fontWeight: 600, color: COLORS.wind }}>
+                {Math.round(s.wSpd)}
+                <svg width={11} height={11} viewBox="0 0 20 20" style={{ transform: `rotate(${s.wDir + 180}deg)` }}><path d="M10 3 L14 15 L10 12 L6 15 Z" fill={alpha(COLORS.wind, 0.7)} /></svg>
+              </div>
+              <div style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "3px 0", borderRadius: 6,
+                color: noData ? "rgba(233,233,237,.4)" : mee ? COLORS.stroom : COLORS.stroomTegen,
+                background: noData ? "transparent" : mee ? alpha(COLORS.stroom, 0.1) : alpha(COLORS.stroomTegen, 0.1) }}>
+                {noData ? "—" : `${mee ? "mee" : "tegen"} ${Math.abs(s.cur).toFixed(1).replace(".", ",")}`}
+              </div>
+              <div style={{ flex: "0 0 44px", textAlign: "right", fontSize: 14, fontWeight: 600, color: COLORS.sog, fontVariantNumeric: "tabular-nums" }}>{s.sog.toFixed(1).replace(".", ",")}</div>
+            </div>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
