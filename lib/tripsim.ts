@@ -50,11 +50,12 @@ export type SimResult = {
   kentMs: number | null;     // eerste tekenwissel van de stroom binnen de tocht
   distanceNm: number;
   unreachable: boolean;
-  voorbijHorizon: boolean;   // ≥1 stap gebruikte stroom die niet volledig door de
-                             // forecast wordt gedekt: ofwel de cur=0-fallback (ontbrekende
-                             // data / een gat), ofwel de geëxtrapoleerde clamp voorbij de
-                             // laatste sample. Puur bestaand gedrag gelabeld; geen extra
-                             // stroomberekening, geen wijziging aan duur/ETA.
+  // true zodra een stap stroom gebruikte die niet volledig door de forecast is gedekt:
+  // ontbrekende data/gat (cur=0) óf geëxtrapoleerde clamp voorbij de laatste sample.
+  // NB: de naam dekt de lading niet helemaal — hij vuurt óók bij een gat middenin, niet
+  // alleen voorbij de horizon. Puur bestaand gedrag gelabeld; geen extra stroomberekening,
+  // geen wijziging aan duur/ETA.
+  voorbijHorizon: boolean;
 };
 
 // Windvector (kn, oost/noord) die WIJST WAARHEEN de wind waait.
