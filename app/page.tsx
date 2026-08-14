@@ -4,7 +4,7 @@
 // /api/routes) en de bestaande libs (polar.ts, route.ts, tripsim.ts). De Nu-view volgt
 // de nav-picker; de Tocht-planner kiest uit de bekende havenroutes (netwerk_routes) en
 // zet het antwoord (beste vertrek + alternatieven) vooraan, het bewijs (grafieken) erna.
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BOAT } from "@/lib/polar";
 import { localHM, localMidnight, localDateISO } from "@/lib/tz";
 import { compass, beaufort } from "@/lib/format";
@@ -17,7 +17,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import HavenSelector from "./components/HavenSelector";
-import VaarplanView, { type ViaHaven, sampleHourly, positionName } from "./components/VaarplanView";
+import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
@@ -404,7 +404,8 @@ export default function Page() {
                 depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
                 distanceNm={routeDistNm} bearingDeg={routeBearing}
                 routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
-                fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT} />
+                fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT}
+                stroomSpan={stroomSpanOf(routeMeta.legTimelines)} />
             ) : (
               // geen geldig vertrekmoment (bv. herladen op deze view)
               <VaarplanEmpty />
@@ -740,6 +741,14 @@ function combineLegTimelines(
     return { t, alongKn: wsum > 0 ? sum / wsum : null };
   });
   return { series, modelUnvalidated };
+}
+
+// Stroom-dekkingsvenster [first,last] uit de gecombineerde leg-tijdlijnen: het
+// bereik waar er échte stroomdata is (alongKn != null). Buiten dit venster toont
+// de tijdlijn-strip '—' i.p.v. een verzonnen 0. Gedeeld door Tocht + Vaarplan.
+function stroomSpanOf(legTimelines: { cur: RouteCurrent | null; distNm: number }[]): { first: number; last: number } | null {
+  const ms = combineLegTimelines(legTimelines).series.filter((p) => p.alongKn != null).map((p) => tms(p.t));
+  return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
 }
 
 function DepartureView({
@@ -1084,11 +1093,7 @@ function DepartureMobile({
   }, [route.legTimelines]);
 
   // stroom-dekkingsvenster (voor de strip: buiten dit bereik → '—', nooit een verzonnen 0)
-  const stroomSpan = useMemo(() => {
-    const ms = combineLegTimelines(route.legTimelines).series
-      .filter((p) => p.alongKn != null).map((p) => tms(p.t));
-    return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
-  }, [route.legTimelines]);
+  const stroomSpan = useMemo(() => stroomSpanOf(route.legTimelines), [route.legTimelines]);
 
   const vanNaam = fromStation?.naam ?? naamOf(fromHaven);
   const naarNaam = toStation?.naam ?? naamOf(toHaven);
@@ -1284,60 +1289,6 @@ function VensterRow({ opt, best, nowMs, selected, onSelect }: {
 // Passage-strip: verticale rijen (geen h-scroll) uit het tripsim-verloop. Hergebruikt
 // sampleHourly + positionName uit VaarplanView; kentering als gele scheiding; ontbrekende
 // stroom (buiten het dekkingsvenster) → '—', nooit een verzonnen 0.
-function PassageStrip({ trip, depMs, routeDistNm, fromStation, toStation, viaHavens, stroomSpan }: {
-  trip: SimResult; depMs: number; routeDistNm: number | null;
-  fromStation: RouteHaven | null; toStation: RouteHaven | null; viaHavens: ViaHaven[];
-  stroomSpan: { first: number; last: number } | null;
-}) {
-  const rows = useMemo(() => sampleHourly(trip.steps), [trip]);
-  const milestones = useMemo(() => {
-    const ms: { naam: string; nm: number }[] = [];
-    if (fromStation) ms.push({ naam: fromStation.naam, nm: 0 });
-    for (const v of viaHavens) ms.push({ naam: v.haven.naam, nm: v.nmFromStart });
-    if (toStation && routeDistNm != null) ms.push({ naam: toStation.naam, nm: routeDistNm });
-    return ms;
-  }, [fromStation, toStation, viaHavens, routeDistNm]);
-  const kentMs = trip.kentMs;
-  const hasStroom = (ms: number) => stroomSpan != null && ms >= stroomSpan.first && ms <= stroomSpan.last;
-  return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ margin: "0 4px 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Verloop bij {localHM(depMs)} — wind · stroom · SOG</div>
-      {rows.map((s, i) => {
-        const prev = rows[i - 1];
-        const flip = prev && (prev.cur >= 0) !== (s.cur >= 0);
-        const kMs = kentMs && kentMs > (prev?.tMs ?? -Infinity) && kentMs <= s.tMs ? kentMs : null;
-        const noData = !hasStroom(s.tMs);
-        const mee = s.cur >= 0;
-        return (
-          <Fragment key={i}>
-            {flip && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", margin: "2px 6px" }}>
-                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
-                <div style={{ fontSize: 11, color: COLORS.kentering, whiteSpace: "nowrap" }}>kentering {localHM(kMs ?? s.tMs)}</div>
-                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 6px", borderRadius: 10, background: i % 2 ? "transparent" : "rgba(255,255,255,.02)" }}>
-              <div style={{ flex: "0 0 42px", fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.7)", fontVariantNumeric: "tabular-nums" }}>{localHM(s.tMs)}</div>
-              <div style={{ flex: "0 0 62px", fontSize: 11, color: "rgba(233,233,237,.45)", lineHeight: 1.2 }}>{positionName(s.prog, milestones)}</div>
-              <div style={{ flex: "0 0 46px", display: "flex", alignItems: "center", gap: 3, fontSize: 13, fontWeight: 600, color: COLORS.wind }}>
-                {Math.round(s.wSpd)}
-                <svg width={11} height={11} viewBox="0 0 20 20" style={{ transform: `rotate(${s.wDir + 180}deg)` }}><path d="M10 3 L14 15 L10 12 L6 15 Z" fill={alpha(COLORS.wind, 0.7)} /></svg>
-              </div>
-              <div style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "3px 0", borderRadius: 6,
-                color: noData ? "rgba(233,233,237,.4)" : mee ? COLORS.stroom : COLORS.stroomTegen,
-                background: noData ? "transparent" : mee ? alpha(COLORS.stroom, 0.1) : alpha(COLORS.stroomTegen, 0.1) }}>
-                {noData ? "—" : `${mee ? "mee" : "tegen"} ${Math.abs(s.cur).toFixed(1).replace(".", ",")}`}
-              </div>
-              <div style={{ flex: "0 0 44px", textAlign: "right", fontSize: 14, fontWeight: 600, color: COLORS.sog, fontVariantNumeric: "tabular-nums" }}>{s.sog.toFixed(1).replace(".", ",")}</div>
-            </div>
-          </Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
 // Vaarplan zonder geselecteerd vertrek (bv. herladen op deze tab): leeg met hint.
 function VaarplanEmpty() {
   return (

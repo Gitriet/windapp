@@ -145,6 +145,14 @@ body {
 /* 12u-chart + windveren: naast elkaar op desktop. */
 .now-grid { grid-template-columns: 1.4fr 1fr; }
 
+/* Vaarplan-view: zijrand + vaste kolom-grids op desktop (base). De mobiele
+   media-query hieronder stapelt ze en trekt de zijrand gelijk met de rest. */
+.vaarplan { padding: 18px var(--view-pad-x) 48px; }
+.vaarplan-title { font-size: 24px; }
+.vaarplan-metrics { grid-template-columns: repeat(5, 1fr); }
+.vaarplan-tides,
+.vaarplan-havens { grid-template-columns: 1fr 1fr; }
+
 /* ══ Mobiel fundament ═══════════════════════════════════════════════
    Eén mobiele breakpoint voor de hele app: 640px. Latere mobiel-
    opdrachten hergebruiken exact deze grens — introduceer geen
@@ -183,4 +191,13 @@ html, body { overflow-x: hidden; }
   .loc-picker { flex-basis: 100%; width: 100%; justify-content: space-between; }
   /* 12u-chart + windveren niet naast elkaar knijpen maar stacken. */
   .now-grid { grid-template-columns: 1fr; }
+
+  /* Vaarplan mobiel: zijrand gelijk aan de rest (16px → 40px vanaf schermrand),
+     titel iets kleiner, en de grids stapelen i.p.v. overlopen. */
+  .vaarplan { padding-left: 16px; padding-right: 16px; }
+  .vaarplan-title { font-size: 20px; }
+  .vaarplan-metrics { grid-template-columns: 1fr 1fr; }
+  .vaarplan-metrics > :last-child { grid-column: 1 / -1; }  /* Afstand: volle breedte */
+  .vaarplan-tides,
+  .vaarplan-havens { grid-template-columns: 1fr; }
 }

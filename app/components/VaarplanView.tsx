@@ -7,6 +7,7 @@
 import { Fragment, useMemo } from "react";
 import { COLORS, alpha } from "@/lib/colors";
 import { localHM } from "@/lib/tz";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import { dirLabel16, sailPhrase, fmtDur, tripWind } from "./charts";
 import { WindRoseIcon } from "./WindRoseIcon";
 import { relativeWindAngle } from "@/lib/wind";
@@ -33,6 +34,7 @@ export interface VaarplanViewProps {
   toTide: TideData | null;         // getijcurve aankomsthaven (via eigen key-station)
   via: ViaHaven[];                 // tussenliggende havens (uitwijk); leeg bij directe route
   boat: BoatProfile;
+  stroomSpan: { first: number; last: number } | null;  // stroom-dekkingsvenster (voor de mobiele tijdlijn-strip)
 }
 
 // Verkeersposten langs de NL-kust — handmatige seed, geselecteerd op de breedtegraad-
@@ -128,8 +130,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ════════════════════════════════════════════════════════════════════════
 export default function VaarplanView({
-  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, toTide, via, boat,
+  depMs, trip, from, to, distanceNm, bearingDeg, routeLabel, fromTide, toTide, via, boat, stroomSpan,
 }: VaarplanViewProps) {
+  const isMobile = useIsMobile();
   const steps = trip.steps;
 
   // milestones voor de positie-naamgeving: vertrek@0, tussenhavens, aankomst@totaal
@@ -169,15 +172,15 @@ export default function VaarplanView({
   const lwT = nextExtreme(toTide, arrRef, "LW");
 
   return (
-    <div style={{ padding: "18px var(--view-pad-x) 48px" }}>
+    <div className="vaarplan">
       {/* ── Sectie 1: Kop ─────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
         <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={5} r={2.4} /><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3M12 12l0 0" /><path d="M5 12a7 7 0 0 0 14 0" /></svg>
-        <div style={{ fontSize: 24, fontWeight: 600, color: "#e9e9ed" }}>{routeTitle}</div>
+        <div className="vaarplan-title" style={{ fontWeight: 600, color: "#e9e9ed" }}>{routeTitle}</div>
       </div>
       <div style={{ fontSize: 13, color: "rgba(233,233,237,.5)", marginTop: 3, marginLeft: 32 }}>{routeSub}</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginTop: 16 }}>
+      <div className="vaarplan-metrics" style={{ display: "grid", gap: 10, marginTop: 16 }}>
         <MetricCard label="Vertrek" value={localHM(depMs)} />
         <MetricCard label="Aankomst" value={trip.arrMs ? localHM(trip.arrMs) : "—"} />
         <MetricCard label="Vaartijd" value={trip.arrMs ? fmtDur(trip.tripMin) : "—"} />
@@ -196,7 +199,7 @@ export default function VaarplanView({
       <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(233,233,237,.8)", background: "rgba(15,17,25,.35)", borderRadius: 10, padding: "12px 16px", boxShadow: `inset 0 0 0 1px ${alpha(COLORS.wind, 0.14)}` }}>
         {weatherSentence(steps)}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+      <div className="vaarplan-tides" style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <TidePanel titel={`Getij ${from.naam}`} hw={hwV} lw={lwV} available={!!fromTide} />
         <TidePanel titel={`Getij ${to.naam}`} hw={hwT} lw={lwT} available={!!toTide}
           note="Geen getijstation gekoppeld aan deze aankomsthaven." />
@@ -204,6 +207,11 @@ export default function VaarplanView({
 
       {/* ── Sectie 3: Tijdlijn ────────────────────────────────────────── */}
       <SectionTitle>Tijdlijn</SectionTitle>
+      {isMobile ? (
+        // mobiel: verticale strip (geen h-scroll) — hergebruik van de Tocht-view
+        <PassageStrip trip={trip} depMs={depMs} routeDistNm={distanceNm}
+          fromStation={from} toStation={to} viaHavens={via} stroomSpan={stroomSpan} />
+      ) : (
       <div style={{ overflowX: "auto", background: "rgba(15,17,25,.35)", borderRadius: 12, boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 520 }}>
           <thead>
@@ -245,10 +253,11 @@ export default function VaarplanView({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* ── Sectie 4: Havens ──────────────────────────────────────────── */}
       <SectionTitle>Havens</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div className="vaarplan-havens" style={{ display: "grid", gap: 10 }}>
         <HavenCard rol="Vertrek" haven={from} gate={fromGate} />
         <HavenCard rol="Aankomst" haven={to} gate={null} />
       </div>
@@ -354,6 +363,64 @@ function VhfSection({ from, to }: { from: RouteHaven; to: RouteHaven }) {
         ))}
       </div>
       <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)", marginTop: 8 }}>Indicatief — controleer de actuele kanalen (ANWB Wateralmanak).</div>
+    </div>
+  );
+}
+
+// ── Verticale tijdlijn-strip ────────────────────────────────────────────
+// Gedeeld tussen de Tocht-mobile-view (page.tsx) en de Vaarplan-mobiel-tijdlijn.
+// Toont het tocht-verloop als rijen (tijd · positie · compacte wind · stroom · SOG)
+// i.p.v. een tabel. stroomSpan gate't het "—" buiten het stroom-dekkingsvenster.
+export function PassageStrip({ trip, depMs, routeDistNm, fromStation, toStation, viaHavens, stroomSpan }: {
+  trip: SimResult; depMs: number; routeDistNm: number | null;
+  fromStation: RouteHaven | null; toStation: RouteHaven | null; viaHavens: ViaHaven[];
+  stroomSpan: { first: number; last: number } | null;
+}) {
+  const rows = useMemo(() => sampleHourly(trip.steps), [trip]);
+  const milestones = useMemo(() => {
+    const ms: { naam: string; nm: number }[] = [];
+    if (fromStation) ms.push({ naam: fromStation.naam, nm: 0 });
+    for (const v of viaHavens) ms.push({ naam: v.haven.naam, nm: v.nmFromStart });
+    if (toStation && routeDistNm != null) ms.push({ naam: toStation.naam, nm: routeDistNm });
+    return ms;
+  }, [fromStation, toStation, viaHavens, routeDistNm]);
+  const kentMs = trip.kentMs;
+  const hasStroom = (ms: number) => stroomSpan != null && ms >= stroomSpan.first && ms <= stroomSpan.last;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ margin: "0 4px 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Verloop bij {localHM(depMs)} — wind · stroom · SOG</div>
+      {rows.map((s, i) => {
+        const prev = rows[i - 1];
+        const flip = prev && (prev.cur >= 0) !== (s.cur >= 0);
+        const kMs = kentMs && kentMs > (prev?.tMs ?? -Infinity) && kentMs <= s.tMs ? kentMs : null;
+        const noData = !hasStroom(s.tMs);
+        const mee = s.cur >= 0;
+        return (
+          <Fragment key={i}>
+            {flip && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", margin: "2px 6px" }}>
+                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
+                <div style={{ fontSize: 11, color: COLORS.kentering, whiteSpace: "nowrap" }}>kentering {localHM(kMs ?? s.tMs)}</div>
+                <div style={{ flex: 1, height: 1, background: alpha(COLORS.kentering, 0.4) }} />
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 6px", borderRadius: 10, background: i % 2 ? "transparent" : "rgba(255,255,255,.02)" }}>
+              <div style={{ flex: "0 0 42px", fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.7)", fontVariantNumeric: "tabular-nums" }}>{localHM(s.tMs)}</div>
+              <div style={{ flex: "0 0 62px", fontSize: 11, color: "rgba(233,233,237,.45)", lineHeight: 1.2 }}>{positionName(s.prog, milestones)}</div>
+              <div style={{ flex: "0 0 46px", display: "flex", alignItems: "center", gap: 3, fontSize: 13, fontWeight: 600, color: COLORS.wind }}>
+                {Math.round(s.wSpd)}
+                <svg width={11} height={11} viewBox="0 0 20 20" style={{ transform: `rotate(${s.wDir + 180}deg)` }}><path d="M10 3 L14 15 L10 12 L6 15 Z" fill={alpha(COLORS.wind, 0.7)} /></svg>
+              </div>
+              <div style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "3px 0", borderRadius: 6,
+                color: noData ? "rgba(233,233,237,.4)" : mee ? COLORS.stroom : COLORS.stroomTegen,
+                background: noData ? "transparent" : mee ? alpha(COLORS.stroom, 0.1) : alpha(COLORS.stroomTegen, 0.1) }}>
+                {noData ? "—" : `${mee ? "mee" : "tegen"} ${Math.abs(s.cur).toFixed(1).replace(".", ",")}`}
+              </div>
+              <div style={{ flex: "0 0 44px", textAlign: "right", fontSize: 14, fontWeight: 600, color: COLORS.sog, fontVariantNumeric: "tabular-nums" }}>{s.sog.toFixed(1).replace(".", ",")}</div>
+            </div>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
