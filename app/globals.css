@@ -141,8 +141,6 @@ body {
 .nowview { padding: 14px var(--view-pad-x) 34px; }
 /* 12u-chart + windveren: naast elkaar op desktop. */
 .now-grid { grid-template-columns: 1.4fr 1fr; }
-/* Wrapper om de 7-daagse tabel; neutraal op desktop (tabel past → geen scrollbar). */
-.table-scroll { overflow-x: auto; }
 
 /* ══ Mobiel fundament ═══════════════════════════════════════════════
    Eén mobiele breakpoint voor de hele app: 640px. Latere mobiel-
@@ -174,6 +172,4 @@ html, body { overflow-x: hidden; }
   .loc-picker { flex-basis: 100%; width: 100%; justify-content: space-between; }
   /* 12u-chart + windveren niet naast elkaar knijpen maar stacken. */
   .now-grid { grid-template-columns: 1fr; }
-  /* 7-daagse: 7 kolommen passen niet op 375px → lokaal scrollen i.p.v. persen. */
-  .table-scroll .table { min-width: 500px; }
 }

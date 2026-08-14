@@ -485,7 +485,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
 
       <div style={{ marginTop: 26 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)", marginBottom: 8 }}>7-daagse vooruitzichten</div>
-        <div className="table-scroll"><WeekTable week={week} tide={tide} /></div>
+        <WeekTable week={week} tide={tide} />
       </div>
     </div>
   );
@@ -612,6 +612,7 @@ function rateDay(speedMax: number | null, gust: number | null): { ratingLabel: s
 }
 
 function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData | { tide: null } | null }) {
+  const isMobile = useIsMobile();
   if (!week) return <Loading label="7-daagse laden…" />;
   const hwByDay = new Map<string, TideExtreme>();
   const lwByDay = new Map<string, TideExtreme>();
@@ -623,6 +624,42 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
     }
   }
   const wd = (date: string) => new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date(date + "T12:00:00Z"));
+
+  // Mobiel (≤640px): de 7-koloms tabel past niet op 375px, dus per dag een kaart.
+  // Zelfde data als de desktop-tabel; Golf valt weg (heeft geen databron). Elke
+  // metric is zelf-gelabeld (vlaag/pijl/H·L), dus geen scheidingstekens nodig.
+  if (isMobile) return (
+    <div>
+      {week.days.map((d) => {
+        const { ratingLabel, tagClass } = rateDay(d.speedMax, d.gust);
+        const hw = hwByDay.get(d.date), lw = lwByDay.get(d.date);
+        const windRange = d.windMin != null && d.speedMax != null
+          ? `${Math.round(d.windMin)}–${Math.round(d.speedMax)}`
+          : d.speedMax != null ? `${Math.round(d.speedMax)}` : "—";
+        return (
+          <div key={d.date} style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#e9e9ed" }}>{wd(d.date)}</span>
+              <span className={tagClass}>{ratingLabel}</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 7, fontSize: 12.5, color: "rgba(233,233,237,.6)", fontVariantNumeric: "tabular-nums" }}>
+              <span><span style={{ color: COLORS.wind, fontWeight: 600 }}>{windRange}</span> kn</span>
+              <span>vlaag <span style={{ color: COLORS.wind }}>{d.gust != null ? Math.round(d.gust) : "—"}</span></span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {d.dir != null && <svg width={13} height={13} viewBox="0 0 20 20" style={{ transform: `rotate(${d.dir}deg)` }}><path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} /></svg>}
+                {d.dir != null ? compass(d.dir) : "—"}
+              </span>
+              <span>
+                {hw ? <><span style={{ color: COLORS.water }}>H</span>{localHM(tms(hw.t))}</> : "—"}
+                {lw && <> <span style={{ color: "rgba(233,233,237,.35)" }}>L</span>{localHM(tms(lw.t))}</>}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <table className="table" style={{ fontSize: 13 }}>
       <thead><tr><th>Dag</th><th>Wind</th><th>Vlaag</th><th>Richt.</th><th>Golf</th><th>Getij</th><th /></tr></thead>
