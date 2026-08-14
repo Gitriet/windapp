@@ -642,17 +642,20 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
               <span style={{ fontSize: 15, fontWeight: 600, color: "#e9e9ed" }}>{wd(d.date)}</span>
               <span className={tagClass}>{ratingLabel}</span>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 7, fontSize: 12.5, color: "rgba(233,233,237,.6)", fontVariantNumeric: "tabular-nums" }}>
+            {/* metrics in vaste kolommen zodat wind/vlaag/richting over alle
+                kaarten uitlijnen; getij vast op een eigen regel eronder → elke
+                kaart identiek van opmaak (geen inconsistente wrap). */}
+            <div style={{ display: "grid", gridTemplateColumns: "76px 76px 1fr", alignItems: "center", gap: 8, marginTop: 7, fontSize: 12.5, color: "rgba(233,233,237,.6)", fontVariantNumeric: "tabular-nums" }}>
               <span><span style={{ color: COLORS.wind, fontWeight: 600 }}>{windRange}</span> kn</span>
               <span>vlaag <span style={{ color: COLORS.wind }}>{d.gust != null ? Math.round(d.gust) : "—"}</span></span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 {d.dir != null && <svg width={13} height={13} viewBox="0 0 20 20" style={{ transform: `rotate(${d.dir}deg)` }}><path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} /></svg>}
                 {d.dir != null ? compass(d.dir) : "—"}
               </span>
-              <span>
-                {hw ? <><span style={{ color: COLORS.water }}>H</span>{localHM(tms(hw.t))}</> : "—"}
-                {lw && <> <span style={{ color: "rgba(233,233,237,.35)" }}>L</span>{localHM(tms(lw.t))}</>}
-              </span>
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12.5, color: "rgba(233,233,237,.5)", fontVariantNumeric: "tabular-nums" }}>
+              {hw ? <><span style={{ color: COLORS.water }}>H</span>{localHM(tms(hw.t))}</> : "—"}
+              {lw && <> <span style={{ color: "rgba(233,233,237,.35)" }}>L</span>{localHM(tms(lw.t))}</>}
             </div>
           </div>
         );
