@@ -155,8 +155,12 @@ html, body { overflow-x: hidden; }
   /* Flex-rijen die smaller dan hun inhoud worden, laten doorlopen naar
      een volgende regel i.p.v. buiten beeld te vallen — zo blijven de
      locatie-picker (nav, rechts) en de tweede haven-selector bereikbaar. */
-  .nav { flex-wrap: wrap; }
+  .nav { flex-wrap: wrap; gap: 6px 18px; }
   .haven-row { flex-wrap: wrap; }
+
+  /* Header opgeruimd: merk (Tidan) op een eigen rij, de drie tabs samen
+     op de rij eronder. flex-basis:100% dwingt de wrap ná de merknaam. */
+  .nav-brand { flex-basis: 100%; }
 
   /* Tap-doelen ≥44px — alleen mobiel; desktop-hoogtes blijven ongemoeid. */
   .nav a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
