@@ -24,6 +24,7 @@ import {
   dirLabel16, sailPhrase, windAgainstCurrent, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -411,6 +412,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   fc: ForecastResponse | null; week: WeekResponse | null;
   tide: TideData | { tide: null } | null; loc?: Location; nowMs: number;
 }) {
+  const isMobile = useIsMobile();
   if (!fc || !loc) return <Loading label="wind laden…" />;
   const pts = fc.points;
   if (!pts.length) return <div style={{ padding: 40, color: "rgba(233,233,237,.5)" }}>Geen voorspelling beschikbaar voor {loc.name}.</div>;
@@ -427,6 +429,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
 
   return (
     <div style={{ padding: "14px var(--view-pad-x) 34px" }}>
+      {isMobile ? <HeroMobile p0={p0} bft={bft} /> : (
       <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
         <div style={{ position: "relative", flex: 1 }}>
@@ -451,6 +454,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
           <div style={{ transform: "scale(0.558)", transformOrigin: "top left" }}><Compass dir={p0.dir_deg} /></div>
         </div>
       </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, marginTop: 16 }}>
         <div>
@@ -470,6 +474,70 @@ function NowView({ fc, week, tide, loc, nowMs }: {
         <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)", marginBottom: 8 }}>7-daagse vooruitzichten</div>
         <WeekTable week={week} tide={tide} />
       </div>
+    </div>
+  );
+}
+
+// Windkracht-beschrijving afgeleid van het Beaufort-getal (0–12). Puur een
+// presentatielabel — geen databron; het getal komt uit beaufort(speed_kn).
+const BFT_LABEL = [
+  "stil", "zwak", "zwak", "matig", "matig", "vrij krachtig", "krachtig",
+  "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
+];
+
+// Mobiele hero (≤640px): compas + snelheid als anker, drie compacte metrics
+// eronder. Vereenvoudigd t.o.v. desktop — geen datumregel, HW-tag, model-tag of
+// trend-zin. Golf/water hebben geen forecast-bron → tonen `—`. WindCanvas blijft
+// de achtergrond-particles (amber, kleur uit COLORS.wind). Conform de mock
+// tidan-hero-mobile.html.
+function HeroMobile({ p0, bft }: { p0: ForecastResponse["points"][number]; bft: number }) {
+  const spd = Math.round(p0.speed_kn);
+  const dir = p0.dir_deg;
+  // amber stip op de kompasrand = windrichting t.o.v. noord (Nu-view, geen koers)
+  const rad = (dir * Math.PI) / 180, cx = 50 + 40 * Math.sin(rad), cy = 50 - 40 * Math.cos(rad);
+  // golf/water: geen veld in de forecast → bron is null → `—`
+  const golf: number | null = null, water: number | null = null;
+  const dimVal = "rgba(233,233,237,.35)";
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 16, padding: "22px 18px 20px", background: alpha(COLORS.wind, 0.05), border: `1px solid ${alpha(COLORS.wind, 0.22)}` }}>
+      <WindCanvas dir={canvasDir(dir)} color={COLORS.wind} />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 18 }}>
+        <svg viewBox="0 0 100 100" width={104} height={104} style={{ flex: "0 0 auto" }}>
+          <circle cx={50} cy={50} r={40} fill="none" stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5} />
+          <g stroke={alpha(COLORS.wind, 0.55)} strokeWidth={2}>
+            <line x1={50} y1={10} x2={50} y2={17} /><line x1={50} y1={83} x2={50} y2={90} />
+            <line x1={10} y1={50} x2={17} y2={50} /><line x1={83} y1={50} x2={90} y2={50} />
+          </g>
+          <g stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5}>
+            <line x1={21.7} y1={21.7} x2={26} y2={26} /><line x1={78.3} y1={21.7} x2={74} y2={26} />
+            <line x1={21.7} y1={78.3} x2={26} y2={74} /><line x1={78.3} y1={78.3} x2={74} y2={74} />
+          </g>
+          <circle cx={cx} cy={cy} r={5.5} fill={COLORS.wind} />
+          <text x={50} y={49} textAnchor="middle" dominantBaseline="central" fontSize={30} fontWeight={700} fill="#e9e9ed" className="kpi">{spd}</text>
+          <text x={50} y={66} textAnchor="middle" fontSize={9} fill="rgba(233,233,237,.5)">kn</text>
+        </svg>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 44, fontWeight: 700, lineHeight: 1, color: COLORS.wind }} className="kpi">
+            {spd}<span style={{ fontSize: 20, fontWeight: 500, color: alpha(COLORS.wind, 0.7), marginLeft: 4 }}>kn</span>
+          </div>
+          <div style={{ fontSize: 15, color: "rgba(233,233,237,.8)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>{dirLabel16(dir)} · {Math.round(dir)}°</div>
+          <div style={{ fontSize: 13, color: "rgba(233,233,237,.45)", marginTop: 2 }}>{bft} Bft · {BFT_LABEL[bft]}</div>
+        </div>
+      </div>
+      <div style={{ position: "relative", display: "flex", gap: 8, marginTop: 18 }}>
+        <Metric label="Vlaag" value={`${Math.round(p0.gust_kn)} kn`} color={COLORS.wind} />
+        <Metric label="Golf" value={golf == null ? "—" : `${golf} m`} color={dimVal} />
+        <Metric label="Water" value={water == null ? "—" : `${water}°`} color={dimVal} />
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ flex: 1, textAlign: "center", padding: "10px 6px", borderRadius: 10, background: "rgba(255,255,255,.04)" }}>
+      <div style={{ fontSize: 10, color: "rgba(233,233,237,.4)", textTransform: "uppercase", letterSpacing: ".4px" }}>{label}</div>
+      <div className="kpi" style={{ fontSize: 17, fontWeight: 600, marginTop: 3, color }}>{value}</div>
     </div>
   );
 }
