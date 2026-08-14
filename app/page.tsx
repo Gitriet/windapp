@@ -366,7 +366,7 @@ export default function Page() {
           <a href="#" aria-current={page === "vaarplan" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("vaarplan"); }}>Vaarplan</a>
           <div style={{ flex: 1 }} />
           {/* polaire-badge: subtiel één-regel label, in de header (alle views) */}
-          <span style={{ fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
+          <span className="nav-polaire" style={{ fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
             Winner 11.20 <span style={{ color: "rgba(233,233,237,.3)" }}>· {Math.round(DEFAULT_BOAT.performance * 100)}%</span>
           </span>
           {/* locatiepicker is alleen relevant voor de Nu-view; in de Tocht-planner onzichtbaar
@@ -441,7 +441,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   });
 
   return (
-    <div style={{ padding: "14px var(--view-pad-x) 34px" }}>
+    <div className="nowview">
       {isMobile ? <HeroMobile p0={p0} bft={bft} /> : (
       <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
@@ -469,7 +469,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
       </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, marginTop: 16 }}>
+      <div className="now-grid" style={{ display: "grid", gap: 22, marginTop: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Komende 12 uur</span>
@@ -485,7 +485,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
 
       <div style={{ marginTop: 26 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)", marginBottom: 8 }}>7-daagse vooruitzichten</div>
-        <WeekTable week={week} tide={tide} />
+        <div className="table-scroll"><WeekTable week={week} tide={tide} /></div>
       </div>
     </div>
   );

@@ -136,6 +136,14 @@ body {
 }
 .table tbody tr:last-child td { border-bottom: none; }
 
+/* Nu-view content-container: zijpadding via de gedeelde var (desktop = 40px).
+   Als class i.p.v. inline zodat de mobiele media-query 'm mag overschrijven. */
+.nowview { padding: 14px var(--view-pad-x) 34px; }
+/* 12u-chart + windveren: naast elkaar op desktop. */
+.now-grid { grid-template-columns: 1.4fr 1fr; }
+/* Wrapper om de 7-daagse tabel; neutraal op desktop (tabel past → geen scrollbar). */
+.table-scroll { overflow-x: auto; }
+
 /* ══ Mobiel fundament ═══════════════════════════════════════════════
    Eén mobiele breakpoint voor de hele app: 640px. Latere mobiel-
    opdrachten hergebruiken exact deze grens — introduceer geen
@@ -156,4 +164,16 @@ html, body { overflow-x: hidden; }
   .nav a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .loc-picker { min-height: 44px; }
   .haven-trigger { min-height: 44px; }
+
+  /* Nu-view-verfijning (≤640px) — CSS-only, geen JSX-branch.
+     Zijrand smaller dan de desktop-40px zodat de 12u-chart leesbaar blijft. */
+  .nowview { padding-left: 16px; padding-right: 16px; }
+  /* polaire-badge is op mobiel ruis in de nav → verbergen (desktop houdt 'm). */
+  .nav-polaire { display: none; }
+  /* locatie-picker op eigen volle-breedte-regel onder de tabs. */
+  .loc-picker { flex-basis: 100%; width: 100%; justify-content: space-between; }
+  /* 12u-chart + windveren niet naast elkaar knijpen maar stacken. */
+  .now-grid { grid-template-columns: 1fr; }
+  /* 7-daagse: 7 kolommen passen niet op 375px → lokaal scrollen i.p.v. persen. */
+  .table-scroll .table { min-width: 500px; }
 }
