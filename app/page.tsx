@@ -356,7 +356,7 @@ export default function Page() {
     <div style={{ padding: "calc(16px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left))" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
         {/* nav */}
-        <div className="nav" style={{ padding: "14px 26px", borderBottom: "1px solid rgba(233,233,237,.08)" }}>
+        <div className="nav" style={{ borderBottom: "1px solid rgba(233,233,237,.08)" }}>
           <span className="nav-brand" style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M3 8h11a3 3 0 1 0-3-3" /><path d="M3 12h15a3 3 0 1 1-3 3" /><path d="M3 16h9" /></svg>
             Tidan
@@ -1141,7 +1141,7 @@ function DepartureMobile({
           {/* 4. andere vensters (lokale optima, beste uitgesloten) */}
           {vensters.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ margin: "0 4px 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Andere vensters</div>
+              <div style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(233,233,237,.4)" }}>Andere vensters</div>
               {vensters.map((o) => (
                 <VensterRow key={o.depMs} opt={o} best={best} nowMs={nowMs} selected={depMs === o.depMs} onSelect={() => setDepMs(o.depMs)} />
               ))}

@@ -40,6 +40,9 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
+  /* Padding als class (niet inline) zodat de mobiele media-query de zijrand
+     kan gelijktrekken met de view-content (16px) i.p.v. de desktop-26px. */
+  padding: 14px 26px;
 }
 .nav-brand {
   font-size: 15px;
@@ -158,9 +161,13 @@ html, body { overflow-x: hidden; }
   .nav { flex-wrap: wrap; gap: 6px 18px; }
   .haven-row { flex-wrap: wrap; }
 
-  /* Header opgeruimd: merk (Tidan) op een eigen rij, de drie tabs samen
-     op de rij eronder. flex-basis:100% dwingt de wrap ná de merknaam. */
-  .nav-brand { flex-basis: 100%; }
+  /* Header opgeruimd: merk (Tidan) gecentreerd op een eigen rij, de drie tabs
+     samen op de rij eronder. flex-basis:100% dwingt de wrap ná de merknaam;
+     justify-content centreert het merk in die volle-breedte-rij. */
+  .nav-brand { flex-basis: 100%; justify-content: center; }
+  /* Header-zijrand gelijk aan de view-content (40px vanaf schermrand) i.p.v.
+     de desktop-26px → picker/tabs lijnen uit met de hero/kaarten eronder. */
+  .nav { padding-left: 16px; padding-right: 16px; }
 
   /* Tap-doelen ≥44px — alleen mobiel; desktop-hoogtes blijven ongemoeid. */
   .nav a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
