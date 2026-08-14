@@ -1052,7 +1052,7 @@ function DepartureMobile({
     : route.viaPassage ? `via ${route.viaPassage}` : "directe route";
 
   return (
-    <div style={{ padding: "12px var(--view-pad-x) 40px", position: "relative" }}>
+    <div style={{ padding: "12px 16px 40px", position: "relative" }}>
       {/* 1. route-pill → overlay met de twee bestaande HavenSelectors */}
       <div ref={pickerRef} style={{ position: "relative" }}>
         <div onClick={() => setPickerOpen((o) => !o)} className="haven-trigger"
