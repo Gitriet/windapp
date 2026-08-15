@@ -346,9 +346,9 @@ export function DepartureCards({
     ? reachable.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)) : null;
   const bestMs = bestOpt?.depMs ?? null;
   const bestMin = bestOpt?.result.tripMin ?? null;   // snelste vaartijd — ijkpunt voor de kleur
-  const cols = Math.min(12, options.length || 1);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
+    // vaste kaartbreedte + wrap: weinig (slimme) vensters vullen niet de volle breedte
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {options.map((o) => {
         const t = o.result, sel = o.depMs === selMs, best = o.depMs === bestMs;
         const unreach = t.arrMs == null;
@@ -364,7 +364,7 @@ export function DepartureCards({
         const warn = !unreach && windAgainstCurrent(t.steps, courseDeg);
         return (
           <div key={o.depMs} onClick={() => onSelect(o.depMs)} style={{
-            padding: "8px 4px 6px", borderRadius: 8, cursor: "pointer", textAlign: "center", position: "relative",
+            width: 96, padding: "8px 4px 6px", borderRadius: 8, cursor: "pointer", textAlign: "center", position: "relative",
             background: sel ? alpha(COLORS.weer, 0.16) : "rgba(15,17,25,.35)",
             border: sel ? `1.5px solid ${COLORS.weer}` : "1px solid rgba(233,233,237,.06)", transition: "all .15s",
           }}>

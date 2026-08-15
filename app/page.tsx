@@ -775,6 +775,27 @@ function DepartureView({
   const vanOptions = useMemo(() => allHavens.filter((h) => h !== toHaven), [allHavens, toHaven]);
   const naarOptions = useMemo(() => allHavens.filter((h) => h !== fromHaven), [allHavens, fromHaven]);
 
+  // slimme vertrekvensters: binnen het gekozen dag/bereik alleen de lokale duur-minima
+  // tonen i.p.v. elk uur — de goede vertrekmomenten, ≥2u uit elkaar, in tijdvolgorde.
+  // Bij weinig haalbare opties (≤7) toont hij ze gewoon allemaal.
+  const smartOptions = useMemo<DepOption[]>(() => {
+    if (depOptions.filter((o) => o.result.arrMs != null).length <= 7) return depOptions;
+    const locMin = depOptions.filter((o, i, a) => {
+      if (o.result.arrMs == null) return false;
+      const L = a[i - 1], R = a[i + 1];
+      const lok = !L || L.result.arrMs == null || o.result.tripMin <= L.result.tripMin;
+      const rok = !R || R.result.arrMs == null || o.result.tripMin <= R.result.tripMin;
+      return lok && rok;
+    });
+    const picked: DepOption[] = [];
+    for (const o of [...locMin].sort((a, b) => a.result.tripMin - b.result.tripMin)) {
+      if (picked.some((p) => Math.abs(p.depMs - o.depMs) < 2 * H)) continue;
+      picked.push(o);
+      if (picked.length >= 8) break;
+    }
+    return picked.sort((a, b) => a.depMs - b.depMs);
+  }, [depOptions]);
+
   // ── mobiele Tocht-tak (≤640px): eigen route-pill + 48u-sweep + vensters + strip.
   // Desktop-tak hieronder blijft ongewijzigd. Deelt route-/vertrek-state en runSim.
   if (isMobile) return (
@@ -902,7 +923,7 @@ function DepartureView({
               <div style={{ flex: 1 }} />
               <div style={{ fontSize: 11, color: "rgba(233,233,237,.3)" }}>klik een kaart voor het detail</div>
             </div>
-            <DepartureCards options={depOptions} selMs={depMs ?? -1} onSelect={setDepMs} courseDeg={routeBearing ?? 0} />
+            <DepartureCards options={smartOptions} selMs={depMs ?? -1} onSelect={setDepMs} courseDeg={routeBearing ?? 0} />
           </div>
 
           {/* 4 + 5. detail — verschijnt pas als een kaart is geselecteerd */}
