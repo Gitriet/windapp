@@ -79,69 +79,52 @@ function threeHourTicks(startMs: number, endMs: number): number[] {
 
 // ── Stroom langs de route (contexttijdlijn boven de trip) ──────────────
 export function CurrentTimeline({
-  series, depMs, arrMs, hwMs,
-}: { series: AlongSample[]; depMs: number; arrMs: number | null; hwMs: number[] }) {
-  const W = 1070, height = 82, pl = 34, pr = 10, cw = W - pl - pr, mid = 38;
-  const end = arrMs ?? depMs + 6 * H;
-  const startMs = Math.max(series.length ? tms(series[0].t) : depMs, depMs - 4 * H);
-  const endMs = Math.min(series.length ? tms(series[series.length - 1].t) : end, depMs + 22 * H);
+  series, depMs, arrMs, hwMs, tMin, tMax,
+}: { series: AlongSample[]; depMs: number; arrMs: number | null; hwMs: number[]; tMin?: number; tMax?: number }) {
+  const W = 1070, height = 90, pl = 40, pr = 10, cw = W - pl - pr, mid = 42;
+  const end = arrMs ?? depMs + 2 * H;
+  const startMs = tMin ?? Math.max(series.length ? tms(series[0].t) : depMs, depMs - 2 * H);
+  const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, end + 2 * H);
   const span = Math.max(1, endMs - startMs);
   const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
-  const inWin = series.filter((p) => { const m = tms(p.t); return m >= startMs - H && m <= endMs + H; });
-  const maxAbs = Math.max(0.6, ...inWin.map((p) => Math.abs(p.alongKn ?? 0)));
+  const inWin = series
+    .map((p) => ({ ms: tms(p.t), c: p.alongKn }))
+    .filter((p): p is { ms: number; c: number } => p.c != null && p.ms >= startMs && p.ms <= endMs);
+  const maxAbs = Math.max(0.6, ...inWin.map((p) => Math.abs(p.c)));
   const maxA = Math.ceil(maxAbs * 10) / 10;
-  const y = (v: number) => mid - (v / maxA) * 26;
-
-  // aaneengesloten niet-lege segmenten (nooit over een gat tekenen)
-  const segs: { ms: number; c: number }[][] = [];
-  let cur: { ms: number; c: number }[] = [];
-  for (const p of inWin) {
-    if (p.alongKn == null) { if (cur.length) { segs.push(cur); cur = []; } continue; }
-    cur.push({ ms: tms(p.t), c: p.alongKn });
-  }
-  if (cur.length) segs.push(cur);
-
+  const amp = 26;
+  const y = (v: number) => mid - (v / maxA) * amp;
+  const slots = Math.max(1, Math.round(span / H));
+  const bw = Math.min(30, Math.max(3, (cw / slots) * 0.55));   // cap → strakke balkjes bij weinig samples
   const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
-      <defs>
-        <clipPath id="cPos"><rect x={0} y={0} width={W} height={mid} /></clipPath>
-        <clipPath id="cNeg"><rect x={0} y={mid} width={W} height={height} /></clipPath>
-      </defs>
-      <line x1={pl} y1={mid} x2={W - pr} y2={mid} stroke="rgba(233,233,237,.12)" />
-      {segs.map((seg, si) => {
-        if (seg.length < 2) return null;
-        const areaD = `M${x(seg[0].ms)},${mid} ${seg.map((p) => `L${x(p.ms)},${y(p.c)}`).join(" ")} L${x(seg[seg.length - 1].ms)},${mid} Z`;
-        const lineD = `M${seg.map((p) => `${x(p.ms)},${y(p.c)}`).join(" L")}`;
-        return (
-          <g key={si}>
-            <path d={areaD} fill={alpha(COLORS.stroom, 0.28)} clipPath="url(#cPos)" />
-            <path d={areaD} fill={alpha(COLORS.stroomTegen, 0.28)} clipPath="url(#cNeg)" />
-            <path d={lineD} fill="none" stroke="rgba(233,233,237,.35)" strokeWidth={1.5} />
-          </g>
-        );
-      })}
+      <line x1={pl} y1={mid} x2={W - pr} y2={mid} stroke="rgba(233,233,237,.15)" />
+      {/* kn-schaal (mee boven groen · tegen onder rood) */}
+      <text x={pl - 5} y={y(maxA) + 3} textAnchor="end" fontSize={9} fill={alpha(COLORS.stroom, 0.75)} style={{ fontVariantNumeric: "tabular-nums" }}>{maxA.toFixed(1)}</text>
+      <text x={pl - 5} y={mid + 3} textAnchor="end" fontSize={8} fill="rgba(233,233,237,.3)">kn</text>
+      <text x={pl - 5} y={y(-maxA) + 3} textAnchor="end" fontSize={9} fill="rgba(192,122,122,.65)" style={{ fontVariantNumeric: "tabular-nums" }}>{maxA.toFixed(1)}</text>
+      {/* trip-window */}
       {wx2 > wx1 && (
-        <>
-          <rect x={wx1} y={3} width={wx2 - wx1} height={height - 14} rx={6}
-            fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
-          <line x1={wx1} y1={3} x2={wx1} y2={height - 11} stroke="#e9e9ed" strokeWidth={2} />
-          <circle cx={wx1} cy={mid} r={4} fill="#e9e9ed" stroke="#161826" strokeWidth={2} />
-          <line x1={wx2} y1={3} x2={wx2} y2={height - 11} stroke="#d2cefd" strokeWidth={1.2} strokeDasharray="3 2" />
-        </>
+        <rect x={wx1} y={4} width={wx2 - wx1} height={height - 20} rx={6}
+          fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
       )}
+      {/* diverging kn-balken: mee omhoog (groen), tegen omlaag (rood) */}
+      {inWin.map((p, i) => {
+        const yv = y(p.c), mee = p.c >= 0;
+        return <rect key={i} x={x(p.ms) - bw / 2} y={Math.min(mid, yv)} width={bw} height={Math.abs(yv - mid)} rx={1.2}
+          fill={mee ? COLORS.stroom : COLORS.stroomTegen} fillOpacity={0.85} />;
+      })}
       {threeHourTicks(startMs, endMs).map((ms) => (
         <text key={`t${ms}`} x={x(ms)} y={height - 1} textAnchor="middle" fontSize={10}
           fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(ms)}</text>
       ))}
       {hwMs.filter((ms) => ms >= startMs && ms <= endMs).map((ms, i) => (
         <g key={`hw${i}`}>
-          <text x={x(ms)} y={height - 1} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.water}>HW</text>
-          <line x1={x(ms)} y1={mid - 4} x2={x(ms)} y2={mid + 4} stroke={COLORS.water} strokeWidth={1.2} />
+          <line x1={x(ms)} y1={mid - 5} x2={x(ms)} y2={mid + 5} stroke={COLORS.water} strokeWidth={1.2} />
+          <text x={x(ms)} y={12} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.water}>HW</text>
         </g>
       ))}
-      <text x={pl - 5} y={mid - 12} textAnchor="end" fontSize={9} fill={alpha(COLORS.stroom, 0.7)}>mee</text>
-      <text x={pl - 5} y={mid + 16} textAnchor="end" fontSize={9} fill="rgba(192,122,122,.55)">tegen</text>
     </svg>
   );
 }
@@ -156,88 +139,47 @@ export type WindTLSample = { t: string; speedKn: number; dirDeg: number };
 export function WindTimeline({
   series, depMs, arrMs, tMin, tMax,
 }: { series: WindTLSample[]; depMs: number; arrMs: number | null; tMin?: number; tMax?: number; }) {
-  const W = 1070, height = 96, pl = 34, pr = 10, cw = W - pl - pr, top = 22, bot = height - 16;
-  const end = arrMs ?? depMs + 6 * H;
-  const startMs = tMin ?? Math.max(series.length ? tms(series[0].t) : depMs, depMs - 4 * H);
-  const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, depMs + 22 * H);
+  const W = 1070, height = 96, pl = 34, pr = 10, cw = W - pl - pr, top = 30, bot = height - 16;
+  const end = arrMs ?? depMs + 2 * H;
+  const startMs = tMin ?? Math.max(series.length ? tms(series[0].t) : depMs, depMs - 2 * H);
+  const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, end + 2 * H);
   const span = Math.max(1, endMs - startMs);
   const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
-  const inWin = series.filter((p) => { const m = tms(p.t); return m >= startMs - H && m <= endMs + H; });
-  const maxKn = Math.max(6, Math.ceil(Math.max(...inWin.map((p) => p.speedKn), 0) / 2) * 2);
+  const inWin = series.map((p) => ({ ms: tms(p.t), v: p.speedKn, d: p.dirDeg })).filter((p) => p.ms >= startMs && p.ms <= endMs);
+  const maxKn = Math.max(6, Math.ceil(Math.max(...inWin.map((p) => p.v), 0) / 2) * 2);
   const y = (v: number) => bot - (v / maxKn) * (bot - top);
-
-  const pts = inWin.map((p) => ({ ms: tms(p.t), v: p.speedKn, d: p.dirDeg }));
-  const lineD = pts.length ? `M${pts.map((p) => `${x(p.ms)},${y(p.v)}`).join(" L")}` : "";
-  const areaD = pts.length ? `M${x(pts[0].ms)},${bot} ${pts.map((p) => `L${x(p.ms)},${y(p.v)}`).join(" ")} L${x(pts[pts.length - 1].ms)},${bot} Z` : "";
-
-  // richtingpijlen op de windlijn, om de 2 uur op de tijdas. Elke pijl wijst naar de
-  // richting WAARUIT de wind komt — zelfde conventie als de windveren op de Nu-view
-  // (r = wDir, dx = sin r, dy = −cos r; punt naar het bron-peiling). Snelheid/richting
-  // op elk 2-uurs-moment lineair (richting: vector-)geïnterpoleerd uit de reeks.
-  const windAt = (ms: number) => {
-    if (ms <= pts[0].ms) return pts[0];
-    if (ms >= pts[pts.length - 1].ms) return pts[pts.length - 1];
-    for (let i = 1; i < pts.length; i++) {
-      if (ms <= pts[i].ms) {
-        const a = pts[i - 1], b = pts[i], f = (ms - a.ms) / ((b.ms - a.ms) || 1);
-        const da = (a.d * Math.PI) / 180, db = (b.d * Math.PI) / 180;
-        const se = Math.sin(da) + (Math.sin(db) - Math.sin(da)) * f;
-        const co = Math.cos(da) + (Math.cos(db) - Math.cos(da)) * f;
-        return { ms, v: a.v + (b.v - a.v) * f, d: ((Math.atan2(se, co) * 180) / Math.PI + 360) % 360 };
-      }
-    }
-    return pts[pts.length - 1];
-  };
-  const arrows: React.ReactNode[] = [];
-  if (pts.length) {
-    for (let ms = Math.ceil(startMs / H) * H; ms <= endMs; ms += 2 * H) {
-      const p = windAt(ms), cx = x(ms), cy = Math.max(top + 8, y(p.v) - 12);
-      const r = (p.d * Math.PI) / 180, arrowLen = 11;
-      const dx = Math.sin(r) * arrowLen, dy = -Math.cos(r) * arrowLen;
-      const tipX = cx + dx * 0.6, tipY = cy + dy * 0.6;
-      const perpX = -Math.cos(r) * 3, perpY = -Math.sin(r) * 3;
-      const backX = -Math.sin(r) * 3.5, backY = Math.cos(r) * 3.5;
-      arrows.push(
-        <g key={`a${ms}`}>
-          <line x1={cx - dx * 0.6} y1={cy - dy * 0.6} x2={tipX} y2={tipY} stroke={COLORS.wind} strokeWidth={1.6} strokeLinecap="round" />
-          <path d={`M${tipX} ${tipY} L${tipX - backX + perpX} ${tipY - backY + perpY} L${tipX - backX - perpX} ${tipY - backY - perpY} Z`} fill={COLORS.wind} />
-        </g>,
-      );
-    }
-  }
-
+  const slots = Math.max(1, Math.round(span / H));
+  const bw = Math.min(30, Math.max(3, (cw / slots) * 0.55));   // cap → strakke balkjes bij weinig samples
   const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
   const gridK = [0, maxKn / 2, maxKn];
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
-      <defs>
-        <linearGradient id="windFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={alpha(COLORS.wind, 0.4)} />
-          <stop offset="100%" stopColor={alpha(COLORS.wind, 0.02)} />
-        </linearGradient>
-      </defs>
       {gridK.map((v) => (
         <g key={`g${v}`}>
           <line x1={pl} y1={y(v)} x2={W - pr} y2={y(v)} stroke="rgba(233,233,237,.08)" />
           <text x={pl - 5} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(v)}</text>
         </g>
       ))}
-      {areaD && <path d={areaD} fill="url(#windFill)" />}
-      {lineD && <path d={lineD} fill="none" stroke={COLORS.wind} strokeWidth={2} strokeLinejoin="round" />}
-      {arrows}
+      {/* trip-window achter de balken */}
       {wx2 > wx1 && (
-        <>
-          <rect x={wx1} y={3} width={wx2 - wx1} height={height - 20} rx={6}
-            fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
-          <line x1={wx1} y1={3} x2={wx1} y2={height - 17} stroke="#e9e9ed" strokeWidth={2} />
-          <line x1={wx2} y1={3} x2={wx2} y2={height - 17} stroke="#d2cefd" strokeWidth={1.2} strokeDasharray="3 2" />
-        </>
+        <rect x={wx1} y={top - 5} width={wx2 - wx1} height={bot - top + 9} rx={6}
+          fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
       )}
+      {/* wind-balken (zelfde vorm als de Nu-view, zonder vlaag-cap — route-wind heeft geen
+          vlaag) + richting-pijltje boven elke balk, wijzend naar vanwaar de wind komt. */}
+      {inWin.map((p, i) => (
+        <g key={i}>
+          <rect x={x(p.ms) - bw / 2} y={y(p.v)} width={bw} height={bot - y(p.v)} rx={1.5} fill={COLORS.wind} fillOpacity={0.82} />
+          <g transform={`translate(${x(p.ms)} ${Math.max(top - 6, y(p.v) - 9)})`}>
+            <path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} fillOpacity={0.8} transform={`rotate(${p.d}) scale(0.7) translate(-10 -10)`} />
+          </g>
+        </g>
+      ))}
       {threeHourTicks(startMs, endMs).map((ms) => (
         <text key={`t${ms}`} x={x(ms)} y={height - 2} textAnchor="middle" fontSize={10}
           fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(ms)}</text>
       ))}
-      <text x={pl - 5} y={top - 6} textAnchor="end" fontSize={9} fill={alpha(COLORS.wind, 0.7)}>kn</text>
+      <text x={pl - 5} y={top - 8} textAnchor="end" fontSize={9} fill={alpha(COLORS.wind, 0.7)}>kn</text>
     </svg>
   );
 }

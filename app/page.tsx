@@ -937,10 +937,14 @@ function DepartureView({
                   {(() => {
                     // altijd ÉÉN tijdlijn: gewogen gemiddelde over alle legs (op beenlengte)
                     const { series } = combineLegTimelines(route.legTimelines);
+                    // gefocust venster: 2u vóór vertrek … 2u ná aankomst (geklemd op de reeks)
+                    const winStart = selTrip.departMs - 2 * H, winEnd = (selTrip.arrMs ?? selTrip.departMs) + 2 * H;
+                    const tMin = series.length ? Math.max(tms(series[0].t), winStart) : winStart;
+                    const tMax = series.length ? Math.min(tms(series[series.length - 1].t), winEnd) : winEnd;
                     return (
                       <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
                         {series.length
-                          ? <CurrentTimeline series={series} depMs={selTrip.departMs} arrMs={selTrip.arrMs} hwMs={hwMs} />
+                          ? <CurrentTimeline series={series} depMs={selTrip.departMs} arrMs={selTrip.arrMs} hwMs={hwMs} tMin={tMin} tMax={tMax} />
                           : <div style={{ padding: 20, fontSize: 12, color: "rgba(233,233,237,.4)" }}>Geen stroomdata voor deze route — zonder stroom gerekend.</div>}
                       </div>
                     );
@@ -958,12 +962,13 @@ function DepartureView({
                     )}
                   </div>
                   {(() => {
-                    // dezelfde as-grenzen als de stroomtijdlijn (zelfde formule als in
-                    // CurrentTimeline, op dezelfde stroomreeks) zodat de trip-windows exact
+                    // dezelfde as-grenzen als de stroomtijdlijn (gefocust venster: 2u vóór
+                    // vertrek … 2u ná aankomst, geklemd op de reeks) zodat wind en stroom exact
                     // uitlijnen. Zonder stroomreeks valt WindTimeline terug op eigen extent.
                     const stroom = combineLegTimelines(route.legTimelines).series;
-                    const tMin = stroom.length ? Math.max(tms(stroom[0].t), selTrip.departMs - 4 * H) : undefined;
-                    const tMax = stroom.length ? Math.min(tms(stroom[stroom.length - 1].t), selTrip.departMs + 22 * H) : undefined;
+                    const winStart = selTrip.departMs - 2 * H, winEnd = (selTrip.arrMs ?? selTrip.departMs) + 2 * H;
+                    const tMin = stroom.length ? Math.max(tms(stroom[0].t), winStart) : undefined;
+                    const tMax = stroom.length ? Math.min(tms(stroom[stroom.length - 1].t), winEnd) : undefined;
                     return (
                       <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
                         {route.windSeries.length
