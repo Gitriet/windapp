@@ -142,6 +142,16 @@ body {
 /* Nu-view content-container: zijpadding via de gedeelde var (desktop = 40px).
    Als class i.p.v. inline zodat de mobiele media-query 'm mag overschrijven. */
 .nowview { padding: 14px var(--view-pad-x) 34px; }
+/* App-root: buitenste padding met safe-area-insets (viewport-fit=cover). Als class
+   zodat de mobiele media-query de horizontale design-padding kan wegnemen. */
+.app-root {
+  padding:
+    calc(16px + env(safe-area-inset-top))
+    calc(24px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom))
+    calc(24px + env(safe-area-inset-left));
+}
+
 /* Vaarplan-view: zijrand + vaste kolom-grids op desktop (base). De mobiele
    media-query hieronder stapelt ze en trekt de zijrand gelijk met de rest. */
 .vaarplan { padding: 18px var(--view-pad-x) 48px; }
@@ -178,6 +188,12 @@ html, body { overflow-x: hidden; }
   .nav a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .loc-picker { min-height: 44px; }
   .haven-trigger { min-height: 44px; }
+
+  /* Mobiel benut meer breedte: de buitenste 24px design-padding vervalt (alleen de
+     safe-area blijft, voor de notch in landscape). De 16px view/nav-padding wordt zo
+     de enige zichtbare gutter → content ~343px i.p.v. 295px. Header + body blijven
+     uitgelijnd want beide houden hun eigen 16px. */
+  .app-root { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 
   /* Nu-view-verfijning (≤640px) — CSS-only, geen JSX-branch.
      Zijrand smaller dan de desktop-40px zodat de 12u-chart leesbaar blijft. */
