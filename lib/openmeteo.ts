@@ -29,6 +29,28 @@ export async function fetchMarine(lat: number, lon: number): Promise<Map<string,
   return out;
 }
 
+// Dag-max golfhoogte (m) voor de 7-daagse — Marine API met daily-aggregatie op
+// NL-lokale kalenderdagen (zelfde tijdzone als fetchWeek). Map lokale-datum→golf.
+// Landpunt of API-fout → lege map (Golf-kolom toont '—').
+async function fetchWeekWaves(lat: number, lon: number): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  try {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      daily: "wave_height_max",
+      timezone: "Europe/Amsterdam",
+      forecast_days: "7",
+    });
+    const res = await fetch(`${MARINE_BASE}?${params.toString()}`, { cache: "no-store" });
+    if (!res.ok) return out;
+    const d = (await res.json()).daily ?? {};
+    const t: string[] = d.time ?? [], v: (number | null)[] = d.wave_height_max ?? [];
+    for (let i = 0; i < t.length; i++) out.set(t[i], v[i] ?? null);
+  } catch { /* landpunt of Marine-API-fout → lege map, Golf blijft '—' */ }
+  return out;
+}
+
 export async function fetchModel(
   lat: number, lon: number, modelId: string, withWeather = false,
 ): Promise<RawSeries> {
@@ -93,7 +115,10 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
     timezone: "Europe/Amsterdam",
     forecast_days: "7",
   });
-  const res = await fetch(`${BASE}?${params.toString()}`, { cache: "no-store" });
+  const [res, waves] = await Promise.all([
+    fetch(`${BASE}?${params.toString()}`, { cache: "no-store" }),
+    fetchWeekWaves(lat, lon),   // aparte Marine-endpoint; landpunt → lege map
+  ]);
   if (!res.ok) throw new Error(`Open-Meteo ${WEEK_MODEL}: HTTP ${res.status}`);
   const j = await res.json();
   const d = j.daily ?? {}, h = j.hourly ?? {};
@@ -124,5 +149,6 @@ export async function fetchWeek(lat: number, lon: number): Promise<WeekDay[]> {
     tmin: d.temperature_2m_min?.[i] ?? null,
     windMin: minByDay.has(date) ? r1(minByDay.get(date)!) : null,
     windMean: sumByDay.has(date) ? r1(sumByDay.get(date)!.sum / sumByDay.get(date)!.n) : null,
+    wave: waves.get(date) ?? null,
   }));
 }

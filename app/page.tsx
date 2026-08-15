@@ -430,6 +430,9 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   const p0 = pts[0];
   const bft = beaufort(p0.speed_kn);
   const nextHW = isTide(tide) ? (tide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= nowMs) ?? tide.extremes.find((e) => e.kind === "HW")) : null;
+  // temp (KNMI-weerlaag) + golf (Marine API) uit de weer-overlay; golf is null op landpunten.
+  const temp0 = fc.weather?.temp?.[0] ?? null;
+  const wave0 = fc.weather?.wave?.[0] ?? null;
 
   const chartPts = pts.slice(0, 13);
 
@@ -452,6 +455,8 @@ function NowView({ fc, week, tide, loc, nowMs }: {
             <span className="tag tag-wind">bft {bft}</span>
             <span className="tag tag-wind">vlaag {Math.round(p0.gust_kn)}</span>
             {nextHW && <span className="tag tag-water">HW {localHM(tms(nextHW.t))}</span>}
+            {temp0 != null && <span className="tag tag-weer">{Math.round(temp0)}°</span>}
+            {wave0 != null && <span className="tag tag-water">Golf {wave0.toFixed(1).replace(".", ",")} m</span>}
             <span className="tag tag-weer">{p0.model_label}</span>
           </div>
           <div style={{ fontSize: 13, color: "rgba(233,233,237,.6)", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>{windContext(pts)}</div>
@@ -677,7 +682,7 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
                   <span className="kpi">{d.dir != null ? compass(d.dir) : "—"}</span>
                 </span>
               </td>
-              <td className="kpi" style={{ color: "rgba(233,233,237,.35)" }}>—</td>
+              <td className="kpi" style={{ color: d.wave != null ? "rgba(233,233,237,.6)" : "rgba(233,233,237,.35)" }}>{d.wave != null ? `${d.wave.toFixed(1).replace(".", ",")} m` : "—"}</td>
               <td className="kpi" style={{ fontSize: 12, color: "rgba(233,233,237,.6)" }}>
                 {hw ? <><span style={{ color: COLORS.water }}>H</span>{localHM(tms(hw.t))} </> : "—"}
                 {lw && <><span style={{ color: "rgba(233,233,237,.35)" }}>L</span>{localHM(tms(lw.t))}</>}

@@ -63,6 +63,7 @@ export type WeekDay = {
   windMean: number | null;   // mean hourly wind_speed_10m over the local day, kn (bar mean tick)
   tmax: number | null;       // °C
   tmin: number | null;       // °C
+  wave: number | null;       // dag-max significante golfhoogte, m (Open-Meteo Marine API); null = landpunt
 };
 
 export type CorrectedPoint = {
