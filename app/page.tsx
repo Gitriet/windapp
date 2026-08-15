@@ -571,7 +571,11 @@ function Metric({ label, value, color }: { label: string; value: string; color: 
 }
 
 function Chart12h({ points }: { points: ForecastResponse["points"] }) {
-  const W = 620, Hgt = 220, n = points.length;
+  // viewBox op ~renderbreedte (1070, zoals de andere charts) i.p.v. 620: anders wordt de
+  // hele SVG ~1,8× uitgerekt en renderen de labels/pijlen/linkergutter navenant groter dan
+  // de rest van de app. Hgt schaalt mee (zelfde aspect ratio) zodat de chart-footprint en
+  // balkbreedte gelijk blijven; alleen de vaste maten (fonts, PL-gutter) krimpen naar px-schaal.
+  const W = 1070, Hgt = 380, n = points.length;
   if (n < 2) return <svg width="100%" viewBox={`0 0 ${W} ${Hgt}`} />;
   const PL = 34, PR = 14, PT = 40, PB = 22;
   const x0 = PL, x1 = W - PR, yTop = PT, yBot = Hgt - PB, plotW = x1 - x0, plotH = yBot - yTop;
@@ -1006,7 +1010,7 @@ function DepartureView({
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Snelheid langs de route</div>
-                  <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>SOG in kn · vertrek → aankomst</div>
+                  <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>SOG-balken · STW-lijn · kn · vertrek → aankomst</div>
                 </div>
                 <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
                   <SpeedTimeline trip={selTrip} />

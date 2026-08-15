@@ -18,10 +18,35 @@ export const dirLabel16 = (d: number) => P16[Math.round((((d % 360) + 360) % 360
 export const fmtDur = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}u${String(m % 60).padStart(2, "0")}`; };
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
-// waarschuwingskleur voor wind-tegen-stroom (oranje-rood, los van de amberkleur van wind)
-const WARN = COLORS.waarschuwing;   // amber — waarschuwingen (bv. wind tegen stroom)
+// waarschuwingskleur (amber) voor wind-tegen-stroom e.d.
+const WARN = COLORS.waarschuwing;
 
 const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+// Lineair geïnterpoleerde samples op een vast raster tussen de (uurlijkse) bronpunten,
+// zodat de balken het venster vullen i.p.v. sparse uurpieken met grote gaten. Bron moet
+// chronologisch zijn; null-waarden (droge cel) breken de interpolatie → dat segment blijft
+// een gat (geen balk). Buiten het bronbereik geen samples.
+function densify(src: { ms: number; v: number | null }[], startMs: number, endMs: number, stepMs: number): { ms: number; v: number }[] {
+  if (src.length < 2) {
+    return src.filter((p): p is { ms: number; v: number } => p.v != null && p.ms >= startMs && p.ms <= endMs);
+  }
+  const out: { ms: number; v: number }[] = [];
+  for (let ms = startMs; ms <= endMs + 1; ms += stepMs) {
+    let seg: [{ ms: number; v: number | null }, { ms: number; v: number | null }] | null = null;
+    for (let i = 0; i < src.length - 1; i++) {
+      if (ms >= src[i].ms && ms <= src[i + 1].ms) { seg = [src[i], src[i + 1]]; break; }
+    }
+    if (!seg) continue;                                  // buiten bronbereik
+    const [a, b] = seg;
+    if (a.v == null || b.v == null) continue;            // null-gat → geen balk
+    const f = b.ms === a.ms ? 0 : (ms - a.ms) / (b.ms - a.ms);
+    out.push({ ms, v: a.v + (b.v - a.v) * f });
+  }
+  return out;
+}
+// Rasterstap voor densify: ~10 min, maar nooit meer dan ~40 balken over het venster.
+const denseStep = (span: number) => Math.max(10 * 60_000, Math.round(span / 40));
 
 // Zeilhoek in woorden uit de TWA (0–180). Grenzen exact zoals gevraagd.
 export function sailPhrase(twa: number): string {
@@ -87,15 +112,14 @@ export function CurrentTimeline({
   const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, end + 2 * H);
   const span = Math.max(1, endMs - startMs);
   const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
-  const inWin = series
-    .map((p) => ({ ms: tms(p.t), c: p.alongKn }))
-    .filter((p): p is { ms: number; c: number } => p.c != null && p.ms >= startMs && p.ms <= endMs);
+  // dichte geïnterpoleerde balken (vult het venster) i.p.v. de sparse uurpunten
+  const inWin = densify(series.map((p) => ({ ms: tms(p.t), v: p.alongKn })), startMs, endMs, denseStep(span))
+    .map((p) => ({ ms: p.ms, c: p.v }));
   const maxAbs = Math.max(0.6, ...inWin.map((p) => Math.abs(p.c)));
   const maxA = Math.ceil(maxAbs * 10) / 10;
   const amp = 26;
   const y = (v: number) => mid - (v / maxA) * amp;
-  const slots = Math.max(1, Math.round(span / H));
-  const bw = Math.min(30, Math.max(3, (cw / slots) * 0.55));   // cap → strakke balkjes bij weinig samples
+  const bw = Math.max(2, (cw / Math.max(1, inWin.length)) * 0.72);   // dichte balken → gevuld venster
   const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
@@ -145,11 +169,13 @@ export function WindTimeline({
   const endMs = tMax ?? Math.min(series.length ? tms(series[series.length - 1].t) : end, end + 2 * H);
   const span = Math.max(1, endMs - startMs);
   const x = (ms: number) => pl + ((ms - startMs) / span) * cw;
-  const inWin = series.map((p) => ({ ms: tms(p.t), v: p.speedKn, d: p.dirDeg })).filter((p) => p.ms >= startMs && p.ms <= endMs);
-  const maxKn = Math.max(6, Math.ceil(Math.max(...inWin.map((p) => p.v), 0) / 2) * 2);
+  // dichte geïnterpoleerde balken (vullen het venster); richtingpijlen blijven uurlijks
+  // (één pijl per dichte balk zou te druk zijn).
+  const bars = densify(series.map((p) => ({ ms: tms(p.t), v: p.speedKn })), startMs, endMs, denseStep(span));
+  const arrows = series.map((p) => ({ ms: tms(p.t), v: p.speedKn, d: p.dirDeg })).filter((p) => p.ms >= startMs && p.ms <= endMs);
+  const maxKn = Math.max(6, Math.ceil(Math.max(...bars.map((p) => p.v), 0) / 2) * 2);
   const y = (v: number) => bot - (v / maxKn) * (bot - top);
-  const slots = Math.max(1, Math.round(span / H));
-  const bw = Math.min(30, Math.max(3, (cw / slots) * 0.55));   // cap → strakke balkjes bij weinig samples
+  const bw = Math.max(2, (cw / Math.max(1, bars.length)) * 0.72);   // dichte balken → gevuld venster
   const wx1 = x(Math.max(startMs, depMs)), wx2 = x(Math.min(endMs, arrMs ?? depMs));
   const gridK = [0, maxKn / 2, maxKn];
   return (
@@ -165,14 +191,15 @@ export function WindTimeline({
         <rect x={wx1} y={top - 5} width={wx2 - wx1} height={bot - top + 9} rx={6}
           fill={alpha(COLORS.weer, 0.1)} stroke={COLORS.weer} strokeWidth={1.2} strokeDasharray="5 3" />
       )}
-      {/* wind-balken (zelfde vorm als de Nu-view, zonder vlaag-cap — route-wind heeft geen
-          vlaag) + richting-pijltje boven elke balk, wijzend naar vanwaar de wind komt. */}
-      {inWin.map((p, i) => (
-        <g key={i}>
-          <rect x={x(p.ms) - bw / 2} y={y(p.v)} width={bw} height={bot - y(p.v)} rx={1.5} fill={COLORS.wind} fillOpacity={0.82} />
-          <g transform={`translate(${x(p.ms)} ${Math.max(top - 6, y(p.v) - 9)})`}>
-            <path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} fillOpacity={0.8} transform={`rotate(${p.d}) scale(0.7) translate(-10 -10)`} />
-          </g>
+      {/* dichte wind-balken (geïnterpoleerd, vullen het venster; geen vlaag-cap — route-wind
+          heeft geen vlaag) */}
+      {bars.map((p, i) => (
+        <rect key={i} x={x(p.ms) - bw / 2} y={y(p.v)} width={bw} height={bot - y(p.v)} rx={1.5} fill={COLORS.wind} fillOpacity={0.82} />
+      ))}
+      {/* richting-pijltje per uur (niet per dichte balk), wijzend naar vanwaar de wind komt */}
+      {arrows.map((p, i) => (
+        <g key={`a${i}`} transform={`translate(${x(p.ms)} ${Math.max(top - 6, y(p.v) - 9)})`}>
+          <path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} fillOpacity={0.8} transform={`rotate(${p.d}) scale(0.7) translate(-10 -10)`} />
         </g>
       ))}
       {threeHourTicks(startMs, endMs).map((ms) => (
@@ -195,11 +222,21 @@ export function SpeedTimeline({ trip }: { trip: SimResult }) {
   const arrMs = trip.arrMs ?? (steps.length ? steps[steps.length - 1].tMs : depMs);
   const span = Math.max(1, arrMs - depMs);
   const x = (ms: number) => pl + ((ms - depMs) / span) * cw;
-  const pts = steps.map((s) => ({ ms: s.tMs, v: s.sog })).filter((p) => p.ms >= depMs && p.ms <= arrMs);
-  const maxKn = Math.max(4, Math.ceil(Math.max(...pts.map((p) => p.v), 0) / 2) * 2);
+  const raw = steps.map((s) => ({ ms: s.tMs, sog: s.sog, stw: s.stw })).filter((p) => p.ms >= depMs && p.ms <= arrMs);
+  const bw = Math.min(24, Math.max(3, (cw / Math.max(1, raw.length)) * 0.7));
+  // dedupe: de sim zet een korte slot-stap op de exacte aankomsttijd (≈ de vorige stap) →
+  // dubbele/overlappende balk aan het eind. Houd punten met genoeg tussenruimte; het latere
+  // wint, zodat de laatste balk netjes op de aankomst valt.
+  const pts: { ms: number; sog: number; stw: number }[] = [];
+  for (const p of raw) {
+    const last = pts[pts.length - 1];
+    if (!last || x(p.ms) - x(last.ms) >= bw * 0.9) pts.push(p);
+    else pts[pts.length - 1] = p;
+  }
+  const maxKn = Math.max(4, Math.ceil(Math.max(...pts.flatMap((p) => [p.sog, p.stw]), 0) / 2) * 2);
   const y = (v: number) => bot - (v / maxKn) * (bot - top);
-  const bw = Math.min(24, Math.max(3, (cw / Math.max(1, pts.length)) * 0.7));
   const gridK = [0, maxKn / 2, maxKn];
+  const stwLine = pts.map((p) => `${x(p.ms)},${y(p.stw)}`).join(" ");
   const dur = span / H, tStep = dur > 12 ? 3 : dur >= 3 ? 1 : 0.25;
   const labels: number[] = [];
   for (let t = Math.ceil(depMs / (tStep * H)) * (tStep * H); t <= arrMs + 1000; t += tStep * H) labels.push(t);
@@ -211,9 +248,18 @@ export function SpeedTimeline({ trip }: { trip: SimResult }) {
           <text x={pl - 5} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(v)}</text>
         </g>
       ))}
+      {/* SOG = balken over de grond; STW = lijn door het water. Verschil = het stroomeffect. */}
       {pts.map((p, i) => (
-        <rect key={i} x={x(p.ms) - bw / 2} y={y(p.v)} width={bw} height={bot - y(p.v)} rx={1.5} fill={COLORS.sog} fillOpacity={0.7} />
+        <rect key={i} x={x(p.ms) - bw / 2} y={y(p.sog)} width={bw} height={bot - y(p.sog)} rx={1.5} fill={COLORS.sog} fillOpacity={0.7} />
       ))}
+      <polyline points={stwLine} fill="none" stroke="rgba(233,233,237,.7)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      {/* legenda */}
+      <g>
+        <rect x={pl + 40} y={top - 11} width={11} height={7} rx={1.5} fill={COLORS.sog} fillOpacity={0.7} />
+        <text x={pl + 55} y={top - 5} fontSize={9} fill="rgba(233,233,237,.5)">SOG</text>
+        <line x1={pl + 88} y1={top - 7.5} x2={pl + 100} y2={top - 7.5} stroke="rgba(233,233,237,.7)" strokeWidth={1.5} />
+        <text x={pl + 104} y={top - 5} fontSize={9} fill="rgba(233,233,237,.5)">STW</text>
+      </g>
       {labels.map((t) => (
         <text key={`t${t}`} x={x(t)} y={height - 2} textAnchor="middle" fontSize={10} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(t)}</text>
       ))}
