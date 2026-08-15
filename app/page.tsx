@@ -20,7 +20,7 @@ import HavenSelector from "./components/HavenSelector";
 import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
-  CurrentTimeline, WindTimeline, SpeedTimeline, SummaryRow, Compass,
+  CurrentTimeline, WindTimeline, SpeedTimeline, SummaryRow,
   dirLabel16, sailPhrase, windAgainstCurrent, fmtDur, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
@@ -461,8 +461,8 @@ function NowView({ fc, week, tide, loc, nowMs }: {
           </div>
           <div style={{ fontSize: 13, color: "rgba(233,233,237,.6)", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>{windContext(pts)}</div>
         </div>
-        <div style={{ position: "relative", flex: "none", width: 96, height: 96 }}>
-          <div style={{ transform: "scale(0.558)", transformOrigin: "top left" }}><Compass dir={p0.dir_deg} /></div>
+        <div style={{ position: "relative", flex: "none" }}>
+          <WindRose dir={p0.dir_deg} size={96} />
         </div>
       </div>
       )}
@@ -490,6 +490,30 @@ const BFT_LABEL = [
   "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
 ];
 
+// Kompasroos (amber, Nu-view): 16-punts richting-anker + graden in het midden, amber
+// stip op de rand t.o.v. noord, tick-markering. Gedeeld door de mobiele én desktop-hero
+// zodat beide exact dezelfde vorm hebben; alleen de pixelmaat (size) verschilt. viewBox
+// blijft 100×100 zodat alle coördinaten schaal-onafhankelijk zijn.
+function WindRose({ dir, size }: { dir: number; size: number }) {
+  const rad = (dir * Math.PI) / 180, cx = 50 + 40 * Math.sin(rad), cy = 50 - 40 * Math.cos(rad);
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ flex: "0 0 auto" }}>
+      <circle cx={50} cy={50} r={40} fill="none" stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5} />
+      <g stroke={alpha(COLORS.wind, 0.55)} strokeWidth={2}>
+        <line x1={50} y1={10} x2={50} y2={17} /><line x1={50} y1={83} x2={50} y2={90} />
+        <line x1={10} y1={50} x2={17} y2={50} /><line x1={83} y1={50} x2={90} y2={50} />
+      </g>
+      <g stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5}>
+        <line x1={21.7} y1={21.7} x2={26} y2={26} /><line x1={78.3} y1={21.7} x2={74} y2={26} />
+        <line x1={21.7} y1={78.3} x2={26} y2={74} /><line x1={78.3} y1={78.3} x2={74} y2={74} />
+      </g>
+      <circle cx={cx} cy={cy} r={5.5} fill={COLORS.wind} />
+      <text x={50} y={47} textAnchor="middle" dominantBaseline="central" fontSize={22} fontWeight={700} fill="#e9e9ed" className="kpi">{dirLabel16(dir)}</text>
+      <text x={50} y={66} textAnchor="middle" fontSize={11} fill="rgba(233,233,237,.5)" className="kpi">{Math.round(dir)}°</text>
+    </svg>
+  );
+}
+
 // Mobiele hero (≤640px): kompas-roos toont de richting (anker), snelheid groot
 // ernaast (één keer), drie compacte metrics eronder. Vereenvoudigd t.o.v. desktop
 // — geen datumregel, HW-tag, model-tag of trend-zin. Vlaag + temp (uit fc.weather)
@@ -498,28 +522,13 @@ const BFT_LABEL = [
 function HeroMobile({ p0, bft, temp, wave }: { p0: ForecastResponse["points"][number]; bft: number; temp: number | null; wave: number | null }) {
   const spd = Math.round(p0.speed_kn);
   const dir = p0.dir_deg;
-  // amber stip op de kompasrand = windrichting t.o.v. noord (Nu-view, geen koers)
-  const rad = (dir * Math.PI) / 180, cx = 50 + 40 * Math.sin(rad), cy = 50 - 40 * Math.cos(rad);
   // golf + temp komen uit fc.weather; golf uit de Marine API (null voor landpunten).
   const dimVal = "rgba(233,233,237,.35)";
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 16, padding: "22px 18px 20px", background: alpha(COLORS.wind, 0.05), border: `1px solid ${alpha(COLORS.wind, 0.22)}` }}>
       <WindCanvas dir={canvasDir(dir)} color={COLORS.wind} />
       <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 18 }}>
-        <svg viewBox="0 0 100 100" width={104} height={104} style={{ flex: "0 0 auto" }}>
-          <circle cx={50} cy={50} r={40} fill="none" stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5} />
-          <g stroke={alpha(COLORS.wind, 0.55)} strokeWidth={2}>
-            <line x1={50} y1={10} x2={50} y2={17} /><line x1={50} y1={83} x2={50} y2={90} />
-            <line x1={10} y1={50} x2={17} y2={50} /><line x1={83} y1={50} x2={90} y2={50} />
-          </g>
-          <g stroke={alpha(COLORS.wind, 0.3)} strokeWidth={1.5}>
-            <line x1={21.7} y1={21.7} x2={26} y2={26} /><line x1={78.3} y1={21.7} x2={74} y2={26} />
-            <line x1={21.7} y1={78.3} x2={26} y2={74} /><line x1={78.3} y1={78.3} x2={74} y2={74} />
-          </g>
-          <circle cx={cx} cy={cy} r={5.5} fill={COLORS.wind} />
-          <text x={50} y={47} textAnchor="middle" dominantBaseline="central" fontSize={22} fontWeight={700} fill="#e9e9ed" className="kpi">{dirLabel16(dir)}</text>
-          <text x={50} y={66} textAnchor="middle" fontSize={11} fill="rgba(233,233,237,.5)" className="kpi">{Math.round(dir)}°</text>
-        </svg>
+        <WindRose dir={dir} size={104} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 44, fontWeight: 700, lineHeight: 1, color: COLORS.wind }} className="kpi">
             {spd}<span style={{ fontSize: 20, fontWeight: 500, color: alpha(COLORS.wind, 0.7), marginLeft: 4 }}>kn</span>
