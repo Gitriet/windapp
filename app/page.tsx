@@ -568,20 +568,19 @@ function Chart12h({ points }: { points: ForecastResponse["points"] }) {
   const maxGust = Math.max(...points.map((p) => p.gust_kn));
   const maxKn = Math.max(30, Math.ceil(maxGust / 10) * 10);         // vaste schaal 0/10/20/30(+)
   const ticks: number[] = []; for (let v = 0; v <= maxKn; v += 10) ticks.push(v);
-  const xi = (i: number) => x0 + (i / (n - 1)) * plotW;
+  const pitch = plotW / n;                                          // één slot per uur
+  const bw = Math.max(3, pitch * 0.62);                             // balkbreedte (sweep-stijl)
+  const cx = (i: number) => x0 + (i + 0.5) * pitch;                 // midden van slot i
   const yv = (v: number) => yBot - (v / maxKn) * plotH;
-  const speedD = points.map((p, i) => `${xi(i)} ${yv(p.speed_kn)}`).join(" L");
-  const gustD = points.map((p, i) => `${xi(i)} ${yv(p.gust_kn)}`).join(" L");
   const now = Math.round(points[0].speed_kn);
   const labelIdx = [0, 3, 6, 9, 12].filter((i) => i < n);
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${Hgt}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
-      <defs><linearGradient id="wg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={COLORS.wind} stopOpacity=".28" /><stop offset="1" stopColor={COLORS.wind} stopOpacity="0" /></linearGradient></defs>
-      {/* legend */}
-      <line x1={x0} y1={12} x2={x0 + 18} y2={12} stroke={COLORS.wind} strokeWidth={2.5} />
-      <text x={x0 + 23} y={15.5} fontSize={11} fill="rgba(233,233,237,.6)">wind</text>
-      <line x1={x0 + 74} y1={12} x2={x0 + 92} y2={12} stroke={COLORS.wind} strokeWidth={2} strokeDasharray="5 4" />
-      <text x={x0 + 97} y={15.5} fontSize={11} fill="rgba(233,233,237,.6)">vlagen</text>
+      {/* legend: massieve wind-balk + doorschijnende vlaag-cap */}
+      <rect x={x0} y={8} width={14} height={8} rx={1.5} fill={COLORS.wind} />
+      <text x={x0 + 20} y={15.5} fontSize={11} fill="rgba(233,233,237,.6)">wind</text>
+      <rect x={x0 + 68} y={8} width={14} height={8} rx={1.5} fill={COLORS.wind} fillOpacity={0.32} />
+      <text x={x0 + 88} y={15.5} fontSize={11} fill="rgba(233,233,237,.6)">vlagen</text>
       {/* y-as: gridlijnen + knopenlabels */}
       {ticks.map((v) => (
         <g key={`y${v}`}>
@@ -590,16 +589,23 @@ function Chart12h({ points }: { points: ForecastResponse["points"] }) {
         </g>
       ))}
       <text x={x0 - 6} y={yTop - 6} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.35)">kn</text>
-      {/* vulling + lijnen */}
-      <path d={`M${speedD} L${x1} ${yBot} L${x0} ${yBot} Z`} fill="url(#wg2)" />
-      <path d={`M${speedD}`} fill="none" stroke={COLORS.wind} strokeWidth={2.5} strokeLinejoin="round" />
-      <path d={`M${gustD}`} fill="none" stroke={COLORS.wind} strokeWidth={2} strokeDasharray="5 4" />
-      {/* nu-dot met huidig getal */}
-      <circle cx={xi(0)} cy={yv(points[0].speed_kn)} r={4.5} fill={COLORS.wind} stroke="#161826" strokeWidth={2} />
-      <text x={xi(0) + 9} y={yv(points[0].speed_kn) - 7} fontSize={13} fontWeight={600} fill={COLORS.wind} style={{ fontVariantNumeric: "tabular-nums" }}>{now}</text>
+      {/* balken: vlaag-cap (doorschijnend, hele hoogte tot de vlaag) met de massieve
+          wind-balk ervoor — het zichtbare doorschijnende stuk is de vlaag-marge. */}
+      {points.map((p, i) => {
+        const bx = cx(i) - bw / 2;
+        const isNow = i === 0;
+        return (
+          <g key={i}>
+            <rect x={bx} y={yv(p.gust_kn)} width={bw} height={yBot - yv(p.gust_kn)} rx={1.5} fill={COLORS.wind} fillOpacity={0.32} />
+            <rect x={bx} y={yv(p.speed_kn)} width={bw} height={yBot - yv(p.speed_kn)} fill={COLORS.wind} fillOpacity={isNow ? 1 : 0.82} />
+          </g>
+        );
+      })}
+      {/* huidige waarde boven het eerste (Nu-)balkje */}
+      <text x={cx(0)} y={yv(points[0].gust_kn) - 5} textAnchor="middle" fontSize={13} fontWeight={600} fill={COLORS.wind} style={{ fontVariantNumeric: "tabular-nums" }}>{now}</text>
       {/* x-as tijdlabels */}
       {labelIdx.map((i) => (
-        <text key={`x${i}`} x={xi(i)} y={Hgt - 6} textAnchor="middle" fontSize={10} fill="rgba(233,233,237,.4)" style={{ fontVariantNumeric: "tabular-nums" }}>{i === 0 ? "Nu" : localHM(tms(points[i].time))}</text>
+        <text key={`x${i}`} x={cx(i)} y={Hgt - 6} textAnchor="middle" fontSize={10} fill="rgba(233,233,237,.4)" style={{ fontVariantNumeric: "tabular-nums" }}>{i === 0 ? "Nu" : localHM(tms(points[i].time))}</text>
       ))}
     </svg>
   );
