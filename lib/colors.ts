@@ -1,15 +1,18 @@
 // Datasoort-kleuren (nachtmodus). Eén bron voor de SVG-hexen in de grafieken; de
 // class-gebaseerde tags spiegelen deze in globals.css.
-//   wind   → amber   · water → blauw · stroom → zeegroen · weer/UI → violet
-// SOG-lijn blijft wit, kentering blijft geel, stroom-tegen blijft rood.
+//   wind → paars · water → blauw · stroom → teal · snelheid → groen · weer/UI → paars
+// Waarschuwingen amber, kentering goud, tegenstroom rood.
+// NB: wind deelt bewust het merk-paars (wind is de primaire laag, draagt het merk);
+// de "weer"-DATA-tags zijn daarom neutraal gemaakt (globals) i.p.v. paars.
 export const COLORS = {
-  wind: "#C4832D",
-  water: "#4A90D9",
-  stroom: "#17A878",
-  stroomTegen: "#c07a7a",
-  weer: "#8B7DD6",
-  sog: "#e9e9ed",
-  kentering: "#e8b94a",
+  wind: "#8B7DD6",         // paars — primaire windlaag (= merk-accent)
+  water: "#4A90D9",        // blauw
+  stroom: "#2BA6A0",       // teal — getijstroom-mee (verhuisd van groen, dat nu snelheid is)
+  stroomTegen: "#c07a7a",  // rood — tegenstroom
+  weer: "#8B7DD6",         // merk/UI-accent (logo, pins, labels, tocht-venster)
+  sog: "#17A878",          // groen — snelheid (de "snelle/goede" kleur, overgenomen van stroom)
+  kentering: "#e8b94a",    // goud — kenteringsmoment
+  waarschuwing: "#C4832D", // amber — waarschuwingen (vrijgekomen van wind)
 } as const;
 
 // rgba() uit een #RRGGBB + alpha (0–1). Alleen voor de zes bovenstaande hexen.

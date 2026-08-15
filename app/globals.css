@@ -13,7 +13,7 @@
   --accent-purple: #8B7DD6;
   --accent-purple-light: #d2cefd;
   --accent-purple-bg: rgba(139, 125, 214, 0.16);
-  --current-mee: #17A878;
+  --current-mee: #2BA6A0;
   --current-tegen: #c07a7a;
   --wind-teal: #6ab6aa;
   --kentering-gold: #e8b94a;
@@ -85,11 +85,11 @@ body {
   border: 1px solid rgba(233, 233, 237, 0.18);
 }
 
-/* datasoort-tags: wind (amber) · water (blauw) · stroom (groen) · weer (violet) */
-.tag-wind   { background: rgba(196, 131, 45, 0.16); color: #dda256; border: 1px solid rgba(196, 131, 45, 0.34); }
+/* datasoort-tags: wind (paars) · water (blauw) · stroom (teal) · weer (neutraal) */
+.tag-wind   { background: rgba(139, 125, 214, 0.16); color: #b3a8ec; border: 1px solid rgba(139, 125, 214, 0.34); }
 .tag-water  { background: rgba(74, 144, 217, 0.16); color: #7fb3e8; border: 1px solid rgba(74, 144, 217, 0.34); }
-.tag-stroom { background: rgba(23, 168, 120, 0.16); color: #3fc294; border: 1px solid rgba(23, 168, 120, 0.34); }
-.tag-weer   { background: rgba(139, 125, 214, 0.16); color: #b3a8ec; border: 1px solid rgba(139, 125, 214, 0.34); }
+.tag-stroom { background: rgba(43, 166, 160, 0.16); color: #5fc7c0; border: 1px solid rgba(43, 166, 160, 0.34); }
+.tag-weer   { background: rgba(233, 233, 237, 0.06); color: rgba(233, 233, 237, 0.7); border: 1px solid rgba(233, 233, 237, 0.14); }
 /* rating-tint (7-daagse): rood = let op, groen = goed */
 .tag-danger { background: rgba(192, 122, 122, 0.16); color: #d79a9a; border: 1px solid rgba(192, 122, 122, 0.34); }
 .tag-good   { background: rgba(23, 168, 120, 0.18); color: #4fce9f; border: 1px solid rgba(23, 168, 120, 0.4); }

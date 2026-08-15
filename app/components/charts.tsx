@@ -19,7 +19,7 @@ export const fmtDur = (min: number) => { const m = Math.round(min); return `${Ma
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 // waarschuwingskleur voor wind-tegen-stroom (oranje-rood, los van de amberkleur van wind)
-const WARN = "#E0794B";
+const WARN = COLORS.waarschuwing;   // amber — waarschuwingen (bv. wind tegen stroom)
 
 const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 

@@ -904,7 +904,7 @@ function DepartureView({
               <MobileSweep sweep={depOptions} selMs={depMs} onSelect={setDepMs} kentTicks={kentTicks} W={1070} Hg={150} />
             </div>
             <div style={{ display: "flex", gap: 16, padding: "8px 4px 0", fontSize: 11, color: "rgba(233,233,237,.45)" }}>
-              <span><Dot c={COLORS.stroom} />gunstig</span>
+              <span><Dot c={COLORS.sog} />gunstig</span>
               <span><Dot c={COLORS.kentering} />kentering</span>
               <span><Dot c="rgba(233,233,237,.25)" />onzeker</span>
             </div>
@@ -925,7 +925,7 @@ function DepartureView({
                 <span className="tag tag-wind" style={{ fontSize: 11 }}>STW {selTrip.avgStw.toFixed(1)} kn</span>
                 <span className="tag tag-stroom" style={{ fontSize: 11 }}>{c0 > 0.2 ? `Stroom mee ${c0.toFixed(1)} kn` : c0 < -0.2 ? `Stroom tegen ${Math.abs(c0).toFixed(1)} kn` : "Kentering"}</span>
                 {selWarn && (
-                  <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, fontWeight: 600, color: "#E0794B", background: "rgba(224,121,75,.12)", border: "1px solid rgba(224,121,75,.4)" }}>⚠ Wind tegen stroom · verwacht korte steile golf</span>
+                  <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, fontWeight: 600, color: COLORS.waarschuwing, background: alpha(COLORS.waarschuwing, 0.12), border: `1px solid ${alpha(COLORS.waarschuwing, 0.4)}` }}>⚠ Wind tegen stroom · verwacht korte steile golf</span>
                 )}
               </div>
 
@@ -1108,7 +1108,7 @@ function DepartureMobile({
             </div>
             <MobileSweep sweep={sweep} selMs={depMs} onSelect={setDepMs} kentTicks={kentTicks} />
             <div style={{ display: "flex", gap: 12, padding: "6px 4px 0", fontSize: 10, color: "rgba(233,233,237,.45)" }}>
-              <span><Dot c={COLORS.stroom} />gunstig</span>
+              <span><Dot c={COLORS.sog} />gunstig</span>
               <span><Dot c={COLORS.kentering} />kentering</span>
               <span><Dot c="rgba(233,233,237,.25)" />onzeker</span>
             </div>
@@ -1166,7 +1166,7 @@ function MobileSweep({ sweep, selMs, onSelect, kentTicks, W = 351, Hg = 132 }: {
   const sCap = Math.max(4, Math.ceil(sMax / 2) * 2);   // absolute schaal-top, even kn
   const pitch = (X1 - X0) / sweep.length;
   const bw = Math.max(1.6, pitch * 0.62);
-  const HMAX = YB - Y0 - 6, G = [23, 168, 120];
+  const HMAX = YB - Y0 - 6, G = [23, 168, 120];   // = COLORS.sog (#17A878): snel = groen, spiegelt de snelheidskleur
   const firstUnc = sweep.find((o) => o.result.voorbijHorizon);
   return (
     <svg viewBox={`0 0 ${W} ${Hg}`} width="100%" style={{ display: "block" }}>
@@ -1199,9 +1199,9 @@ function MobileSweep({ sweep, selMs, onSelect, kentTicks, W = 351, Hg = 132 }: {
       )}
       {selMs != null && selMs >= start && selMs <= end && (
         <>
-          <line x1={tx(selMs)} y1={Y0 - 2} x2={tx(selMs)} y2={YB} stroke={alpha(COLORS.stroom, 0.6)} strokeWidth={1} strokeDasharray="3 3" />
-          <polygon points={`${tx(selMs) - 4},${Y0 - 2} ${tx(selMs) + 4},${Y0 - 2} ${tx(selMs)},${Y0 + 4}`} fill={COLORS.stroom} />
-          <text x={tx(selMs)} y={YB + 22} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.stroom}>{localHM(selMs)}</text>
+          <line x1={tx(selMs)} y1={Y0 - 2} x2={tx(selMs)} y2={YB} stroke={alpha(COLORS.sog, 0.6)} strokeWidth={1} strokeDasharray="3 3" />
+          <polygon points={`${tx(selMs) - 4},${Y0 - 2} ${tx(selMs) + 4},${Y0 - 2} ${tx(selMs)},${Y0 + 4}`} fill={COLORS.sog} />
+          <text x={tx(selMs)} y={YB + 22} textAnchor="middle" fontSize={9} fontWeight={600} fill={COLORS.sog}>{localHM(selMs)}</text>
         </>
       )}
       {kentTicks.filter((k) => k >= start && k <= end).map((k, i) => (
