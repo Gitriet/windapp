@@ -20,7 +20,7 @@ import HavenSelector from "./components/HavenSelector";
 import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
-  CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, Compass,
+  CurrentTimeline, WindTimeline, SpeedTimeline, SummaryRow, DepartureCards, Compass,
   dirLabel16, sailPhrase, windAgainstCurrent, fmtDur, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
@@ -1000,9 +1000,15 @@ function DepartureView({
                 </div>
               )}
 
-              {/* trip chart */}
-              <div style={{ position: "relative", overflow: "hidden", borderRadius: 14, padding: "18px 24px 12px", background: "linear-gradient(135deg,#191c2b 0%,#141626 100%)", boxShadow: `inset 0 0 0 1px ${alpha(COLORS.weer, 0.2)}` }}>
-                <TripChart trip={selTrip} />
+              {/* snelheid langs de route — SOG-balken, zelfde stijl als wind/getij */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Snelheid langs de route</div>
+                  <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>SOG in kn · vertrek → aankomst</div>
+                </div>
+                <div style={{ background: "rgba(15,17,25,.35)", borderRadius: 12, padding: "12px 16px 6px", boxShadow: "inset 0 0 0 1px rgba(233,233,237,.06)" }}>
+                  <SpeedTimeline trip={selTrip} />
+                </div>
               </div>
             </>
           )}

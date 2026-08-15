@@ -184,6 +184,44 @@ export function WindTimeline({
   );
 }
 
+// ── Snelheid langs de route ─────────────────────────────────────────────
+// SOG (kn) als verticale balken in dezelfde stijl als de wind-/stroom-tijdlijn,
+// maar op de TOCHT-as (vertrek→aankomst) — snelheid bestaat alleen tijdens de tocht,
+// dus die as vult de breedte i.p.v. een sliver op het 2u-forecastvenster.
+export function SpeedTimeline({ trip }: { trip: SimResult }) {
+  const steps = trip.steps;
+  const W = 1070, height = 96, pl = 34, pr = 10, cw = W - pl - pr, top = 22, bot = height - 16;
+  const depMs = trip.departMs;
+  const arrMs = trip.arrMs ?? (steps.length ? steps[steps.length - 1].tMs : depMs);
+  const span = Math.max(1, arrMs - depMs);
+  const x = (ms: number) => pl + ((ms - depMs) / span) * cw;
+  const pts = steps.map((s) => ({ ms: s.tMs, v: s.sog })).filter((p) => p.ms >= depMs && p.ms <= arrMs);
+  const maxKn = Math.max(4, Math.ceil(Math.max(...pts.map((p) => p.v), 0) / 2) * 2);
+  const y = (v: number) => bot - (v / maxKn) * (bot - top);
+  const bw = Math.min(24, Math.max(3, (cw / Math.max(1, pts.length)) * 0.7));
+  const gridK = [0, maxKn / 2, maxKn];
+  const dur = span / H, tStep = dur > 12 ? 3 : dur >= 3 ? 1 : 0.25;
+  const labels: number[] = [];
+  for (let t = Math.ceil(depMs / (tStep * H)) * (tStep * H); t <= arrMs + 1000; t += tStep * H) labels.push(t);
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      {gridK.map((v) => (
+        <g key={`g${v}`}>
+          <line x1={pl} y1={y(v)} x2={W - pr} y2={y(v)} stroke="rgba(233,233,237,.08)" />
+          <text x={pl - 5} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(v)}</text>
+        </g>
+      ))}
+      {pts.map((p, i) => (
+        <rect key={i} x={x(p.ms) - bw / 2} y={y(p.v)} width={bw} height={bot - y(p.v)} rx={1.5} fill={COLORS.sog} fillOpacity={0.7} />
+      ))}
+      {labels.map((t) => (
+        <text key={`t${t}`} x={x(t)} y={height - 2} textAnchor="middle" fontSize={10} fill="rgba(233,233,237,.3)" style={{ fontVariantNumeric: "tabular-nums" }}>{localHM(t)}</text>
+      ))}
+      <text x={pl - 5} y={top - 6} textAnchor="end" fontSize={9} fill={alpha(COLORS.sog, 0.6)}>kn</text>
+    </svg>
+  );
+}
+
 // ── Trip chart: SOG vs STW, met het stroomeffect als het gekleurde vlak ertussen ──
 export function TripChart({ trip }: { trip: SimResult }) {
   const steps = trip.steps;
