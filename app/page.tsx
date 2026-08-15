@@ -658,7 +658,7 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
                 {d.dir != null ? compass(d.dir) : "—"}
               </span>
             </div>
-            <div style={{ marginTop: 4, fontSize: 12.5, color: "rgba(233,233,237,.5)", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ marginTop: 4, fontSize: 12.5, color: "rgba(233,233,237,.5)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
               {hw ? <><span style={{ color: COLORS.water }}>H</span>{localHM(tms(hw.t))}</> : "—"}
               {lw && <> <span style={{ color: "rgba(233,233,237,.35)" }}>L</span>{localHM(tms(lw.t))}</>}
             </div>
