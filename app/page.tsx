@@ -882,7 +882,7 @@ function DepartureView({
           <div style={{ marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10, flexWrap: "wrap" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Vertrekalternatieven</div>
-              <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>komende 48 u · as: duur (hoog = snel)</div>
+              <div style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>komende 48 u · Ø snelheid (kn) · hoger = sneller</div>
               <div style={{ flex: 1 }} />
               <div style={{ fontSize: 11, color: "rgba(233,233,237,.3)" }}>klik een kolom voor het detail</div>
             </div>
@@ -1090,7 +1090,7 @@ function DepartureMobile({
           <div style={{ marginTop: 14, padding: "14px 12px 8px", borderRadius: 16, background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.07)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px 6px" }}>
               <span style={{ fontSize: 12, color: "rgba(233,233,237,.55)" }}>Vertrek — komende 48u</span>
-              <span style={{ fontSize: 10, color: "rgba(233,233,237,.4)" }}>as: duur</span>
+              <span style={{ fontSize: 10, color: "rgba(233,233,237,.4)" }}>as: Ø kn</span>
             </div>
             <MobileSweep sweep={sweep} selMs={depMs} onSelect={setDepMs} kentTicks={kentTicks} />
             <div style={{ display: "flex", gap: 12, padding: "6px 4px 0", fontSize: 10, color: "rgba(233,233,237,.45)" }}>
@@ -1128,8 +1128,9 @@ function Dot({ c }: { c: string }) {
   return <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: c, verticalAlign: "middle", marginRight: 4 }} />;
 }
 
-// Verticale-balken-sweep: omgekeerde duur-as (hoog = snel), kwaliteitskleur groen→grijs,
-// kentering-tikken, onzeker-hatch (voorbijHorizon), gekozen-marker, tik-select per kolom.
+// Verticale-balken-sweep: as = gemiddelde vaarsnelheid (Ø SOG, hoger = sneller),
+// kwaliteitskleur groen→grijs, kentering-tikken, onzeker-hatch (voorbijHorizon),
+// gekozen-marker, tik-select per kolom.
 // W/Hg parametriseren de viewBox zodat dezelfde sweep zowel op de iPhone (351×132) als
 // breed op desktop (1070×150) rendert zonder dat de 9px-labels meeschalen; alle posities
 // zijn afgeleid van X0/X1/Y0/YB, de gutters (links 40, onder 32) blijven constant.
@@ -1142,14 +1143,17 @@ function MobileSweep({ sweep, selMs, onSelect, kentTicks, W = 351, Hg = 132 }: {
   const start = sweep[0].depMs, end = sweep[sweep.length - 1].depMs;
   const span = Math.max(1, end - start);
   const tx = (ms: number) => X0 + ((ms - start) / span) * (X1 - X0);
-  const durs = sweep.filter((o) => o.result.arrMs != null).map((o) => o.result.tripMin);
-  const dMin = durs.length ? Math.min(...durs) : 0, dMax = durs.length ? Math.max(...durs) : 1;
-  const dSpan = Math.max(1e-6, dMax - dMin);
+  // As = gemiddelde vaarsnelheid (Ø SOG, kn): hoger = sneller = gunstiger, geen inversie.
+  // HOOGTE is absoluut verankerd op 0..sCap zodat kleine verschillen ook klein ogen; de
+  // KLEUR (groen→grijs) blijft op rang (snelste = groen) zodat de goede vensters opvallen.
+  const spds = sweep.filter((o) => o.result.arrMs != null).map((o) => o.result.avgSog);
+  const sMin = spds.length ? Math.min(...spds) : 0, sMax = spds.length ? Math.max(...spds) : 1;
+  const sSpan = Math.max(1e-6, sMax - sMin);
+  const sCap = Math.max(4, Math.ceil(sMax / 2) * 2);   // absolute schaal-top, even kn
   const pitch = (X1 - X0) / sweep.length;
   const bw = Math.max(1.6, pitch * 0.62);
-  const HMIN = 10, HMAX = YB - Y0 - 6, G = [23, 168, 120];
+  const HMAX = YB - Y0 - 6, G = [23, 168, 120];
   const firstUnc = sweep.find((o) => o.result.voorbijHorizon);
-  const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, "0")}`;
   return (
     <svg viewBox={`0 0 ${W} ${Hg}`} width="100%" style={{ display: "block" }}>
       <defs>
@@ -1158,15 +1162,16 @@ function MobileSweep({ sweep, selMs, onSelect, kentTicks, W = 351, Hg = 132 }: {
         </pattern>
       </defs>
       <line x1={X0} y1={YB} x2={X1} y2={YB} stroke="rgba(255,255,255,.1)" strokeWidth={1} />
-      {durs.length > 0 && <text x={X0 - 6} y={Y0 + 8} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">{hm(dMin)}</text>}
-      {durs.length > 0 && <text x={X0 - 6} y={YB} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">{hm(dMax)}</text>}
-      <text x={6} y={yMid} fontSize={9} fill="rgba(233,233,237,.35)" transform={`rotate(-90 6 ${yMid})`}>duur</text>
+      {spds.length > 0 && <text x={X0 - 6} y={Y0 + 8} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">{sCap}</text>}
+      {spds.length > 0 && <text x={X0 - 6} y={YB} textAnchor="end" fontSize={9} fill="rgba(233,233,237,.4)">0</text>}
+      <text x={6} y={yMid} fontSize={9} fill="rgba(233,233,237,.35)" transform={`rotate(-90 6 ${yMid})`}>Ø kn</text>
       {sweep.map((o) => {
         const reach = o.result.arrMs != null;
-        const norm = reach ? (o.result.tripMin - dMin) / dSpan : 1;   // 0 = snelst
-        const hpx = reach ? HMIN + (1 - norm) * (HMAX - HMIN) : 6;
-        const c = G.map((v, i) => Math.round(v + (SLATE[i] - v) * norm));
-        const op = o.result.voorbijHorizon ? 0.28 : 1 - norm * 0.55;
+        const spd = reach ? o.result.avgSog : 0;
+        const rank = reach ? (sMax - spd) / sSpan : 1;   // 0 = snelst (groen), 1 = traagst (grijs)
+        const hpx = reach ? Math.max(2, (spd / sCap) * HMAX) : 6;
+        const c = G.map((v, i) => Math.round(v + (SLATE[i] - v) * rank));
+        const op = o.result.voorbijHorizon ? 0.28 : 1 - rank * 0.55;
         return (
           <rect key={o.depMs} x={tx(o.depMs) - bw / 2} y={YB - hpx} width={bw} height={hpx}
             fill={`rgb(${c[0]},${c[1]},${c[2]})`} fillOpacity={op} rx={0.8} />
