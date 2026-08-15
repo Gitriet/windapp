@@ -273,10 +273,26 @@ export default function Page() {
     () => candidates.map((dep) => ({ depMs: dep, result: runSim(dep)! })).filter((o) => o.result),
     [candidates, runSim],
   );
-  // beste vertrek (kortste vaartijd) — voedt de antwoordregel + BEST-badge
+  // beste vertrek = het DICHTSTBIJZIJNDE goede venster (niet de globale snelste, die vaak
+  // ver weg + in de onzeker-zone ligt). Regel: het vroegste betrouwbare (niet voorbij de
+  // horizon) lokale duur-minimum. Een lokaal minimum = een echt gunstig vertrekvenster;
+  // het vroegste = eerstvolgende. Snellere-maar-latere en onzekere vensters blijven in de
+  // "andere vensters"-lijst / de sweep zichtbaar. Voedt antwoordregel + auto-selectie.
   const bestOption = useMemo(() => {
     const reach = depOptions.filter((o) => o.result?.arrMs != null);
-    return reach.length ? reach.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)) : null;
+    if (!reach.length) return null;
+    // alleen op onzekere (voorbij-horizon) vertrekken terugvallen als er niets zekers is
+    const certain = reach.filter((o) => !o.result.voorbijHorizon);
+    const base = certain.length ? certain : reach;
+    // lokale duur-minima = de echte vensters (plateau-tolerant, zoals de venster-lijst)
+    const windows = base.filter((o, i, a) => {
+      const L = a[i - 1], R = a[i + 1];
+      const lok = !L || o.result.tripMin <= L.result.tripMin;
+      const rok = !R || o.result.tripMin <= R.result.tripMin;
+      return lok && rok;
+    });
+    const pool = windows.length ? windows : base;
+    return pool.reduce((b, o) => (o.depMs < b.depMs ? o : b));   // vroegste = dichtstbij
   }, [depOptions]);
 
   // Toon het detail meteen voor het BESTE vertrek: selecteer het sweep-beste vertrek
