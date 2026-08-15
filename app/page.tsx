@@ -354,7 +354,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: "calc(16px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left))" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
+      <div style={{ maxWidth: 1520, margin: "0 auto", position: "relative" }}>
         {/* nav */}
         <div className="nav" style={{ borderBottom: "1px solid rgba(233,233,237,.08)" }}>
           <span className="nav-brand" style={{ display: "flex", alignItems: "center", gap: 9 }}>
