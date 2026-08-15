@@ -4,6 +4,30 @@ import { WEEK_MODEL } from "./constants";
 import type { RawSeries, WeekDay } from "./types";
 
 const BASE = "https://api.open-meteo.com/v1/forecast";
+const MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
+
+// Golfhoogte (m) uit de Open-Meteo Marine API — een APARTE endpoint (niet de
+// forecast-API waarop de weer-variabelen meeliften), dus een losse live fetch.
+// Uurlijks UTC-grid, teruggegeven als map iso→golfhoogte zodat de aanroeper op
+// timestamp kan uitlijnen. Landpunten of een API-fout → lege map (Golf toont '—').
+export async function fetchMarine(lat: number, lon: number): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  try {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      hourly: "wave_height",
+      timezone: "UTC",
+      forecast_days: "4",
+    });
+    const res = await fetch(`${MARINE_BASE}?${params.toString()}`, { cache: "no-store" });
+    if (!res.ok) return out;
+    const h = (await res.json()).hourly ?? {};
+    const t: string[] = h.time ?? [], v: (number | null)[] = h.wave_height ?? [];
+    for (let i = 0; i < t.length; i++) out.set(t[i], v[i] ?? null);
+  } catch { /* landpunt of Marine-API-fout → lege map, Golf blijft '—' */ }
+  return out;
+}
 
 export async function fetchModel(
   lat: number, lon: number, modelId: string, withWeather = false,

@@ -45,6 +45,7 @@ export type WeatherSeries = {
   pop: (number | null)[];
   vis: (number | null)[];
   pressure: (number | null)[];    // hPa, mean sea level
+  wave: (number | null)[];        // significante golfhoogte, m (Open-Meteo Marine API)
   sunrise: string[];
   sunset: string[];
 };

@@ -442,7 +442,7 @@ function NowView({ fc, week, tide, loc, nowMs }: {
 
   return (
     <div className="nowview">
-      {isMobile ? <HeroMobile p0={p0} bft={bft} temp={fc.weather?.temp?.[0] ?? null} /> : (
+      {isMobile ? <HeroMobile p0={p0} bft={bft} temp={fc.weather?.temp?.[0] ?? null} wave={fc.weather?.wave?.[0] ?? null} /> : (
       <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
         <div style={{ position: "relative", flex: 1 }}>
@@ -497,13 +497,12 @@ const BFT_LABEL = [
 // — geen datumregel, HW-tag, model-tag of trend-zin. Vlaag + temp (uit fc.weather)
 // hebben data; golf heeft geen bron → `—`. WindCanvas blijft de achtergrond-
 // particles (amber, kleur uit COLORS.wind).
-function HeroMobile({ p0, bft, temp }: { p0: ForecastResponse["points"][number]; bft: number; temp: number | null }) {
+function HeroMobile({ p0, bft, temp, wave }: { p0: ForecastResponse["points"][number]; bft: number; temp: number | null; wave: number | null }) {
   const spd = Math.round(p0.speed_kn);
   const dir = p0.dir_deg;
   // amber stip op de kompasrand = windrichting t.o.v. noord (Nu-view, geen koers)
   const rad = (dir * Math.PI) / 180, cx = 50 + 40 * Math.sin(rad), cy = 50 - 40 * Math.cos(rad);
-  // golf: geen databron → `—`. temp komt uit fc.weather (1:1 met de windpunten).
-  const golf: number | null = null;
+  // golf + temp komen uit fc.weather; golf uit de Marine API (null voor landpunten).
   const dimVal = "rgba(233,233,237,.35)";
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 16, padding: "22px 18px 20px", background: alpha(COLORS.wind, 0.05), border: `1px solid ${alpha(COLORS.wind, 0.22)}` }}>
@@ -532,7 +531,7 @@ function HeroMobile({ p0, bft, temp }: { p0: ForecastResponse["points"][number];
       </div>
       <div style={{ position: "relative", display: "flex", gap: 8, marginTop: 18 }}>
         <Metric label="Vlaag" value={`${Math.round(p0.gust_kn)} kn`} color={COLORS.wind} />
-        <Metric label="Golf" value={golf == null ? "—" : `${golf} m`} color={dimVal} />
+        <Metric label="Golf" value={wave == null ? "—" : `${wave.toFixed(1)} m`} color={wave == null ? dimVal : "rgba(233,233,237,.85)"} />
         <Metric label="Temp" value={temp == null ? "—" : `${Math.round(temp)}°`} color={temp == null ? dimVal : "rgba(233,233,237,.85)"} />
       </div>
     </div>

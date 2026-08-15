@@ -3,7 +3,7 @@
 // band for single points. v1: best single corrected model, no blend,
 // no direction correction.
 import { sql } from "./db";
-import { fetchModel, fetchWeek } from "./openmeteo";
+import { fetchModel, fetchWeek, fetchMarine } from "./openmeteo";
 import { CORE_MODEL_IDS, TTL_MINUTES, WEATHER_MODEL } from "./constants";
 import { correctSpeed, correctGust } from "./correction";
 import { hoursToLead } from "./leads";
@@ -272,8 +272,11 @@ export async function buildSeries(
   // weather overlay: a separate display layer on its OWN horizon (the full 4-day
   // fetch), so future days still show sky/temp past the 72h wind cap. Positioned
   // on the shared time axis by timestamp, so it need not match points 1:1.
+  // golfhoogte: losse live fetch op de Marine API (aparte endpoint), op timestamp
+  // gematcht aan de weer-tijdas. Landpunten → lege map → wave blijft null (Golf '—').
+  const marine = await fetchMarine(L.loc.lat, L.loc.lon);
   const w: WeatherSeries = {
-    time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [], pressure: [],
+    time: [], code: [], temp: [], cloud: [], precip: [], pop: [], vis: [], pressure: [], wave: [],
     sunrise: L.sunrise, sunset: L.sunset,
   };
   for (const iso of L.weatherTimes) {
@@ -283,7 +286,7 @@ export async function buildSeries(
     w.time.push(iso);
     w.code.push(c?.code ?? null); w.temp.push(c?.temp ?? null); w.cloud.push(c?.cloud ?? null);
     w.precip.push(c?.precip ?? null); w.pop.push(c?.pop ?? null); w.vis.push(c?.vis ?? null);
-    w.pressure.push(c?.pressure ?? null);
+    w.pressure.push(c?.pressure ?? null); w.wave.push(marine.get(iso) ?? null);
   }
   return { location: L.loc, points, weather: w };
 }
