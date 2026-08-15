@@ -20,7 +20,7 @@ import HavenSelector from "./components/HavenSelector";
 import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
-  CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, WindBarbs, Compass,
+  CurrentTimeline, WindTimeline, TripChart, SummaryRow, DepartureCards, Compass,
   dirLabel16, sailPhrase, windAgainstCurrent, fmtDur, type DepOption, type WindTLSample,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
@@ -439,15 +439,10 @@ function NowView({ fc, week, tide, loc, nowMs }: {
   const nextHW = isTide(tide) ? (tide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= nowMs) ?? tide.extremes.find((e) => e.kind === "HW")) : null;
 
   const chartPts = pts.slice(0, 13);
-  const barbItems = Array.from({ length: 6 }, (_, i) => {
-    const idx = Math.min(pts.length - 1, i * 2);
-    const p = pts[idx];
-    return { kt: Math.round(p.speed_kn), dir: p.dir_deg, label: i === 0 ? "Nu" : localHM(tms(p.time)) };
-  });
 
   return (
     <div className="nowview">
-      {isMobile ? <HeroMobile p0={p0} bft={bft} /> : (
+      {isMobile ? <HeroMobile p0={p0} bft={bft} temp={fc.weather?.temp?.[0] ?? null} /> : (
       <div style={{ display: "flex", alignItems: "center", gap: 24, position: "relative", overflow: "hidden", borderRadius: 12, padding: "10px 20px", background: "linear-gradient(120deg,#191c2b,#12131f)" }}>
         <WindCanvas dir={canvasDir(p0.dir_deg)} />
         <div style={{ position: "relative", flex: 1 }}>
@@ -474,18 +469,12 @@ function NowView({ fc, week, tide, loc, nowMs }: {
       </div>
       )}
 
-      <div className="now-grid" style={{ display: "grid", gap: 22, marginTop: 16 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Komende 12 uur</span>
-            <span style={{ fontSize: 11, color: "rgba(233,233,237,.4)" }}>{loc.name} · wind in knopen</span>
-          </div>
-          <Chart12h points={chartPts} />
+      <div style={{ marginTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)" }}>Komende 12 uur</span>
+          <span style={{ fontSize: 11, color: "rgba(233,233,237,.4)" }}>{loc.name} · wind + richting</span>
         </div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(233,233,237,.85)", marginBottom: 10 }}>Windveren</div>
-          <WindBarbs items={barbItems} />
-        </div>
+        <Chart12h points={chartPts} />
       </div>
 
       <div style={{ marginTop: 26 }}>
@@ -503,18 +492,18 @@ const BFT_LABEL = [
   "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
 ];
 
-// Mobiele hero (≤640px): compas + snelheid als anker, drie compacte metrics
-// eronder. Vereenvoudigd t.o.v. desktop — geen datumregel, HW-tag, model-tag of
-// trend-zin. Golf/water hebben geen forecast-bron → tonen `—`. WindCanvas blijft
-// de achtergrond-particles (amber, kleur uit COLORS.wind). Conform de mock
-// tidan-hero-mobile.html.
-function HeroMobile({ p0, bft }: { p0: ForecastResponse["points"][number]; bft: number }) {
+// Mobiele hero (≤640px): kompas-roos toont de richting (anker), snelheid groot
+// ernaast (één keer), drie compacte metrics eronder. Vereenvoudigd t.o.v. desktop
+// — geen datumregel, HW-tag, model-tag of trend-zin. Vlaag + temp (uit fc.weather)
+// hebben data; golf heeft geen bron → `—`. WindCanvas blijft de achtergrond-
+// particles (amber, kleur uit COLORS.wind).
+function HeroMobile({ p0, bft, temp }: { p0: ForecastResponse["points"][number]; bft: number; temp: number | null }) {
   const spd = Math.round(p0.speed_kn);
   const dir = p0.dir_deg;
   // amber stip op de kompasrand = windrichting t.o.v. noord (Nu-view, geen koers)
   const rad = (dir * Math.PI) / 180, cx = 50 + 40 * Math.sin(rad), cy = 50 - 40 * Math.cos(rad);
-  // golf/water: geen veld in de forecast → bron is null → `—`
-  const golf: number | null = null, water: number | null = null;
+  // golf: geen databron → `—`. temp komt uit fc.weather (1:1 met de windpunten).
+  const golf: number | null = null;
   const dimVal = "rgba(233,233,237,.35)";
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 16, padding: "22px 18px 20px", background: alpha(COLORS.wind, 0.05), border: `1px solid ${alpha(COLORS.wind, 0.22)}` }}>
@@ -531,21 +520,20 @@ function HeroMobile({ p0, bft }: { p0: ForecastResponse["points"][number]; bft: 
             <line x1={21.7} y1={78.3} x2={26} y2={74} /><line x1={78.3} y1={78.3} x2={74} y2={74} />
           </g>
           <circle cx={cx} cy={cy} r={5.5} fill={COLORS.wind} />
-          <text x={50} y={49} textAnchor="middle" dominantBaseline="central" fontSize={30} fontWeight={700} fill="#e9e9ed" className="kpi">{spd}</text>
-          <text x={50} y={66} textAnchor="middle" fontSize={9} fill="rgba(233,233,237,.5)">kn</text>
+          <text x={50} y={47} textAnchor="middle" dominantBaseline="central" fontSize={22} fontWeight={700} fill="#e9e9ed" className="kpi">{dirLabel16(dir)}</text>
+          <text x={50} y={66} textAnchor="middle" fontSize={11} fill="rgba(233,233,237,.5)" className="kpi">{Math.round(dir)}°</text>
         </svg>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 44, fontWeight: 700, lineHeight: 1, color: COLORS.wind }} className="kpi">
             {spd}<span style={{ fontSize: 20, fontWeight: 500, color: alpha(COLORS.wind, 0.7), marginLeft: 4 }}>kn</span>
           </div>
-          <div style={{ fontSize: 15, color: "rgba(233,233,237,.8)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>{dirLabel16(dir)} · {Math.round(dir)}°</div>
-          <div style={{ fontSize: 13, color: "rgba(233,233,237,.45)", marginTop: 2 }}>{bft} Bft · {BFT_LABEL[bft]}</div>
+          <div style={{ fontSize: 13, color: "rgba(233,233,237,.45)", marginTop: 8 }}>{bft} Bft · {BFT_LABEL[bft]}</div>
         </div>
       </div>
       <div style={{ position: "relative", display: "flex", gap: 8, marginTop: 18 }}>
         <Metric label="Vlaag" value={`${Math.round(p0.gust_kn)} kn`} color={COLORS.wind} />
         <Metric label="Golf" value={golf == null ? "—" : `${golf} m`} color={dimVal} />
-        <Metric label="Water" value={water == null ? "—" : `${water}°`} color={dimVal} />
+        <Metric label="Temp" value={temp == null ? "—" : `${Math.round(temp)}°`} color={temp == null ? dimVal : "rgba(233,233,237,.85)"} />
       </div>
     </div>
   );
@@ -563,7 +551,7 @@ function Metric({ label, value, color }: { label: string; value: string; color: 
 function Chart12h({ points }: { points: ForecastResponse["points"] }) {
   const W = 620, Hgt = 220, n = points.length;
   if (n < 2) return <svg width="100%" viewBox={`0 0 ${W} ${Hgt}`} />;
-  const PL = 34, PR = 14, PT = 34, PB = 22;
+  const PL = 34, PR = 14, PT = 40, PB = 22;
   const x0 = PL, x1 = W - PR, yTop = PT, yBot = Hgt - PB, plotW = x1 - x0, plotH = yBot - yTop;
   const maxGust = Math.max(...points.map((p) => p.gust_kn));
   const maxKn = Math.max(30, Math.ceil(maxGust / 10) * 10);         // vaste schaal 0/10/20/30(+)
@@ -572,7 +560,6 @@ function Chart12h({ points }: { points: ForecastResponse["points"] }) {
   const bw = Math.max(3, pitch * 0.62);                             // balkbreedte (sweep-stijl)
   const cx = (i: number) => x0 + (i + 0.5) * pitch;                 // midden van slot i
   const yv = (v: number) => yBot - (v / maxKn) * plotH;
-  const now = Math.round(points[0].speed_kn);
   const labelIdx = [0, 3, 6, 9, 12].filter((i) => i < n);
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${Hgt}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
@@ -601,8 +588,13 @@ function Chart12h({ points }: { points: ForecastResponse["points"] }) {
           </g>
         );
       })}
-      {/* huidige waarde boven het eerste (Nu-)balkje */}
-      <text x={cx(0)} y={yv(points[0].gust_kn) - 5} textAnchor="middle" fontSize={13} fontWeight={600} fill={COLORS.wind} style={{ fontVariantNumeric: "tabular-nums" }}>{now}</text>
+      {/* richting-pijltjes direct boven elke balk (boven de vlaag-top) — wijzen naar
+          vanwaar de wind komt (noordenwind = pijl omhoog), zelfde conventie als de 7-daagse. */}
+      {points.map((p, i) => (
+        <g key={`arr${i}`} transform={`translate(${cx(i)} ${yv(p.gust_kn) - 8})`}>
+          <path d="M10 3 L14 16 L10 13 L6 16 Z" fill={COLORS.wind} fillOpacity={0.8} transform={`rotate(${p.dir_deg}) scale(0.85) translate(-10 -10)`} />
+        </g>
+      ))}
       {/* x-as tijdlabels */}
       {labelIdx.map((i) => (
         <text key={`x${i}`} x={cx(i)} y={Hgt - 6} textAnchor="middle" fontSize={10} fill="rgba(233,233,237,.4)" style={{ fontVariantNumeric: "tabular-nums" }}>{i === 0 ? "Nu" : localHM(tms(points[i].time))}</text>
