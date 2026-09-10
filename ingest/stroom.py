@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import re
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -41,6 +42,26 @@ GET_MATROOS = "https://noos.matroos.rws.nl/direct/get_matroos.php"
 ANAL_TIMES = "https://noos.matroos.rws.nl/direct/get_anal_times.php"
 HORIZON_H = 48                        # bewezen voorspelhorizon (preflight #2)
 _TIMEOUT = 300
+
+
+def _get_retry(url: str, params: dict, timeout: float, retries: int = 3,
+                backoff: float = 5.0) -> requests.Response:
+    """requests.get met exponentiële backoff op connectie-/timeoutfouten.
+
+    Matroos valt af en toe kort weg (connect timeout); dat is geen reden om de
+    hele cronrun rood te laten slaan. HTTP-foutstatussen (raise_for_status bij
+    de aanroeper) worden hier niet opnieuw geprobeerd — alleen bereikbaarheid."""
+    for attempt in range(1, retries + 1):
+        try:
+            return requests.get(url, params=params, timeout=timeout)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            if attempt == retries:
+                raise
+            wait = backoff * (2 ** (attempt - 1))
+            log.warning("verbindingsfout naar %s (poging %d/%d): %s — retry over %.0fs",
+                        url, attempt, retries, exc, wait)
+            time.sleep(wait)
+    raise AssertionError("onbereikbaar")  # for-lus retourneert of raist altijd
 
 
 @dataclass(frozen=True)
@@ -168,7 +189,7 @@ def list_analysis_times(tstart: datetime, tstop: datetime) -> list[datetime]:
 
     Source-niveau (niet per box). De lijst bevat alleen al-gepubliceerde runs, dus
     de ~4,5u publicatievertraging zit er vanzelf in verwerkt (preflight #1)."""
-    r = requests.get(ANAL_TIMES, params={
+    r = _get_retry(ANAL_TIMES, params={
         "database": "maps2d", "source": SOURCE,
         "tstart": _gmt(tstart), "tstop": _gmt(tstop)}, timeout=60)
     r.raise_for_status()
@@ -209,7 +230,9 @@ def fetch_stroom(box: str | Box, analysis_time: datetime | None = None,
     log.info("fetch %s van %s  venster %s..%s GMT  anal=%s",
              b.id, url.rsplit("/", 1)[-1], _gmt(start), _gmt(stop),
              _gmt(analysis_time) if analysis_time else "laatste")
-    r = requests.get(url, params=params, timeout=_TIMEOUT)   # volgt redirects (302) vanzelf
+    # retries=2 (i.p.v. de default 3): elke poging heeft al een 300s-timeout,
+    # dus meer pogingen zouden het 55-min job-budget uit stroom-ingest.yml opeten.
+    r = _get_retry(url, params=params, timeout=_TIMEOUT, retries=2, backoff=10)
     r.raise_for_status()
     _check_netcdf(r.content, r.headers.get("content-type", ""))
 
