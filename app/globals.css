@@ -155,11 +155,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    media-queries (CSS kent geen var() in een media-conditie). */
 .shell-top {
   display: flex; align-items: center;
-  padding: calc(var(--sp-7) + env(safe-area-inset-top)) var(--gutter) var(--sp-5);
+  padding: calc(var(--sp-7) + env(safe-area-inset-top)) calc(var(--gutter) + env(safe-area-inset-right))
+    var(--sp-5) calc(var(--gutter) + env(safe-area-inset-left));
 }
 .shell-brand { font-family: var(--font-num); font-size: var(--fs-merk); font-weight: 700; letter-spacing: var(--ls-merk); color: var(--parchment); }
 
-.shell-screens { padding: 0 var(--gutter) calc(var(--tabbar-space) + env(safe-area-inset-bottom)); }
+.shell-screens {
+  padding: 0 calc(var(--gutter) + env(safe-area-inset-right)) calc(var(--tabbar-space) + env(safe-area-inset-bottom))
+    calc(var(--gutter) + env(safe-area-inset-left));
+}
 .shell-screen { display: flex; flex-direction: column; gap: var(--sp-7); min-width: 0; }
 .shell-screen:not([data-active]) { display: none; }
 .shell-screen-title { display: none; }
@@ -168,7 +172,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   display: flex; background: var(--ink);
   border-top: var(--line) solid var(--hairline-soft);
-  padding: var(--sp-5) var(--sp-9) calc(var(--tabbar-pad-bottom) + env(safe-area-inset-bottom));
+  padding: var(--sp-5) calc(var(--sp-9) + env(safe-area-inset-right)) calc(var(--tabbar-pad-bottom) + env(safe-area-inset-bottom))
+    calc(var(--sp-9) + env(safe-area-inset-left));
 }
 .shell-tab {
   flex: 1; min-height: var(--tap);
@@ -201,12 +206,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chip-option[aria-current="true"] { border-color: var(--parchment); }
 
 @media (min-width: 768px) {
-  .shell-top { padding: var(--sp-7) var(--sp-9); border-bottom: var(--line) solid var(--hairline-soft); }
+  .shell-top {
+    padding: calc(var(--sp-7) + env(safe-area-inset-top)) calc(var(--sp-9) + env(safe-area-inset-right))
+      var(--sp-7) calc(var(--sp-9) + env(safe-area-inset-left));
+    border-bottom: var(--line) solid var(--hairline-soft);
+  }
   .shell-brand { font-size: var(--fs-merk-desk); letter-spacing: var(--ls-merk-desk); }
   .shell-tabbar { display: none; }
   .shell-screens {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-10);
-    padding: var(--sp-11) var(--sp-12);
+    padding: var(--sp-11) calc(var(--sp-12) + env(safe-area-inset-right)) calc(var(--sp-11) + env(safe-area-inset-bottom))
+      calc(var(--sp-12) + env(safe-area-inset-left));
   }
   .shell-screen, .shell-screen:not([data-active]) { display: flex; }
   .shell-screen:nth-child(2n) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }

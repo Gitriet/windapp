@@ -137,7 +137,7 @@ export function adviesState(best: DepOption | null, firstDepMs: number | null, a
 // Stroomeffect t.o.v. dezelfde tocht bij stilstaand water (tripsim.effectMin).
 export function effectLabel(effectMin: number): string {
   if (effectMin < 0) return `${-effectMin} min sneller dan bij stilstaand water`;
-  if (effectMin > 0) return `${effectMin} min langzamer dan bij stilstaand water`;
+  if (effectMin > 0) return `stroom tegen, ${effectMin} min langer dan bij stilstaand water`;
   return "even snel als bij stilstaand water";
 }
 

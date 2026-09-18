@@ -145,14 +145,15 @@ her-sampelt uit intacte R2-grids.
 ## Routenetwerk
 
 Opgebouwd uit `data/routes/routes-R01-R21.geojson` + `havens.json` door
-`ingest/netwerk.py`: 19 havens (canoniek punt = gem. eindpunten <500 m), 21 routes
+`ingest/netwerk.py`: 20 havens (canoniek punt = gem. eindpunten <500 m), 26 routes
 (LineStrings met `lengte_nm`), en samplepunten per ~1 NM. Pathfinding zit
 **client-side** in `lib/netwerk-path.ts`: `shortestPath()` is Dijkstra op een gewogen
 buur-graaf van havens en ketent buurroutes tot een multi-leg tocht (`RouteLeg` met
 reversed-vlag + bearing). Stroom per route komt uit `/api/route-stroom` (Neon
 punt-forecast, nieuwste run), en `planner-data.fetchRouteCurrent` projecteert `u/v`
-langs de routekoers → `alongKn` (>0 mee, <0 tegen). Alleen R09 (Marsdiep Den
-Helder→Texel) heeft momenteel punt-stroomforecast geïngest; `DEFAULT_ROUTE_ID = "R09"`.
+langs de routekoers → `alongKn` (>0 mee, <0 tegen). Alle 26 routes hebben
+punt-stroomforecast (gecontroleerd 2026-09-18); `DEFAULT_ROUTE_ID = "R09"` (Den Helder →
+Oudeschild) is alleen de standaardkeuze bij openen.
 
 ## Polaire ETA
 
@@ -165,8 +166,9 @@ stappen** met wind-over-water-aftrek en stroomvector per dichtstbijzijnd samplep
 registreert elke stap voor de grafiek. **Getijpoort** (`lib/gates.ts`):
 `depthOverSill = sillDepthChart + NAP-waterstand + reductievlakOnderNap`; `gateWindows()`
 levert vensters waar diepte ≥ vereiste diepgang; `evaluateGate()` → status
-gehaald/net-aan/niet-gehaald/onbekend. `GATE_DATUMS` is **momenteel leeg** (geen
-referentievlakken geladen → gate = "onbekend").
+gehaald/net-aan/niet-gehaald/onbekend. `GATE_DATUMS` wordt opgebouwd uit
+`data/havens-info.json` (havens met drempel én `rws_getij_code`): nu alleen **Vlissingen**
+(drempel −3,30 m NAP, reductievlak 0). Voor alle andere havens is de poort "onbekend".
 
 ## Conventies
 
@@ -189,15 +191,15 @@ referentievlakken geladen → gate = "onbekend").
   stations geworden); best-single-per-lead serving, geen blend in v1. De live picker
   toont ~16 locaties.
 - **Getijstroom (fase 3):** uurlijkse cron operationeel met inshore/offshore-splitsing;
-  grids in R2, punt-forecast in Neon. Alleen R09 (Marsdiep) heeft punt-forecast → de
-  Tocht-planner staat vast op die route.
+  grids in R2, punt-forecast in Neon voor alle 26 routes; hindcast-punten per dag in R2.
+  De routekiezer (ROUTE/GETIJDEN/VAARPLAN) kan elke haven-combinatie kiezen.
 - **Getij:** live RWS-laag met astronomische cache, alleen voor Wad-/getijpunten.
 - **Bekende gaten / open punten:**
-  golfhoogte en watertemperatuur hebben geen databron (`—` in de UI); stroom-horizon
-  ~52 u met ~67% niet-null (vertrek voorbij de horizon simuleert met `cur=0`, nog zonder
-  zekerheidsvlag); `GATE_DATUMS` leeg dus getijpoort = "onbekend"; `tripsim.ts`
-  dupliceert `passage.ts` (consolidatie voorgesteld). Meerdere routes vereisen eerst
-  stroom-ingestie voor die routes.
+  watertemperatuur heeft geen databron (niet getoond); golfhoogte komt uit de
+  Open-Meteo Marine API (`—` op landpunten); stroom-forecast reikt ~2 dagen vooruit —
+  vertrekken met stroom voorbij de reeks krijgen de vlag `voorbijHorizon` (UI: ONZEKER);
+  getijpoort alleen voor Vlissingen (zie Polaire ETA); `tripsim.ts` dupliceert
+  `passage.ts` (consolidatie voorgesteld). Ontwerp → data-koppeling: `app/KOPPELING.md`.
 - Onduidelijk uit code: exacte deploy-URL en of er buiten `stroom-ingest.yml` andere
   gescheduelde jobs draaien.
 
