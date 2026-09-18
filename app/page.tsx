@@ -8,14 +8,14 @@ import { compass, beaufort } from "@/lib/format";
 import { COLORS, alpha } from "@/lib/colors";
 import type { SimResult } from "@/lib/tripsim";
 import type { ForecastResponse, WeekResponse, RouteInfo, RouteHaven } from "@/lib/planner-data";
-import { combineLegTimelines, stroomSpanOf, pickVensters, type DepOption, type RouteMeta } from "@/lib/tocht";
+import { combineLegTimelines, stroomSpanOf, pickVensters, windAgainstCurrent, type DepOption, type RouteMeta } from "@/lib/tocht";
 import { verdict, type Verdict } from "@/lib/verdict";
 import HavenSelector from "./components/HavenSelector";
 import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, SpeedTimeline, SummaryRow,
-  dirLabel16, sailPhrase, windAgainstCurrent, fmtDur,
+  dirLabel16, sailPhrase, fmtDur,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
 import { useIsMobile } from "@/lib/use-is-mobile";

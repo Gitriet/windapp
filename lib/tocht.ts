@@ -1,7 +1,9 @@
 // Pure afleidingen voor de Tocht-planner (client-safe). Verplaatst uit app/page.tsx
 // zodat data/logica los van de presentatie staat; gedrag ongewijzigd.
-import type { SimResult, SimWind } from "./tripsim";
+import type { SimResult, SimStep, SimWind } from "./tripsim";
 import type { RouteCurrent } from "./planner-data";
+import type { WeatherSeries } from "./types";
+import { WARN } from "./constants";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -135,4 +137,70 @@ export function pickVensters(sweep: DepOption[], best: DepOption | null): DepOpt
     if (picked.length >= 4) break;
   }
   return picked.sort((a, b) => a.depMs - b.depMs);
+}
+
+const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+// Wind-tegen-stroom: waar wind > 15 kn EN |stroom| > 0,5 kn EN wind en stroom
+// tegengesteld (hoek tussen wind-heen en stroom-heen > 90°). De stroomrichting leiden
+// we af uit het teken van de langs-koers-component (cur ≥ 0 → met de koers mee) plus de
+// routekoers — de sim levert geen stroomvector, dus dit is de eerlijkste benadering.
+// Vlag de tocht als een noemenswaardig deel (≥ 25%) van de stappen eraan voldoet.
+export function windAgainstCurrent(steps: SimStep[], courseDeg: number): boolean {
+  const body = steps.length > 1 ? steps.slice(0, -1) : steps;
+  if (!body.length) return false;
+  let bad = 0;
+  for (const s of body) {
+    if (s.wSpd <= 15 || Math.abs(s.cur) <= 0.5) continue;
+    const windToward = (s.wDir + 180) % 360;
+    const curToward = s.cur >= 0 ? courseDeg : (courseDeg + 180) % 360;
+    if (angleDiff(windToward, curToward) > 90) bad++;
+  }
+  return bad / body.length >= 0.25;
+}
+
+// ── advies (ROUTE) ─────────────────────────────────────────────────────
+// Vijf toestanden, puur afgeleid van het beste vertrek — geen gaan/niet-gaan-oordeel.
+// Volgorde: geen venster > zonder stroom > onzeker > ga nu > vertrek later.
+// "Ga nu" = het beste vertrek is het eerste kandidaat-tijdstip (≤ 30 min vanaf nu).
+export type AdviesKind = "ga-nu" | "vertrek" | "onzeker" | "geen-venster" | "zonder-stroom";
+export function adviesState(best: DepOption | null, firstDepMs: number | null, anyStroom: boolean): AdviesKind {
+  if (!best) return "geen-venster";
+  if (!anyStroom) return "zonder-stroom";
+  if (best.result.voorbijHorizon) return "onzeker";
+  if (firstDepMs != null && best.depMs === firstDepMs) return "ga-nu";
+  return "vertrek";
+}
+
+// Stroomeffect t.o.v. dezelfde tocht bij stilstaand water (tripsim.effectMin).
+export function effectLabel(effectMin: number): string {
+  if (effectMin < 0) return `${-effectMin} min sneller dan bij stilstaand water`;
+  if (effectMin > 0) return `${effectMin} min langzamer dan bij stilstaand water`;
+  return "even snel als bij stilstaand water";
+}
+
+// Vlaag-sample van een station (uit de forecast-punten), voor de harde-wind-check.
+export type GustSample = { ms: number; gustKn: number };
+
+// LET OP voor een gekozen venster: harde wind (maximum over alle stappen van de tocht
+// ≥ WARN.hardWind.amberKn, of vlaag ≥ amberGust binnen [vertrek-uur, aankomst]) en/of
+// wind tegen stroom (windAgainstCurrent). Vlagen komen niet uit de sim (die kent alleen
+// gemiddelde wind), dus uit de forecast-punten van de stations langs de route.
+export function letOp(trip: SimResult, courseDeg: number, gusts: GustSample[]): { hardWind: boolean; windTegenStroom: boolean } {
+  const maxWind = Math.max(0, ...trip.steps.map((s: SimStep) => s.wSpd));
+  const from = Math.floor(trip.departMs / H) * H, to = trip.arrMs ?? trip.steps[trip.steps.length - 1]?.tMs ?? trip.departMs;
+  const maxGust = Math.max(0, ...gusts.filter((g) => g.ms >= from && g.ms <= to).map((g) => g.gustKn));
+  return {
+    hardWind: maxWind >= WARN.hardWind.amberKn || maxGust >= WARN.hardWind.amberGust,
+    windTegenStroom: windAgainstCurrent(trip.steps, courseDeg),
+  };
+}
+
+// Weer op een tijdstip: het uur-sample waarin `ms` valt (uurgrid, UTC).
+export function weatherAt(w: WeatherSeries | null | undefined, ms: number): { temp: number | null; code: number | null; precip: number | null } | null {
+  if (!w || !w.time.length) return null;
+  const hour = Math.floor(ms / H) * H;
+  const i = w.time.findIndex((t) => tms(t) === hour);
+  if (i < 0) return null;
+  return { temp: w.temp[i], code: w.code[i], precip: w.precip[i] };
 }

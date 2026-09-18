@@ -9,7 +9,7 @@ import { localHM, localMidnight } from "@/lib/tz";
 import { COLORS, alpha } from "@/lib/colors";
 import { relativeWindAngle } from "@/lib/wind";
 import { WindRoseIcon } from "./WindRoseIcon";
-import type { DepOption, WindTLSample } from "@/lib/tocht";
+import { windAgainstCurrent, type DepOption, type WindTLSample } from "@/lib/tocht";
 
 const H = 3_600_000;
 const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
@@ -21,8 +21,6 @@ const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 // waarschuwingskleur (amber) voor wind-tegen-stroom e.d.
 const WARN = COLORS.waarschuwing;
-
-const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 // Lineair geïnterpoleerde samples op een vast raster tussen de (uurlijkse) bronpunten,
 // zodat de balken het venster vullen i.p.v. sparse uurpieken met grote gaten. Bron moet
@@ -76,23 +74,6 @@ export function tripWind(steps: SimStep[], windowMs?: number): { spd: number; di
   return { spd: spd / k, dir, twa: twa / k };
 }
 
-// Wind-tegen-stroom: waar wind > 15 kn EN |stroom| > 0,5 kn EN wind en stroom
-// tegengesteld (hoek tussen wind-heen en stroom-heen > 90°). De stroomrichting leiden
-// we af uit het teken van de langs-koers-component (cur ≥ 0 → met de koers mee) plus de
-// routekoers — de sim levert geen stroomvector, dus dit is de eerlijkste benadering.
-// Vlag de tocht als een noemenswaardig deel (≥ 25%) van de stappen eraan voldoet.
-export function windAgainstCurrent(steps: SimStep[], courseDeg: number): boolean {
-  const body = steps.length > 1 ? steps.slice(0, -1) : steps;
-  if (!body.length) return false;
-  let bad = 0;
-  for (const s of body) {
-    if (s.wSpd <= 15 || Math.abs(s.cur) <= 0.5) continue;
-    const windToward = (s.wDir + 180) % 360;
-    const curToward = s.cur >= 0 ? courseDeg : (courseDeg + 180) % 360;
-    if (angleDiff(windToward, curToward) > 90) bad++;
-  }
-  return bad / body.length >= 0.25;
-}
 
 // eerste hele lokale 3-uurs tick op of na startMs
 function threeHourTicks(startMs: number, endMs: number): number[] {

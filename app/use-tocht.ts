@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  combineWindStations, kenteringTicks, pickBest, type DepOption, type RouteMeta,
+  combineWindStations, kenteringTicks, pickBest, type DepOption, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { Location, TideData } from "@/lib/types";
 import type { ViaHaven } from "./components/VaarplanView";
@@ -28,6 +28,7 @@ export function useTocht() {
   const [depMs, setDepMs] = useState<number | null>(null);
   // per been een stroomreeks; wind per distinct station; getij bij vertrek- en aankomsthaven
   const [routeWind, setRouteWind] = useState<SimWind | null>(null);
+  const [routeFc, setRouteFc] = useState<Record<string, ForecastResponse>>({});   // per station: vlagen + weer
   const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
   const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
   const [routeTideTo, setRouteTideTo] = useState<TideData | null>(null);  // aankomsthaven
@@ -110,8 +111,10 @@ export function useTocht() {
         ]);
         if (ignore) return;
         const wind: SimWind = {};
-        keys.forEach((k, i) => { wind[k] = toWindSamples(winds[i].points); });
+        const fcs: Record<string, ForecastResponse> = {};
+        keys.forEach((k, i) => { wind[k] = toWindSamples(winds[i].points); fcs[k] = winds[i]; });
         setRouteWind(wind);
+        setRouteFc(fcs);
         setLegCurrents(curs);
         setRouteTide(isTide(tide) ? tide : null);
         setRouteTideTo(isTide(tideTo) ? tideTo : null);
@@ -193,12 +196,20 @@ export function useTocht() {
     windSeries, windStations,
   };
 
+  // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
+  const routeGusts = useMemo<GustSample[]>(
+    () => Object.values(routeFc).flatMap((f) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn }))),
+    [routeFc],
+  );
+  const vanWeather = endpoints ? routeFc[endpoints.van.key]?.weather ?? null : null;
+
   const kentTicks = useMemo(() => kenteringTicks(routeMeta.legTimelines), [legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
-    depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks,
+    depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks, firstDepMs: candidates[0] ?? null,
+    routeGusts, vanWeather,
     routeTide, routeTideTo, hwMs, ready: !!routeWind, nowMs, err,
   };
 }
