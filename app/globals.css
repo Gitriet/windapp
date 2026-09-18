@@ -99,6 +99,9 @@
   --temp-col-desk: 22px;
   --wind-col-desk: 58px;
   --vlaag-col-desk: 40px;
+  --nav-knop: 22px;      /* zichtbare week-navknop (tapvlak blijft --tap) */
+  --blok-pad: 12px 14px; /* vertrektijdblok GETIJDEN */
+  --kromme-lijn: 2px;
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
   --ls-tab: 0.03em;

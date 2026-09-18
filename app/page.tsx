@@ -6,6 +6,7 @@ import { stroomSpanOf } from "@/lib/tocht";
 import HavenSelector from "./components/HavenSelector";
 import RouteScreen from "./components/RouteScreen";
 import NuScreen from "./components/NuScreen";
+import GetijdenScreen from "./components/GetijdenScreen";
 import VaarplanView from "./components/VaarplanView";
 import { useTocht, useNu } from "./use-tocht";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
@@ -22,7 +23,7 @@ export default function Page() {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, vensters, firstDepMs, selTrip,
-    routeTide, routeTideTo, routeGusts, vanWeather, ready, nowMs,
+    routeTide, routeTideTo, routeGusts, vanWeather, dagBereik, waypoints, alongPerLeg, legDistNm, ready, nowMs,
   } = tocht;
   useVertrekUrl(depMs, setDepMs, depOptions);
 
@@ -68,7 +69,16 @@ export default function Page() {
         <NuScreen fc={nu.fc} week={nu.week} tide={nu.tide} loc={loc} nowMs={nowMs} dagen={{ mobiel: 4, desktop: 7 }} />
       </>
     ),
-    getijden: routeChip,
+    getijden: (
+      <>
+        {routeChip}
+        <GetijdenScreen
+          ready={ready} nowMs={nowMs} bereik={dagBereik}
+          titel={routeMeta.viaPassage ?? (routeMeta.pathNamen.length ? routeMeta.pathNamen.join(" → ") : "route")}
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines}
+          waypoints={waypoints} alongPerLeg={alongPerLeg} legDistNm={legDistNm} routeTide={routeTide} />
+      </>
+    ),
     vaarplan: (
       <>
         {routeChip}

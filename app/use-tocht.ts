@@ -12,9 +12,10 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  combineWindStations, pickBest, pickVensters, type DepOption, type GustSample, type RouteMeta,
+  combineWindStations, pickBest, pickVensters, stroomSpanOf, type DepOption, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { Location, TideData } from "@/lib/types";
+import { datumBereik } from "@/lib/getij";
 import type { ViaHaven } from "./components/VaarplanView";
 
 const H = 3_600_000;
@@ -197,6 +198,14 @@ export function useTocht() {
     windSeries, windStations,
   };
 
+  // Kiesbare dagen voor GETIJDEN — één bron (lib/getij.datumBereik). Fase 1: het
+  // venster van de geladen stroom- en getijreeksen; fase 2 voegt hier het R2-bereik toe.
+  const dagBereik = useMemo(() => {
+    const tidePts = [...(routeTide?.expected ?? []), ...(routeTide?.astro ?? [])].map((p) => tms(p.t));
+    const tideSpan = tidePts.length ? { first: Math.min(...tidePts), last: Math.max(...tidePts) } : null;
+    return datumBereik([stroomSpanOf(routeMeta.legTimelines), tideSpan]);
+  }, [routeTide, legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
   const routeGusts = useMemo<GustSample[]>(
     () => Object.values(routeFc).flatMap((f) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn }))),
@@ -209,7 +218,7 @@ export function useTocht() {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, vanWeather,
+    routeGusts, vanWeather, dagBereik, waypoints, alongPerLeg, legDistNm,
     routeTide, routeTideTo, ready: !!routeWind, nowMs, err,
   };
 }
