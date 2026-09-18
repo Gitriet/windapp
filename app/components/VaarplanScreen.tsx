@@ -137,7 +137,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
             <span className={s.compactLabel}>UITWIJK</span>
             <span>{via.length ? via.map((v) => `${v.haven.naam} (~${komma(v.nmFromStart)}\u00A0nm${v.haven.havenInfo?.getijgebonden ? ", getijgebonden" : ""})`).join(" · ") : "geen tussenhavens op deze route"}</span>
           </div>
-          <div className={s.noot}>VHF indicatief — controleer de actuele kanalen (ANWB Wateralmanak). {boatNaam} · {Math.round(boat.performance * 100)}% polaire</div>
+          <div className={s.noot}>VHF indicatief. Controleer de actuele kanalen (ANWB Wateralmanak). {boatNaam} · {Math.round(boat.performance * 100)}% polaire</div>
         </div>
       </div>
     </>

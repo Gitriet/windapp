@@ -209,8 +209,8 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): 
   if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
   const zin = stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr);
   if (!isBeste) return `Bij vertrek ${localHM(b.departMs)}: ${zin.charAt(0).toLowerCase()}${zin.slice(1)}.`;
-  const tail = anyStroom ? "snelste combinatie van stroom en zeilhoek" : "gunstigste zeilhoek van de dag";
-  return `${zin} — ${tail}.`;
+  const tail = anyStroom ? "Eerstvolgende vertrek met gunstige stroom en zeilhoek" : "Eerstvolgende vertrek met gunstige zeilhoek";
+  return `${zin}. ${tail}.`;
 }
 
 // ── etappes (VAARPLAN) ──────────────────────────────────────────────────
