@@ -1,34 +1,28 @@
 "use client";
-// Tidan — Nu-view + Tocht-planner, nagebouwd uit het design-handoff-prototype maar
-// gevoed door de echte API's (/api/forecast, /api/tide, /api/week, /api/route-stroom,
-// /api/routes) en de bestaande libs (polar.ts, route.ts, tripsim.ts). De Nu-view volgt
-// de nav-picker; de Tocht-planner kiest uit de bekende havenroutes (netwerk_routes) en
-// zet het antwoord (beste vertrek + alternatieven) vooraan, het bewijs (grafieken) erna.
+// Tidan — Nu-view + Tocht-planner. Data en logica leven in app/use-tocht.ts (useTocht,
+// useNu) en lib/tocht.ts; dit bestand is alleen presentatie.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BOAT } from "@/lib/polar";
 import { localHM, localDateISO } from "@/lib/tz";
 import { compass, beaufort } from "@/lib/format";
 import { COLORS, alpha } from "@/lib/colors";
-import { simulateTrip, type SimResult, type SimWind } from "@/lib/tripsim";
-import {
-  DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchTide, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
-  toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
-} from "@/lib/planner-data";
-import { bearing, routeDistanceNm } from "@/lib/route";
-import { shortestPath } from "@/lib/netwerk-path";
+import type { SimResult } from "@/lib/tripsim";
+import type { ForecastResponse, WeekResponse, RouteInfo, RouteHaven } from "@/lib/planner-data";
+import { combineLegTimelines, stroomSpanOf, pickVensters, type DepOption, type RouteMeta } from "@/lib/tocht";
+import { verdict, type Verdict } from "@/lib/verdict";
 import HavenSelector from "./components/HavenSelector";
 import VaarplanView, { type ViaHaven, PassageStrip } from "./components/VaarplanView";
 import type { Location, TideData, TideExtreme } from "@/lib/types";
 import {
   CurrentTimeline, WindTimeline, SpeedTimeline, SummaryRow,
-  dirLabel16, sailPhrase, windAgainstCurrent, fmtDur, type DepOption, type WindTLSample,
+  dirLabel16, sailPhrase, windAgainstCurrent, fmtDur,
 } from "./components/charts";
 import { WindCanvas } from "./components/WindCanvas";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { useTocht, useNu, isTide } from "./use-tocht";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
-const isTide = (t: TideData | { tide: null } | null): t is TideData => !!t && "extremes" in t;
 
 // windrichting-waaruit → stroomrichting van de deeltjes op het canvas
 function canvasDir(dirFrom: number): number {
@@ -53,32 +47,8 @@ function windContext(pts: ForecastResponse["points"]): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// Combineert de wind-per-station (SimWind) tot één route-reeks voor de windtijdlijn:
-// per tijdstip de scalaire gemiddelde snelheid + vector-gemiddelde richting over de
-// stations die op dat moment data hebben. De stations delen hetzelfde forecast-grid.
-function combineWindStations(wind: SimWind | null): WindTLSample[] {
-  if (!wind) return [];
-  const series = Object.values(wind).filter((s) => s.length);
-  if (!series.length) return [];
-  const times = Array.from(new Set(series.flatMap((s) => s.map((x) => x.time)))).sort();
-  const maps = series.map((s) => new Map(s.map((x) => [x.time, x])));
-  return times.map((t) => {
-    let e = 0, n = 0, spd = 0, k = 0;
-    for (const m of maps) {
-      const x = m.get(t);
-      if (!x) continue;
-      const r = (x.dir_deg * Math.PI) / 180;
-      e += Math.sin(r); n += Math.cos(r); spd += x.speed_kn; k++;
-    }
-    if (!k) return { t, speedKn: 0, dirDeg: 0 };
-    return { t, speedKn: spd / k, dirDeg: ((Math.atan2(e / k, n / k) * 180) / Math.PI + 360) % 360 };
-  });
-}
-
 export default function Page() {
   const [page, setPage] = useState<"now" | "departure" | "vaarplan">("now");
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [locIdx, setLocIdx] = useState(0);
   const [showLocPicker, setShowLocPicker] = useState(false);
   // locatiepicker (Nu-view): knop en menu zijn losse siblings, dus check beide refs.
   const locBtnRef = useRef<HTMLDivElement>(null);
@@ -92,275 +62,17 @@ export default function Page() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [showLocPicker]);
-  const [depMs, setDepMs] = useState<number | null>(null);
-  // Tocht-planner route: gekozen uit de bekende havenroutes (/api/routes),
-  // onafhankelijk van de nav-picker (die stuurt de Nu-view).
-  const [routes, setRoutes] = useState<RouteInfo[]>([]);
-  const [fromHaven, setFromHaven] = useState<string>("");
-  const [toHaven, setToHaven] = useState<string>("");
-
-  // Nu-view data (volgt de picker)
-  const [nowFc, setNowFc] = useState<ForecastResponse | null>(null);
-  const [nowWeek, setNowWeek] = useState<WeekResponse | null>(null);
-  const [nowTide, setNowTide] = useState<TideData | { tide: null } | null>(null);
-
-  // Tocht-planner data (volgt de gekozen van→naar-tocht; per been een stroomreeks)
-  const [routeWind, setRouteWind] = useState<SimWind | null>(null);
-  const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
-  const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
-  const [routeTideTo, setRouteTideTo] = useState<TideData | null>(null);  // aankomsthaven
-  const [nowMs, setNowMs] = useState<number>(0);
-  const [err, setErr] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const tocht = useTocht();
+  const nu = useNu();
+  const { locations, locIdx, setLocIdx, loc } = nu;
+  const err = tocht.err ?? nu.err;
+  const {
+    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, endpoints, routeBearing, routeDistNm,
+    routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks,
+    routeTide, routeTideTo, hwMs, ready, nowMs,
+  } = tocht;
 
-  // ── mount: klok + locatielijst + havenroutes ──
-  useEffect(() => {
-    setNowMs(Date.now());
-    let ignore = false;
-    (async () => {
-      try {
-        const [locs, rts] = await Promise.all([
-          fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()) as Promise<Location[]>,
-          fetchRoutes(),
-        ]);
-        if (ignore) return;
-        setLocations(locs);
-        const ti = locs.findIndex((l) => l.location_key === "texel");
-        if (ti >= 0) setLocIdx(ti);
-        setRoutes(rts);
-        const def = rts.find((r) => r.id === DEFAULT_ROUTE_ID) ?? rts[0];
-        if (def) { setFromHaven(def.van.haven); setToHaven(def.naar.haven); }
-      } catch (e) {
-        if (!ignore) setErr(String(e));
-      }
-    })();
-    return () => { ignore = true; };
-  }, []);
-
-  // Alle bekende havens (met coördinaten + dichtstbijzijnd station) uit de route-uiteinden.
-  // Elke haven is nu vrij kiesbaar, ook zonder voorgedefinieerde route ertussen.
-  const havenMap = useMemo(() => {
-    const m = new Map<string, RouteHaven>();
-    for (const r of routes) { m.set(r.van.haven, r.van); m.set(r.naar.haven, r.naar); }
-    return m;
-  }, [routes]);
-  const allHavens = useMemo(
-    () => [...havenMap.values()].sort((a, b) => a.naam.localeCompare(b.naam, "nl")).map((h) => h.haven),
-    [havenMap],
-  );
-
-  // Kortste pad door het netwerk (Dijkstra op lengte_nm): een keten van 1..N buur-
-  // segmenten. Een directe route is gewoon een keten van lengte 1. null = geen pad
-  // (haven onbekend of — theoretisch — onverbonden).
-  const chain = useMemo(() => shortestPath(routes, fromHaven, toHaven), [routes, fromHaven, toHaven]);
-  // uiteinden in vaarrichting (voor de wind-station-labels). Met pad: eerste/laatste
-  // haven van de keten; zonder pad: de losse havens uit havenMap (rechte-lijn-fallback).
-  const endpoints = useMemo(() => {
-    if (chain) return { van: chain.havens[0], naar: chain.havens[chain.havens.length - 1] };
-    const a = havenMap.get(fromHaven), b = havenMap.get(toHaven);
-    return a && b ? { van: a, naar: b } : null;
-  }, [chain, fromHaven, toHaven, havenMap]);
-  // waypoints voor de sim = de hele havenketen (N+1 punten); zonder pad de twee losse havens.
-  const waypoints = useMemo(() => {
-    const hs = chain ? chain.havens : endpoints ? [endpoints.van, endpoints.naar] : [];
-    return hs.map((h) => ({ location_key: h.key, lat: h.lat, lon: h.lon }));
-  }, [chain, endpoints]);
-  // koers = grove peiling begin→eind (bij 1 leg identiek aan de leg-peiling)
-  const routeBearing = waypoints.length >= 2 ? bearing(waypoints[0], waypoints[waypoints.length - 1]) : null;
-  // afstand: som van lengte_nm over de segmenten; zonder pad de rechte lijn
-  const routeDistNm = chain ? chain.totalNm
-    : endpoints ? routeDistanceNm([endpoints.van, endpoints.naar]) : null;
-  // stroom-dekking over de keten: compleet (elk been), deels, of geen
-  const stroomFlags = chain?.legs.map((l) => l.route.stroom) ?? [];
-  const stroomComplete = stroomFlags.length > 0 && stroomFlags.every(Boolean);
-  const stroomPartial = stroomFlags.some(Boolean) && !stroomComplete;
-  const legsZonderStroom = chain?.legs.filter((l) => !l.route.stroom).map((l) => l.label) ?? [];
-  const hasRoute = !!chain;
-
-  // Van en Naar zijn vrij kiesbaar; de enige regel is dat ze verschillen. Bij een
-  // botsing draait de keuze de tocht om (de andere haven schuift mee).
-  const chooseFrom = (h: string) => {
-    if (h === toHaven) setToHaven(fromHaven);
-    setFromHaven(h);
-    setDepMs(null);
-  };
-  const chooseTo = (h: string) => {
-    if (h === fromHaven) setFromHaven(toHaven);
-    setToHaven(h);
-    setDepMs(null);
-  };
-
-  // ── Tocht-planner data bij tochtwissel ──
-  // Wind per DISTINCT station in de keten; stroom per been (elk op de eigen leg-peiling,
-  // teken-omgekeerd als het been tegen de opslagrichting in gevaren wordt — dat zit al in
-  // fetchRouteCurrent). Getij bij de VERTREKHAVEN (het getijstation van waaruit je
-  // vertrekt is relevanter voor de tocht dan dat van de eindhaven; bv. Den Helder →
-  // denhelder.marsdiep i.p.v. Texel). Bij een rechte-lijn-fallback (geen keten): geen
-  // stroom, wind aan de twee uiteinden.
-  useEffect(() => {
-    if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); setRouteTideTo(null); return; }
-    const keys = [...new Set(waypoints.map((w) => w.location_key))];
-    // getij bij BEIDE havens via het EIGEN station (haven slug), niet de gedeelde wind-key
-    const vanSlug = (chain ? chain.havens[0] : endpoints?.van)?.haven ?? null;
-    const naarSlug = (chain ? chain.havens[chain.havens.length - 1] : endpoints?.naar)?.haven ?? null;
-    const legs = chain?.legs ?? [];
-    let ignore = false;
-    (async () => {
-      try {
-        const [winds, curs, tide, tideTo] = await Promise.all([
-          Promise.all(keys.map((k) => fetchForecast(k))),
-          Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
-          vanSlug ? fetchHavenTide(vanSlug) : Promise.resolve(null),
-          naarSlug ? fetchHavenTide(naarSlug) : Promise.resolve(null),
-        ]);
-        if (ignore) return;
-        const wind: SimWind = {};
-        keys.forEach((k, i) => { wind[k] = toWindSamples(winds[i].points); });
-        setRouteWind(wind);
-        setLegCurrents(curs);
-        setRouteTide(isTide(tide) ? tide : null);
-        setRouteTideTo(isTide(tideTo) ? tideTo : null);
-      } catch (e) {
-        if (!ignore) setErr(String(e));
-      }
-    })();
-    return () => { ignore = true; };
-  }, [chain, waypoints]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Nu-view data bij locatiewissel ──
-  const locKey = locations[locIdx]?.location_key;
-  useEffect(() => {
-    if (!locKey) return;
-    let ignore = false;
-    (async () => {
-      try {
-        const [fc, wk, td] = await Promise.all([fetchForecast(locKey), fetchWeek(locKey), fetchTide(locKey)]);
-        if (ignore) return;
-        setNowFc(fc); setNowWeek(wk); setNowTide(td);
-      } catch (e) { if (!ignore) setErr(String(e)); }
-    })();
-    return () => { ignore = true; };
-  }, [locKey]);
-
-  // Eén 48u-vertrek-as voor de hele Tocht-planner (desktop + mobiel, zoals de iPhone-mock):
-  // elk half uur vanaf het eerstvolgende hele half uur na nu. 96 kandidaten = 48 uur.
-  const candidates = useMemo(() => {
-    if (!nowMs) return [];
-    const half = H / 2;
-    const start = Math.ceil(nowMs / half) * half;
-    return Array.from({ length: 96 }, (_, i) => start + i * half);
-  }, [nowMs]);
-
-  // stroom per been in sim-vorm (index = leg); lege reeks = been zonder stroomdata
-  const alongPerLeg = useMemo(
-    () => (chain ? chain.legs.map((_, i) => legCurrents[i]?.series ?? []) : []),
-    [chain, legCurrents],
-  );
-  // echte beenlengte per leg (langs de geul, = route.lengte_nm) zodat de gevaren afstand
-  // klopt met de getoonde afstand; zonder pad (rechte lijn) terugvallen op haversine
-  const legDistNm = useMemo(() => (chain ? chain.legs.map((l) => l.route.lengte_nm) : undefined), [chain]);
-  const runSim = useMemo(() => {
-    return (dep: number): SimResult | null => {
-      if (!routeWind || waypoints.length < 2) return null;
-      return simulateTrip({
-        waypoints, departMs: dep, boat: DEFAULT_BOAT,
-        wind: routeWind, along: alongPerLeg, legDistNm,
-      });
-    };
-  }, [routeWind, waypoints, alongPerLeg, legDistNm]);
-
-  const depOptions: DepOption[] = useMemo(
-    () => candidates.map((dep) => ({ depMs: dep, result: runSim(dep)! })).filter((o) => o.result),
-    [candidates, runSim],
-  );
-  // beste vertrek = het DICHTSTBIJZIJNDE goede venster (niet de globale snelste, die vaak
-  // ver weg + in de onzeker-zone ligt). Regel: het vroegste betrouwbare (niet voorbij de
-  // horizon) lokale duur-minimum. Een lokaal minimum = een echt gunstig vertrekvenster;
-  // het vroegste = eerstvolgende. Snellere-maar-latere en onzekere vensters blijven in de
-  // "andere vensters"-lijst / de sweep zichtbaar. Voedt antwoordregel + auto-selectie.
-  const bestOption = useMemo(() => {
-    const reach = depOptions.filter((o) => o.result?.arrMs != null);
-    if (!reach.length) return null;
-    // alleen op onzekere (voorbij-horizon) vertrekken terugvallen als er niets zekers is
-    const certain = reach.filter((o) => !o.result.voorbijHorizon);
-    const base = certain.length ? certain : reach;
-    // lokale duur-minima = de echte vensters (plateau-tolerant, zoals de venster-lijst)
-    const windows = base.filter((o, i, a) => {
-      const L = a[i - 1], R = a[i + 1];
-      const lok = !L || o.result.tripMin <= L.result.tripMin;
-      const rok = !R || o.result.tripMin <= R.result.tripMin;
-      return lok && rok;
-    });
-    const pool = windows.length ? windows : base;
-    return pool.reduce((b, o) => (o.depMs < b.depMs ? o : b));   // vroegste = dichtstbij
-  }, [depOptions]);
-
-  // Toon het detail meteen voor het BESTE vertrek: selecteer het sweep-beste vertrek
-  // automatisch zolang de gebruiker zelf niets koos (depMs == null). Bij het laden staat
-  // het detail dus direct open; een route-wissel zet depMs op null (chooseFrom/To), waarna
-  // de selectie meeschuift naar het nieuwe beste uur. Een eigen keuze (depMs != null) blijft
-  // staan. Desktop + mobiel delen deze ene selectie over de hele 48u-as.
-  useEffect(() => {
-    if (depMs == null && bestOption) setDepMs(bestOption.depMs);
-  }, [depMs, bestOption]);
-
-  const selTrip = useMemo(() => (depMs != null ? runSim(depMs) : null), [depMs, runSim]);
-
-  const hwMs = useMemo(
-    () => (routeTide?.extremes ?? []).filter((e) => e.kind === "HW").map((e) => tms(e.t)),
-    [routeTide],
-  );
-
-  // tussenliggende havens (uitwijk) + cumulatieve nm-vanaf-vertrek, voor het vaarplan.
-  // Alleen de binnen-havens van de keten (begin/eind zijn vertrek/aankomst).
-  const viaHavens = useMemo<ViaHaven[]>(() => {
-    if (!chain) return [];
-    const out: ViaHaven[] = [];
-    let acc = 0;
-    for (let i = 0; i < chain.legs.length; i++) {
-      acc += chain.legs[i].route.lengte_nm;
-      if (i < chain.legs.length - 1) out.push({ haven: chain.havens[i + 1], nmFromStart: acc });
-    }
-    return out;
-  }, [chain]);
-
-  // wind langs de route (gecombineerd over de stations) + de station-namen voor het label
-  const windSeries = useMemo(() => combineWindStations(routeWind), [routeWind]);
-  const windStations = useMemo(() => {
-    const hs = chain ? chain.havens : endpoints ? [endpoints.van, endpoints.naar] : [];
-    return Array.from(new Set(hs.map((h) => h.stationNaam)));
-  }, [chain, endpoints]);
-
-  // route-descriptor voor de planner-UI: het pad, per-segment stroomtijdlijnen en de
-  // stroom-dekkingsvlaggen. Bij 1 leg gedraagt dit zich als de oude directe route.
-  const routeMeta: RouteMeta = {
-    hasRoute,
-    legCount: chain?.legs.length ?? 0,
-    pathNamen: chain?.namen ?? [],
-    viaHavens: chain?.viaNamen ?? [],
-    viaPassage: chain && chain.legs.length === 1 ? (chain.legs[0].route.via ?? null) : null,
-    stroomComplete, stroomPartial, legsZonderStroom,
-    legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
-    windSeries, windStations,
-  };
-
-  // kentering-momenten over de 48u = nuldoorgangen van de gecombineerde stroom-langs-reeks.
-  // Gedeeld door de sweep (desktop + mobiel) als gele tikken onder de duur-as.
-  const kentTicks = useMemo(() => {
-    const s = combineLegTimelines(routeMeta.legTimelines).series
-      .filter((p) => p.alongKn != null).map((p) => ({ m: tms(p.t), v: p.alongKn as number }));
-    const out: number[] = [];
-    for (let i = 1; i < s.length; i++) {
-      if ((s[i - 1].v >= 0) !== (s[i].v >= 0)) {
-        const a = Math.abs(s[i - 1].v), b = Math.abs(s[i].v);
-        const f = a + b === 0 ? 0 : a / (a + b);
-        out.push(s[i - 1].m + f * (s[i].m - s[i - 1].m));
-      }
-    }
-    return out;
-  }, [legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loc = locations[locIdx];
 
   return (
     <div className="app-root">
@@ -407,7 +119,7 @@ export default function Page() {
 
         {err && <div style={{ padding: 24, color: "#c07a7a", fontSize: 13 }}>Fout bij laden: {err}</div>}
 
-        {page === "now" ? <NowView fc={nowFc} week={nowWeek} tide={nowTide} loc={loc} nowMs={nowMs} />
+        {page === "now" ? <NowView fc={nu.fc} week={nu.week} tide={nu.tide} loc={loc} nowMs={nowMs} />
           : page === "vaarplan" ? (
             selTrip && depMs != null && endpoints ? (
               <VaarplanView
@@ -424,7 +136,7 @@ export default function Page() {
           : <DepartureView
               routeBearing={routeBearing} routeDistNm={routeDistNm} route={routeMeta}
               selTrip={selTrip} depMs={depMs} setDepMs={setDepMs} hwMs={hwMs}
-              depOptions={depOptions} bestOption={bestOption} kentTicks={kentTicks} ready={!!routeWind}
+              depOptions={depOptions} bestOption={bestOption} kentTicks={kentTicks} ready={ready}
               routes={routes} fromHaven={fromHaven} toHaven={toHaven}
               chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
               fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
@@ -631,13 +343,15 @@ function Chart12h({ points }: { points: ForecastResponse["points"] }) {
 
 // Zeilrating uit de dag-winddata (max wind uit het bereik + vlaag), volgorde bepaalt
 // de grens: eerst zwaar (Let op), dan fris, dan licht, anders goed.
+const VERDICT_TAG: Record<Verdict, { ratingLabel: string; tagClass: string }> = {
+  letop: { ratingLabel: "Let op", tagClass: "tag tag-danger" },
+  fris: { ratingLabel: "Fris", tagClass: "tag tag-outline" },
+  licht: { ratingLabel: "Licht", tagClass: "tag tag-neutral" },
+  goed: { ratingLabel: "Goed", tagClass: "tag tag-good" },
+};
 function rateDay(speedMax: number | null, gust: number | null): { ratingLabel: string; tagClass: string } {
-  if (speedMax == null) return { ratingLabel: "—", tagClass: "tag tag-neutral" };
-  const w = speedMax, g = gust ?? 0;
-  if (w > 25 || g > 35) return { ratingLabel: "Let op", tagClass: "tag tag-danger" };
-  if (w >= 16 || g >= 25) return { ratingLabel: "Fris", tagClass: "tag tag-outline" };
-  if (w < 6) return { ratingLabel: "Licht", tagClass: "tag tag-neutral" };
-  return { ratingLabel: "Goed", tagClass: "tag tag-good" };
+  const v = verdict(speedMax, gust);
+  return v ? VERDICT_TAG[v] : { ratingLabel: "—", tagClass: "tag tag-neutral" };
 }
 
 function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData | { tide: null } | null }) {
@@ -730,52 +444,6 @@ function WeekTable({ week, tide }: { week: WeekResponse | null; tide: TideData |
 // ════════════════════ TOCHT-PLANNER ════════════════════
 // Volgorde (antwoord eerst): routekiezer → antwoordregel → vertrekalternatieven →
 // scheidingslabel → detail voor het gekozen vertrek.
-type RouteMeta = {
-  hasRoute: boolean; legCount: number; pathNamen: string[]; viaHavens: string[];
-  viaPassage: string | null; stroomComplete: boolean; stroomPartial: boolean;
-  legsZonderStroom: string[]; legTimelines: { label: string; cur: RouteCurrent | null; distNm: number }[];
-  windSeries: WindTLSample[]; windStations: string[];
-};
-
-// Combineert de per-leg stroomreeksen tot ÉÉN gewogen-gemiddelde tijdlijn langs de
-// hele tocht. Weging = beenlengte (nm): een langer been telt zwaarder mee. Per tijdstip
-// middelen we alleen de legs met echte data (>0 gewicht); een tijdstip zonder enkel
-// been met data blijft een gat (alongKn null). Bij 1 been = die reeks ongewijzigd.
-function combineLegTimelines(
-  legs: { cur: RouteCurrent | null; distNm: number }[],
-): { series: { t: string; alongKn: number | null }[]; modelUnvalidated: boolean } {
-  const withData = legs.filter((l) => l.cur && l.cur.series.length);
-  if (!withData.length) return { series: [], modelUnvalidated: false };
-  const modelUnvalidated = withData.some((l) => l.cur!.modelUnvalidated);
-
-  // per been een tijd→waarde-map; de tijdstippen zijn het hetzelfde forecast-grid
-  const maps = withData.map((l) => ({
-    w: l.distNm > 0 ? l.distNm : 1,
-    m: new Map(l.cur!.series.map((s) => [s.t, s.alongKn])),
-  }));
-  // vereniging van alle tijdstippen, chronologisch
-  const times = Array.from(new Set(withData.flatMap((l) => l.cur!.series.map((s) => s.t)))).sort();
-
-  const series = times.map((t) => {
-    let sum = 0, wsum = 0;
-    for (const { w, m } of maps) {
-      const v = m.get(t);
-      if (v == null) continue;
-      sum += v * w; wsum += w;
-    }
-    return { t, alongKn: wsum > 0 ? sum / wsum : null };
-  });
-  return { series, modelUnvalidated };
-}
-
-// Stroom-dekkingsvenster [first,last] uit de gecombineerde leg-tijdlijnen: het
-// bereik waar er échte stroomdata is (alongKn != null). Buiten dit venster toont
-// de tijdlijn-strip '—' i.p.v. een verzonnen 0. Gedeeld door Tocht + Vaarplan.
-function stroomSpanOf(legTimelines: { cur: RouteCurrent | null; distNm: number }[]): { first: number; last: number } | null {
-  const ms = combineLegTimelines(legTimelines).series.filter((p) => p.alongKn != null).map((p) => tms(p.t));
-  return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
-}
-
 function DepartureView({
   routeBearing, routeDistNm, route, selTrip, depMs, setDepMs, hwMs,
   depOptions, bestOption, kentTicks, ready,
@@ -1068,24 +736,7 @@ function DepartureMobile({
     return () => document.removeEventListener("mousedown", onDown);
   }, [pickerOpen]);
 
-  // andere vensters = lokale duur-minima (excl. de beste), ≥4u uit elkaar, kortste eerst
-  const vensters = useMemo(() => {
-    const locMin = sweep.filter((o, i, a) => {
-      if (o.result.arrMs == null) return false;
-      const L = a[i - 1], R = a[i + 1];
-      const lok = !L || L.result.arrMs == null || o.result.tripMin <= L.result.tripMin;
-      const rok = !R || R.result.arrMs == null || o.result.tripMin <= R.result.tripMin;
-      return lok && rok;
-    });
-    const picked: DepOption[] = [];
-    for (const o of [...locMin].sort((a, b) => a.result.tripMin - b.result.tripMin)) {
-      if (best && o.depMs === best.depMs) continue;
-      if (picked.some((p) => Math.abs(p.depMs - o.depMs) < 4 * H)) continue;
-      picked.push(o);
-      if (picked.length >= 4) break;
-    }
-    return picked.sort((a, b) => a.depMs - b.depMs);
-  }, [sweep, best]);
+  const vensters = useMemo(() => pickVensters(sweep, best), [sweep, best]);
 
   // stroom-dekkingsvenster (voor de strip: buiten dit bereik → '—', nooit een verzonnen 0)
   const stroomSpan = useMemo(() => stroomSpanOf(route.legTimelines), [route.legTimelines]);

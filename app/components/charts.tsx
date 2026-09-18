@@ -9,6 +9,7 @@ import { localHM, localMidnight } from "@/lib/tz";
 import { COLORS, alpha } from "@/lib/colors";
 import { relativeWindAngle } from "@/lib/wind";
 import { WindRoseIcon } from "./WindRoseIcon";
+import type { DepOption, WindTLSample } from "@/lib/tocht";
 
 const H = 3_600_000;
 const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
@@ -159,7 +160,6 @@ export function CurrentTimeline({
 // knopenschaal links, dezelfde gestreepte trip-window en kleine richtingpijlen.
 // tMin/tMax: als meegegeven, exact de as-grenzen van de stroomtijdlijn — zo staan de
 // selectiekaders van beide tijdlijnen pixel-identiek boven elkaar. Zonder → eigen extent.
-export type WindTLSample = { t: string; speedKn: number; dirDeg: number };
 export function WindTimeline({
   series, depMs, arrMs, tMin, tMax,
 }: { series: WindTLSample[]; depMs: number; arrMs: number | null; tMin?: number; tMax?: number; }) {
@@ -421,7 +421,6 @@ export function SummaryRow({ trip }: { trip: SimResult }) {
 }
 
 // ── Vertrekalternatieven ───────────────────────────────────────────────
-export type DepOption = { depMs: number; result: SimResult };
 export function DepartureCards({
   options, selMs, onSelect, courseDeg,
 }: { options: DepOption[]; selMs: number; onSelect: (ms: number) => void; courseDeg: number }) {
