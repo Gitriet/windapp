@@ -54,7 +54,8 @@
 }
 .rij:global(.is-filled) { color: var(--ink); }
 .rij:not(:global(.is-filled)) svg { color: var(--slate); }
-.rij[aria-current="true"]:not(:global(.is-filled)) { border-color: var(--parchment); }
+.rij:not(:global(.is-filled)) .badge { background: none; border: var(--line) solid var(--hairline-strong); }
+.rij:global(.is-filled) .delta { color: var(--ink-muted); }
 .rijMain { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .rijTijd { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); white-space: nowrap; }
 .rijSub { margin-top: var(--line); font-size: var(--fs-caption); color: var(--slate); }

@@ -139,13 +139,14 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
       <div className={s.lijst}>
         {rows.map((o) => {
           const r = o.result, isBest = o.depMs === best?.depMs, s0 = r.steps[0];
+          const gekozen = o.depMs === (depMs ?? best?.depMs);   // de gekozen rij is gevuld, niet per se de beste
           const delta = best ? Math.round(r.tripMin - best.result.tripMin) : 0;
           const dag = dagLabel(o.depMs, nowMs);
           const notitie = [dag, s0 ? `${dirLabel16(s0.wDir)}\u00A0${Math.round(s0.wSpd)}\u00A0kn` : "", stroomNotitie(stroomVerloop(r, anyStroom))]
             .filter(Boolean).join(" · ");
           return (
-            <button key={o.depMs} type="button" className={`row ${s.rij} ${isBest ? "is-filled" : ""}`}
-              aria-current={o.depMs === depMs ? "true" : undefined} onClick={() => onSelect(o.depMs)}>
+            <button key={o.depMs} type="button" className={`row ${s.rij} ${gekozen ? "is-filled" : ""}`}
+              aria-current={gekozen ? "true" : undefined} onClick={() => onSelect(o.depMs)}>
               {s0 && <WindArrow dir={s0.wDir} />}
               <span className={s.rijMain}>
                 <span className={s.rijTijd}>{tijdblok(o.depMs, r.arrMs)}</span>
