@@ -1,3 +1,4 @@
+import { localHM, localDateISO, localWeekdayShort } from "./tz";
 // Small presentation helpers. Knots is the primary (and only) wind unit.
 
 export function fmtDay(iso: string): string {
@@ -28,3 +29,13 @@ export const bftLabel = (bft: number) => BFT_LABEL[bft] ?? "";
 // Duur als "1U 02M" (VAARPLAN-KPI). Rond eerst de totale minuten af, splits dan pas —
 // anders kan min % 60 naar 60 afronden terwijl het uur al is afgekapt.
 export const fmtDuurKort = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}U ${String(m % 60).padStart(2, "0")}M`; };
+
+// Aankomsttijd bij een vertrek: "HH:MM", of met dag ervoor als de aankomst op een andere
+// lokale kalenderdag valt ("ZO 00:05"). Tijdblok: "14:30 → ZO 00:05". Europe/Amsterdam.
+export function aankomstLabel(depMs: number, arrMs: number): string {
+  const dag = localDateISO(arrMs) !== localDateISO(depMs) ? `${localWeekdayShort(arrMs).toUpperCase()} ` : "";
+  return `${dag}${localHM(arrMs)}`;
+}
+export function tijdblok(depMs: number, arrMs: number | null): string {
+  return `${localHM(depMs)} → ${arrMs != null ? aankomstLabel(depMs, arrMs) : "—"}`;
+}

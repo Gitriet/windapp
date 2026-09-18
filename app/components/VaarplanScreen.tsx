@@ -4,7 +4,7 @@
 // uitwijkhavens. Geen nieuwe berekeningen: alles uit SimResult, haveninfo en getij.
 import { useMemo } from "react";
 import { localHM, localDateISO } from "@/lib/tz";
-import { dirLabel16, fmtDuurKort } from "@/lib/format";
+import { dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import { effectLabel, etappes, letOp, type EtappeLeg, type GustSample, type ViaHaven } from "@/lib/tocht";
 import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
 import type { SimResult } from "@/lib/tripsim";
@@ -76,7 +76,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
   return (
     <>
       <div>
-        <div className={s.tijdblok}>{localHM(depMs)} → {trip.arrMs ? localHM(trip.arrMs) : "—"}</div>
+        <div className={s.tijdblok}>{tijdblok(depMs, trip.arrMs)}</div>
         <div className={s.sub}>{dag}{anyStroom && trip.arrMs ? ` · ${effectLabel(trip.effectMin)}` : ""}</div>
       </div>
       <div className={s.kpis}>
