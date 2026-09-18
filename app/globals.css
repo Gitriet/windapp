@@ -83,6 +83,22 @@
   --row-pad: 9px var(--sp-6);
   --cta-pad: 11px;
   --label-col: 62px;     /* labelkolom in detailrijen */
+  --chip-pad-sm: 5px 9px;
+  --kompas: 104px;
+  --kompas-desk: 84px;
+  --ring-2: rgba(243, 233, 210, 0.12);
+  --ring-tick: rgba(243, 233, 210, 0.4);
+  --ls-kern: -1px;
+  --fs-kern-eenheid: 15px;
+  --staaf-h: 72px;
+  --staaf-h-desk: 64px;
+  --staaf-rust: 0.55;    /* staven na "nu" iets gedimd */
+  --wind-fris: rgba(230, 147, 90, 0.6);
+  --dag-col: 32px;
+  --dag-col-desk: 30px;  /* dagrij-kolommen desktop: 30/22/58/40 */
+  --temp-col-desk: 22px;
+  --wind-col-desk: 58px;
+  --vlaag-col-desk: 40px;
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
   --ls-tab: 0.03em;
@@ -184,6 +200,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   border: var(--line) solid var(--hairline); border-radius: var(--radius-md);
   max-height: 60vh; overflow-y: auto;
 }
+
+.chip-option { min-height: var(--tap); padding: var(--sp-5) var(--sp-6); text-align: left; font-size: var(--fs-rij); }
+.chip-option[aria-current="true"] { border-color: var(--parchment); }
 
 @media (min-width: 768px) {
   .shell-top { padding: var(--sp-7) var(--sp-9); border-bottom: var(--line) solid var(--hairline-soft); }

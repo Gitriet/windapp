@@ -1,0 +1,92 @@
+/* NU — maten uit screenshots/02-nu.png (mobiel) en 05-desktop.png (compact). */
+.kompasKaart {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-7); background: var(--grad-rose);
+}
+.kompas { width: var(--kompas); height: var(--kompas); flex: 0 0 auto; }
+.ring1, .ring2, .ring3 { fill: none; stroke-width: var(--line); }
+.ring1 { stroke: var(--hairline-soft); }
+.ring2 { stroke: var(--ring-2); }
+.ring3 { stroke: var(--fill-faint); }
+.tick { stroke: var(--ring-tick); stroke-width: var(--line); }
+.noord, .wind { font-family: var(--font-num); font-weight: 700; text-anchor: middle; }
+.noord { font-size: 9px; fill: var(--parchment); }   /* SVG-eenheden (viewBox 100) */
+.wind { font-size: 7px; fill: var(--slate); }
+.naald { fill: var(--ochre); }
+.naaf { fill: var(--parchment); }
+
+.kern {
+  font-family: var(--font-num); font-size: var(--fs-kern); font-weight: 700;
+  letter-spacing: var(--ls-kern); line-height: 0.85; color: var(--parchment); white-space: nowrap;
+}
+.kernEenheid { margin-left: var(--sp-2); font-size: var(--fs-kern-eenheid); font-weight: 500; color: var(--slate); }
+.richting { margin-top: var(--sp-4); font-family: var(--font-num); font-size: var(--fs-rij-sm); font-weight: 700; color: var(--ochre); }
+.bft { margin-top: var(--sp-2); font-family: var(--font-num); font-size: var(--fs-label-sm); color: var(--slate); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.chip {
+  padding: var(--chip-pad-sm); border-radius: var(--radius-sm);
+  background: var(--fill-faint); border: var(--line) solid var(--hairline-soft);
+  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; color: var(--parchment); white-space: nowrap;
+}
+.chip[data-leeg] { color: var(--slate-dim); }
+.reden, .leeg { font-size: var(--fs-label-sm); color: var(--slate-dim); }
+.reden { margin-top: var(--sp-2); }
+.leeg { font-family: var(--font-num); font-size: var(--fs-tijdblok); }
+.context { font-size: var(--fs-label); line-height: var(--lh-text); color: var(--body); }
+.model { font-size: var(--fs-min); color: var(--slate-dim); }
+
+.sectie {
+  margin-bottom: var(--sp-4);
+  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; letter-spacing: var(--ls-label); color: var(--slate);
+}
+.uren { padding: var(--sp-6); }
+.staven { display: flex; align-items: flex-end; gap: var(--tab-gap); height: var(--staaf-h); }
+.staaf {
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--sp-1);
+  --kleur: var(--parchment);
+}
+.staaf[data-verdict="fris"] { --kleur: var(--wind-fris); }
+.staaf[data-verdict="letop"] { --kleur: var(--ochre); }
+.staaf:not([data-nu]) .balk { opacity: var(--staaf-rust); }
+.vlaag { font-family: var(--font-num); font-size: var(--fs-min); font-weight: 600; color: var(--slate-dim); }
+.kn { font-family: var(--font-num); font-size: var(--fs-label); font-weight: 700; color: var(--kleur); }
+.pijl { display: flex; color: var(--slate-disabled); }
+.staaf[data-nu] .pijl { color: var(--ochre); }
+.balk { width: 100%; border-radius: var(--radius-xs); background: var(--kleur); }
+.as { display: flex; justify-content: space-between; margin-top: var(--sp-2); font-family: var(--font-num); font-size: var(--fs-min); color: var(--slate); }
+
+.dagen { display: flex; flex-direction: column; gap: var(--sp-3); }
+.dag {
+  display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-5);
+  font-family: var(--font-num); white-space: nowrap;
+}
+.dag[data-verdict="letop"] { border-color: var(--ochre-line); background: var(--ochre-fill); }
+.dagNaam { width: var(--dag-col); flex: 0 0 auto; font-size: var(--fs-label-sm); font-weight: 700; color: var(--parchment); }
+.dagIcoon { display: flex; color: var(--slate); }
+.dag[data-zon] .dagIcoon, .dag[data-verdict="letop"] .dagIcoon { color: var(--ochre); }
+.dagTemp { flex: 0 0 auto; font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
+.dagWind { font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
+.dagVlaag { flex: 1; font-size: var(--fs-min); color: var(--slate-dim); }
+.dagVerdict { flex: 0 0 auto; font-size: var(--fs-min); font-weight: 700; color: var(--slate); }
+.dag[data-verdict="goed"] .dagVerdict { color: var(--sea-green); }
+.dag[data-verdict="letop"] .dagWind, .dag[data-verdict="letop"] .dagVlaag, .dag[data-verdict="letop"] .dagVerdict { color: var(--ochre); }
+
+/* mobiel: alleen de even uren + de eerste `dagen.mobiel` dagen */
+.alleenDesktop { display: none; }
+@media (max-width: 767px) {
+  .staaf[data-desktop], .dag[data-desktop] { display: none; }
+}
+@media (min-width: 768px) {
+  .alleenMobiel { display: none; }
+  .alleenDesktop { display: inline; }
+  .kompasKaart { --kompas: var(--kompas-desk); }
+  .staven { height: var(--staaf-h-desk); gap: var(--sp-1); }
+  .dag { gap: var(--sp-3); padding: var(--sp-4); }
+  .dagNaam { width: var(--dag-col-desk); }
+  .dagTemp { width: var(--temp-col-desk); }
+  .dagWind { width: var(--wind-col-desk); }
+  .dagVlaag { width: var(--vlaag-col-desk); flex: 0 0 auto; }
+  .dagVerdict { margin-left: auto; }
+}

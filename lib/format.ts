@@ -26,3 +26,9 @@ export function sailPhrase(twa: number): string {
   const a = Math.abs(twa);
   return a < 45 ? "aan de wind" : a < 90 ? "halve wind" : a < 135 ? "ruime wind" : "voor de wind";
 }
+// Windkracht-beschrijving bij het Beaufort-getal (0–12). Presentatielabel, geen databron.
+const BFT_LABEL = [
+  "stil", "zwak", "zwak", "matig", "matig", "vrij krachtig", "krachtig",
+  "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
+];
+export const bftLabel = (bft: number) => BFT_LABEL[bft] ?? "";
