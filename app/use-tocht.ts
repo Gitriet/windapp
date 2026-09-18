@@ -58,6 +58,10 @@ export function useTocht() {
     () => [...havenMap.values()].sort((a, b) => a.naam.localeCompare(b.naam, "nl")).map((h) => h.haven),
     [havenMap],
   );
+  const naamOf = useMemo(() => (h: string) => havenMap.get(h)?.naam ?? h, [havenMap]);
+  // elke kiezer laat alleen de haven weg die in het andere veld staat (Van ≠ Naar)
+  const vanOptions = useMemo(() => allHavens.filter((h) => h !== toHaven), [allHavens, toHaven]);
+  const naarOptions = useMemo(() => allHavens.filter((h) => h !== fromHaven), [allHavens, fromHaven]);
 
   // Kortste pad door het netwerk (Dijkstra op lengte_nm); null = geen pad.
   const chain = useMemo(() => shortestPath(routes, fromHaven, toHaven), [routes, fromHaven, toHaven]);
@@ -206,7 +210,7 @@ export function useTocht() {
   const kentTicks = useMemo(() => kenteringTicks(routeMeta.legTimelines), [legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens,
+    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks, firstDepMs: candidates[0] ?? null,
     routeGusts, vanWeather,

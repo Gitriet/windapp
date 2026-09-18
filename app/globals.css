@@ -69,10 +69,20 @@
   --sp-12: 36px;
   --gutter: 16px;
   --tap: 44px;           /* minimale tapvlak */
+  --tabbar-space: 88px;  /* ruimte onder de content voor de vaste tabbar (mobiel) */
+  --tabbar-pad-bottom: 18px;
+  --tab-gap: 5px;
+  --chip-pad: 9px var(--sp-7);
+  --chip-pad-desk: 7px var(--sp-6);
+  --fs-merk-desk: 16px;
+  --ls-merk: 0.02em;
+  --ls-merk-desk: 0.04em;
+  --ls-tab: 0.03em;
 
   /* beweging + focus */
   --dur-hover: 150ms;
   --focus-ring: 2px solid var(--ochre);
+  --focus-offset: 2px;
 
   /* ── LEGACY (oude views, verdwijnt in stap 9) ── */
   --bg-card: var(--ink);
@@ -96,6 +106,97 @@ body {
 }
 
 .kpi { font-variant-numeric: tabular-nums; }
+
+/* ══ Basisgedrag (§7) ════════════════════════════════════════════════
+   .card = kaart (radius-md), .row = rij/tegel (radius-sm); beide 1px hairline.
+   .is-filled = perkament-nadrukvlak: geen hover-kleurwissel. */
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.card, .row { border: var(--line) solid var(--hairline); transition: border-color var(--dur-hover); }
+.card { border-radius: var(--radius-md); }
+.row { border-radius: var(--radius-sm); }
+.is-filled { background: var(--parchment); color: var(--ink); border-color: var(--parchment); }
+@media (hover: hover) {
+  .card:not(.is-filled):hover, .row:not(.is-filled):hover, .chip-picker:hover { border-color: var(--hairline-hover); }
+}
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+.skeleton { display: flex; flex-direction: column; gap: var(--sp-3); }
+.skeleton-row {
+  height: var(--row-h);
+  background: var(--fill-faint);
+  border: var(--line) solid var(--hairline-soft);
+  border-radius: var(--radius-sm);
+}
+
+/* ══ Schil ═══════════════════════════════════════════════════════════
+   < 768px: één scherm per tab + vaste tabbar · 768–1100px: 2 kolommen ·
+   ≥ 1100px: 4 kolommen (chartplotter). Breekpunten staan letterlijk in de
+   media-queries (CSS kent geen var() in een media-conditie). */
+.shell-top {
+  display: flex; align-items: center;
+  padding: calc(var(--sp-7) + env(safe-area-inset-top)) var(--gutter) var(--sp-5);
+}
+.shell-brand { font-family: var(--font-num); font-size: var(--fs-merk); font-weight: 700; letter-spacing: var(--ls-merk); color: var(--parchment); }
+
+.shell-screens { padding: 0 var(--gutter) calc(var(--tabbar-space) + env(safe-area-inset-bottom)); }
+.shell-screen { display: flex; flex-direction: column; gap: var(--sp-7); min-width: 0; }
+.shell-screen:not([data-active]) { display: none; }
+.shell-screen-title { display: none; }
+
+.shell-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; background: var(--ink);
+  border-top: var(--line) solid var(--hairline-soft);
+  padding: var(--sp-5) var(--sp-9) calc(var(--tabbar-pad-bottom) + env(safe-area-inset-bottom));
+}
+.shell-tab {
+  flex: 1; min-height: var(--tap);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tab-gap);
+  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 600; letter-spacing: var(--ls-tab); color: var(--slate);
+}
+.shell-tab-dot { width: var(--sp-4); height: var(--sp-4); border-radius: 50%; border: var(--line) solid var(--ring-inactive); }
+.shell-tab[aria-current="page"] { color: var(--parchment); font-weight: 700; }
+.shell-tab[aria-current="page"] .shell-tab-dot { background: var(--parchment); border-color: var(--parchment); }
+
+/* kiezerchip (route / locatie) */
+.chip-wrap { position: relative; }
+.chip-picker {
+  width: 100%; min-height: var(--tap);
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
+  padding: var(--chip-pad);
+  background: var(--fill-faint); border: var(--line) solid var(--hairline-strong); border-radius: var(--radius-sm);
+  font-family: var(--font-num); font-size: var(--fs-sectie); font-weight: 700; color: var(--parchment);
+  text-transform: uppercase; transition: border-color var(--dur-hover);
+}
+.chip-panel {
+  position: absolute; left: 0; right: 0; top: calc(100% + var(--sp-3)); z-index: 30;
+  display: flex; flex-direction: column; gap: var(--sp-7);
+  padding: var(--sp-7); background: var(--ink);
+  border: var(--line) solid var(--hairline); border-radius: var(--radius-md);
+  max-height: 60vh; overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .shell-top { padding: var(--sp-7) var(--sp-9); border-bottom: var(--line) solid var(--hairline-soft); }
+  .shell-brand { font-size: var(--fs-merk-desk); letter-spacing: var(--ls-merk-desk); }
+  .shell-tabbar { display: none; }
+  .shell-screens {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-10);
+    padding: var(--sp-11) var(--sp-12);
+  }
+  .shell-screen, .shell-screen:not([data-active]) { display: flex; }
+  .shell-screen:nth-child(2n) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }
+  .shell-screen-title {
+    display: block; margin: 0; text-align: center;
+    font-family: var(--font-num); font-size: var(--fs-tijdblok); font-weight: 700; letter-spacing: var(--ls-kop); color: var(--parchment);
+  }
+  .chip-picker { font-size: var(--fs-rij-sm); padding: var(--chip-pad-desk); }
+}
+@media (min-width: 1100px) {
+  .shell-screens { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .shell-screen:nth-child(n + 2) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 

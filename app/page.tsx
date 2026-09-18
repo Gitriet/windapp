@@ -20,6 +20,9 @@ import {
 import { WindCanvas } from "./components/WindCanvas";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { useTocht, useNu, isTide } from "./use-tocht";
+import { useScreenTab, useVertrekUrl } from "./use-app-url";
+import { SCREENS, type ScreenId } from "./screens";
+import { TopBar, TabBar, PickerChip, Skeleton } from "./components/Shell";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -48,100 +51,94 @@ function windContext(pts: ForecastResponse["points"]): string {
 }
 
 export default function Page() {
-  const [page, setPage] = useState<"now" | "departure" | "vaarplan">("now");
-  const [showLocPicker, setShowLocPicker] = useState(false);
-  // locatiepicker (Nu-view): knop en menu zijn losse siblings, dus check beide refs.
-  const locBtnRef = useRef<HTMLDivElement>(null);
-  const locMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showLocPicker) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!locBtnRef.current?.contains(t) && !locMenuRef.current?.contains(t)) setShowLocPicker(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showLocPicker]);
-  const isMobile = useIsMobile();
   const tocht = useTocht();
   const nu = useNu();
+  const [tab, setTab] = useScreenTab();
   const { locations, locIdx, setLocIdx, loc } = nu;
   const err = tocht.err ?? nu.err;
   const {
-    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, endpoints, routeBearing, routeDistNm,
+    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
+    endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks,
     routeTide, routeTideTo, hwMs, ready, nowMs,
   } = tocht;
+  useVertrekUrl(depMs, setDepMs, depOptions);
 
+  // routekiezer: dezelfde chip boven ROUTE, GETIJDEN en VAARPLAN; opent de havenkiezers
+  const routeChip = (
+    <PickerChip label={endpoints ? `${endpoints.van.naam} → ${endpoints.naar.naam}` : "…"}>
+      {() => (
+        <>
+          <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
+            havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+          <HavenSelector label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
+            havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+        </>
+      )}
+    </PickerChip>
+  );
+  // locatiekiezer (NU): de bestaande locatielijst
+  const locChip = (
+    <PickerChip label={loc?.name ?? "…"}>
+      {(close) => locations.map((l, i) => (
+        <button key={l.location_key} type="button" className="row" aria-current={i === locIdx ? "true" : undefined}
+          style={{ padding: "var(--sp-5) var(--sp-6)", textAlign: "left", minHeight: "var(--tap)" }}
+          onClick={() => { setLocIdx(i); close(); }}>
+          {l.name}
+        </button>
+      ))}
+    </PickerChip>
+  );
+
+  const content: Record<ScreenId, React.ReactNode> = {
+    route: (
+      <>
+        {routeChip}
+        <DepartureView
+          routeBearing={routeBearing} routeDistNm={routeDistNm} route={routeMeta}
+          selTrip={selTrip} depMs={depMs} setDepMs={setDepMs} hwMs={hwMs}
+          depOptions={depOptions} bestOption={bestOption} kentTicks={kentTicks} ready={ready}
+          routes={routes} fromHaven={fromHaven} toHaven={toHaven}
+          chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
+          fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
+          nowMs={nowMs} viaHavens={viaHavens} />
+      </>
+    ),
+    nu: (
+      <>
+        {locChip}
+        <NowView fc={nu.fc} week={nu.week} tide={nu.tide} loc={loc} nowMs={nowMs} />
+      </>
+    ),
+    getijden: routeChip,
+    vaarplan: (
+      <>
+        {routeChip}
+        {selTrip && depMs != null && endpoints ? (
+          <VaarplanView
+            depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
+            distanceNm={routeDistNm} bearingDeg={routeBearing}
+            routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
+            fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT}
+            stroomSpan={stroomSpanOf(routeMeta.legTimelines)} />
+        ) : <VaarplanEmpty />}
+      </>
+    ),
+  };
 
   return (
-    <div className="app-root">
-      <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-        {/* nav */}
-        <div className="nav" style={{ borderBottom: "1px solid rgba(233,233,237,.08)" }}>
-          <span className="nav-brand" style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M3 8h11a3 3 0 1 0-3-3" /><path d="M3 12h15a3 3 0 1 1-3 3" /><path d="M3 16h9" /></svg>
-            Tidan
-          </span>
-          <a href="#" aria-current={page === "now" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("now"); }}>Nu</a>
-          <a href="#" aria-current={page === "departure" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("departure"); }}>Tocht planner</a>
-          <a href="#" aria-current={page === "vaarplan" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setPage("vaarplan"); }}>Vaarplan</a>
-          <div style={{ flex: 1 }} />
-          {/* polaire-badge: subtiel één-regel label, in de header (alle views) */}
-          <span className="nav-polaire" style={{ fontSize: 11, whiteSpace: "nowrap", color: "rgba(233,233,237,.4)", fontVariantNumeric: "tabular-nums" }}>
-            Winner 11.20 <span style={{ color: "rgba(233,233,237,.3)" }}>· {Math.round(DEFAULT_BOAT.performance * 100)}%</span>
-          </span>
-          {/* Locatiepicker is alleen relevant voor de Nu-view. Desktop: altijd renderen
-              (visibility toggelt) zodat de header niet verspringt bij tab-wissel. Mobiel:
-              de picker staat op een eigen volle-breedte-rij, dus 'm buiten Nu wél renderen
-              zou een lege rij reserveren → op mobiel alleen op Nu renderen. */}
-          {(!isMobile || page === "now") && (
-          <div ref={locBtnRef} className="loc-picker" onClick={() => setShowLocPicker((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "5px 12px", borderRadius: 8, background: alpha(COLORS.weer, 0.08), border: `1px solid ${alpha(COLORS.weer, 0.18)}`, fontSize: 13, visibility: page === "now" ? "visible" : "hidden", pointerEvents: page === "now" ? "auto" : "none" }}>
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
-            <span>{loc?.name ?? "…"}</span>
-            <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.4)" strokeWidth={1.5}><path d="M2.5 4 L5 6.5 L7.5 4" /></svg>
-          </div>
-          )}
-        </div>
-
-        {page === "now" && showLocPicker && (
-          <div ref={locMenuRef} style={{ position: "absolute", right: 26, top: 50, zIndex: 10, background: "#1e2035", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(233,233,237,.1)", padding: 8, minWidth: 240, maxHeight: 360, overflowY: "auto" }}>
-            {locations.map((l, i) => (
-              <div key={l.location_key} onClick={() => { setLocIdx(i); setShowLocPicker(false); }} style={{ padding: "9px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={i === locIdx ? COLORS.weer : "rgba(233,233,237,.3)"} strokeWidth={2}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx={12} cy={9} r={2.5} /></svg>
-                <span style={{ flex: 1 }}>{l.name}</span>
-                <span style={{ fontSize: 11, color: "rgba(233,233,237,.35)" }}>{l.area}</span>
-                {i === locIdx && <svg width={14} height={14} viewBox="0 0 20 20" fill={COLORS.weer}><path d="M8.5 14.2 L4 9.7 l1.4-1.4 3.1 3.1 6.1-6.1 1.4 1.4z" /></svg>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {err && <div style={{ padding: 24, color: "#c07a7a", fontSize: 13 }}>Fout bij laden: {err}</div>}
-
-        {page === "now" ? <NowView fc={nu.fc} week={nu.week} tide={nu.tide} loc={loc} nowMs={nowMs} />
-          : page === "vaarplan" ? (
-            selTrip && depMs != null && endpoints ? (
-              <VaarplanView
-                depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
-                distanceNm={routeDistNm} bearingDeg={routeBearing}
-                routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
-                fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT}
-                stroomSpan={stroomSpanOf(routeMeta.legTimelines)} />
-            ) : (
-              // geen geldig vertrekmoment (bv. herladen op deze view)
-              <VaarplanEmpty />
-            )
-          )
-          : <DepartureView
-              routeBearing={routeBearing} routeDistNm={routeDistNm} route={routeMeta}
-              selTrip={selTrip} depMs={depMs} setDepMs={setDepMs} hwMs={hwMs}
-              depOptions={depOptions} bestOption={bestOption} kentTicks={kentTicks} ready={ready}
-              routes={routes} fromHaven={fromHaven} toHaven={toHaven}
-              chooseFrom={chooseFrom} chooseTo={chooseTo} allHavens={allHavens}
-              fromStation={endpoints?.van ?? null} toStation={endpoints?.naar ?? null}
-              nowMs={nowMs} viaHavens={viaHavens} />}
-      </div>
+    <div className="shell">
+      <TopBar />
+      {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-rij-sm)" }}>Fout bij laden: {err}</div>}
+      <main className="shell-screens">
+        {SCREENS.map((s) => (
+          <section key={s.id} className="shell-screen" data-active={s.id === tab ? "" : undefined} aria-label={s.label}>
+            <h2 className="shell-screen-title">{s.label}</h2>
+            {content[s.id]}
+          </section>
+        ))}
+      </main>
+      <TabBar active={tab} onSelect={setTab} />
     </div>
   );
 }
@@ -956,10 +953,5 @@ function VaarplanEmpty() {
 }
 
 function Loading({ label }: { label: string }) {
-  return (
-    <div style={{ padding: 60, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, color: "rgba(233,233,237,.4)", fontSize: 13 }}>
-      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={COLORS.weer} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.2-8.5" strokeLinecap="round" /></svg>
-      {label}
-    </div>
-  );
+  return <Skeleton rows={3} height={56} label={label} />;
 }
