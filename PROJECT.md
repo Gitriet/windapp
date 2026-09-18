@@ -119,7 +119,7 @@ her-sampelt uit intacte R2-grids.
   ZONDER STROOM + alle vertrekken 48 u), **NU** (live wind op één locatie, 12 u, 4/7
   dagen), **GETIJDEN** (weekstrip, vertrektijden op stroom zonder wind, 24-uurs
   stroomkromme) en **VAARPLAN** (gekozen vertrek: KPI's, etappes, haveninfo). Mobiel
-  (<768px) één scherm per tab met vaste tabbar; 768–1100px 2 kolommen; ≥1100px 4
+  (<768px) één scherm per tab met vaste tabbar; 768–1400px 2 kolommen; ≥1400px 4
   kolommen. `?tab=` en `?vertrek=` staan in de URL. Geen kaart-widget — alles is SVG.
 - **Structuur:** data + logica in `app/use-tocht.ts` (`useTocht`, `useNu`) en pure
   afleidingen in `lib/tocht.ts` (beste vertrek, advies, LET OP, etappes),

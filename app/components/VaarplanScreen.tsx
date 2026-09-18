@@ -111,7 +111,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
               ) : <div className={s.noot}>zonder stroomdata</div>}
               {e.windDir != null && e.windKn != null && (
                 <div className={s.wind}>
-                  <WindArrow dir={e.windDir} size={14} />
+                  <WindArrow dir={e.windDir} />
                   <span className={s.windKn}>{dirLabel16(e.windDir)} {Math.round(e.windKn)} KN</span>
                   {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN {Math.round(e.vlaagKn)}</span>}
                 </div>

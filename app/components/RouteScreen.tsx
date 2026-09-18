@@ -103,7 +103,7 @@ function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTi
       </div>
       {r && s0 && (
         <div className={s.chips}>
-          <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} size={11} />{dirLabel16(s0.wDir)} {Math.round(s0.wSpd)} KN</span>
+          <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)} {Math.round(s0.wSpd)} KN</span>
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
           {verloop && "totMs" in verloop && !(verloop.kind === "mee" && r.effectMin > 0) && (
             <span className={`${s.chip} ${verloop.kind === "mee" ? s.chipMee : s.chipTegen}`}>
@@ -148,7 +148,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onPick }: Route
           return (
             <button key={o.depMs} type="button" className={`row ${s.rij} ${isBest ? "is-filled" : ""}`}
               aria-current={o.depMs === depMs ? "true" : undefined} onClick={() => onPick(o.depMs)}>
-              {s0 && <WindArrow dir={s0.wDir} size={16} />}
+              {s0 && <WindArrow dir={s0.wDir} />}
               <span className={s.rijMain}>
                 <span className={s.rijTijd}>{localHM(o.depMs)} → {r.arrMs ? localHM(r.arrMs) : "—"}</span>
                 <span className={s.rijSub}>{notitie}</span>

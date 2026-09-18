@@ -1,48 +1,48 @@
 /* VAARPLAN — maten uit screenshots/04-vaarplan.png (mobiel) en 05-desktop.png. */
 .tijdblok {
-  font-family: var(--font-num); font-size: var(--fs-tijdblok); font-weight: 700;
+  font-family: var(--font-num); font-size: var(--fs-time); font-weight: var(--fw-num);
   letter-spacing: var(--ls-tijdblok); color: var(--parchment); white-space: nowrap;
 }
-.sub { margin-top: var(--sp-2); font-size: var(--fs-label); color: var(--slate); }
+.sub { margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--slate); }
 .sectie {
   margin-bottom: var(--sp-4);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; letter-spacing: var(--ls-label); color: var(--slate);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate);
 }
-.noot { font-size: var(--fs-label-sm); color: var(--slate-dim); }
-.leeg { font-family: var(--font-num); font-size: var(--fs-tijdblok); color: var(--slate-dim); }
+.noot { font-size: var(--fs-caption); color: var(--slate); }
+.leeg { font-family: var(--font-num); font-size: var(--fs-time); color: var(--slate); }
 
 .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
 .kpi { padding: var(--sp-3); text-align: center; }
-.kpiLabel { font-family: var(--font-num); font-size: var(--fs-min); letter-spacing: var(--ls-kop); color: var(--slate); }
-.kpiWaarde { margin-top: var(--sp-1); font-family: var(--font-num); font-size: var(--fs-rij-sm); font-weight: 700; color: var(--parchment); white-space: nowrap; }
+.kpiLabel { font-family: var(--font-num); font-size: var(--fs-label); letter-spacing: var(--ls-kop); color: var(--slate); }
+.kpiWaarde { margin-top: var(--sp-1); font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
 .letOp {
   padding: var(--chip-pad-sm); border-radius: var(--radius-sm);
   background: var(--ochre-fill); border: var(--line) solid var(--ochre-line); color: var(--ochre);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; white-space: nowrap;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); white-space: nowrap;
 }
 
 .lijst { display: flex; flex-direction: column; gap: var(--sp-4); }
 .etappe { padding: var(--sp-5) var(--sp-6); display: flex; flex-direction: column; gap: var(--etappe-gap); }
 .etappeKop { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); }
-.etappeNaam { font-family: var(--font-num); font-size: var(--fs-rij-sm); font-weight: 700; color: var(--parchment); text-transform: uppercase; min-width: 0; }
-.etappeNm { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label-sm); color: var(--slate); white-space: nowrap; }
+.etappeNaam { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; min-width: 0; }
+.etappeNm { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); white-space: nowrap; }
 .balken { position: relative; display: flex; align-items: center; gap: var(--sp-1); height: var(--balk-h); }
 .balk { flex: 1; border-radius: var(--radius-xs); background: var(--ochre-line); }
 .balk[data-mee] { background: var(--sea-green); }
 .kentering { position: absolute; top: 0; bottom: 0; width: var(--sp-1); margin-left: calc(-1 * var(--line)); background: var(--parchment); }
 .wind { display: flex; align-items: center; gap: var(--sp-3); color: var(--ochre); }
-.windKn { font-family: var(--font-num); font-size: var(--fs-label); font-weight: 700; color: var(--parchment); white-space: nowrap; }
-.vlaag { font-family: var(--font-num); font-size: var(--fs-min); color: var(--slate-dim); white-space: nowrap; }
+.windKn { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
+.vlaag { font-family: var(--font-num); font-size: var(--fs-caption); color: var(--slate); white-space: nowrap; }
 
 .haven { padding: var(--row-pad); }
-.havenNaam { font-family: var(--font-num); font-size: var(--fs-label); font-weight: 700; color: var(--parchment); text-transform: uppercase; min-width: 0; }
-.havenVhf { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-min); color: var(--slate); white-space: nowrap; }
-.havenSub { margin-top: var(--sp-1); font-size: var(--fs-label-sm); color: var(--slate); }
+.havenNaam { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; min-width: 0; }
+.havenVhf { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-caption); color: var(--slate); white-space: nowrap; }
+.havenSub { margin-top: var(--sp-1); font-size: var(--fs-caption); color: var(--slate); }
 
-.poort { padding: var(--sp-4) var(--sp-6); font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; color: var(--slate); }
+.poort { display: flex; align-items: center; padding: var(--sp-4) var(--sp-6); font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); }
 .poort[data-status="open"] { color: var(--sea-green); border-color: var(--sea-green-line); }
 .poort[data-status="dicht"] { color: var(--ochre); border-color: var(--ochre-line); background: var(--ochre-fill); }
-.compact { display: flex; gap: var(--sp-4); padding: var(--sp-4) var(--sp-6); font-size: var(--fs-label-sm); line-height: var(--lh-text); color: var(--body); }
-.compactLabel { flex: 0 0 auto; width: var(--compact-label); font-family: var(--font-num); font-weight: 700; color: var(--slate); }
+.compact { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4) var(--sp-6); font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--body); }
+.compactLabel { flex: 0 0 auto; width: var(--compact-label); font-family: var(--font-num); font-weight: var(--fw-num); color: var(--slate); }

@@ -93,7 +93,7 @@ export default function Page() {
   return (
     <div className="shell">
       <TopBar />
-      {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-rij-sm)" }}>Fout bij laden: {err}</div>}
+      {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
       <main className="shell-screens">
         {SCREENS.map((s) => (
           <section key={s.id} className="shell-screen" data-active={s.id === tab ? "" : undefined} aria-label={s.label}>
