@@ -164,6 +164,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell-screen { display: flex; flex-direction: column; gap: var(--sp-7); min-width: 0; }
 .shell-screen:not([data-active]) { display: none; }
 .shell-screen-title { display: none; }
+/* actuele datum en tijd, rechts in de merkbalk */
+.shell-top-nu {
+  margin-left: auto; display: flex; align-items: baseline; gap: var(--sp-4); white-space: nowrap;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
+  letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--parchment);
+}
+.shell-top-klok { font-size: var(--fs-title); font-weight: var(--fw-num); }
 /* topbalk-chip en "bijgewerkt" bestaan alleen in de chartplotter-lay-out (≥1400px) */
 .shell-top-chip, .shell-top-tijd { display: none; }
 
@@ -214,6 +221,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     padding: 0;
   }
   .shell-brand { font-size: var(--fs-label); letter-spacing: var(--ls-merk-desk); color: var(--slate); }
+  /* merk links, datum+tijd rechts in de bovenmarge van het raster */
+  .shell-top { right: calc(var(--sp-12) + env(safe-area-inset-right)); }
+  .shell-top-klok { font-size: var(--fs-label); }
   .shell-tabbar { display: none; }
   .shell-screens {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-10);
@@ -241,8 +251,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   .shell-brand { font-size: var(--fs-merk); letter-spacing: var(--ls-merk); color: var(--parchment); }
   .shell-top-chip { display: block; width: var(--topchip-w); }
+  .shell-top-klok { font-size: var(--fs-title); }
   .shell-top-tijd {
-    display: block; margin-left: auto;
+    display: block;
     font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--slate); white-space: nowrap;
   }
   .chip-route { display: none; }

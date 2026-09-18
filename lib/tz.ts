@@ -66,6 +66,12 @@ export function localDayLabel(ms: number): string {
   return `${localWeekdayShort(ms)} ${p.d}/${p.mo}`;
 }
 
+// "vrijdag 18 september" in Amsterdam local time, for the header date.
+const fDateLong = new Intl.DateTimeFormat("nl-NL", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
+export function localDateLong(ms: number): string {
+  return fDateLong.format(ms);
+}
+
 // Epoch of the most recent Amsterdam local midnight at or before `ms`.
 // Two passes so a DST change near the boundary resolves to the right offset.
 export function localMidnight(ms: number): number {

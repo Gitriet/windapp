@@ -4,14 +4,32 @@
 // staat in globals.css (.shell-*).
 import { useEffect, useRef, useState } from "react";
 import { SCREENS, type ScreenId } from "../screens";
+import { localDateLong, localHM } from "@/lib/tz";
 
 // Merkbalk. Vanaf 1400px ook de (enige) routechip en "bijgewerkt HH:MM"; daaronder zijn
 // die twee verborgen (CSS) en staat de routechip per scherm.
+// Actuele datum en tijd, tikt per halve minuut. Start leeg (geen hydration-verschil).
+function useKlok(): number | null {
+  const [ms, setMs] = useState<number | null>(null);
+  useEffect(() => {
+    setMs(Date.now());
+    const id = setInterval(() => setMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return ms;
+}
+
 export function TopBar({ chip, bijgewerkt }: { chip?: React.ReactNode; bijgewerkt?: string | null }) {
+  const nu = useKlok();
   return (
     <header className="shell-top">
       <span className="shell-brand">TIDAN</span>
       {chip && <div className="shell-top-chip">{chip}</div>}
+      {nu && (
+        <time className="shell-top-nu" dateTime={new Date(nu).toISOString()}>
+          {localDateLong(nu)} <span className="shell-top-klok">{localHM(nu)}</span>
+        </time>
+      )}
       {bijgewerkt && <span className="shell-top-tijd">bijgewerkt&nbsp;{bijgewerkt}</span>}
     </header>
   );
