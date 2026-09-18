@@ -2,10 +2,10 @@
 // ROUTE — beslisscherm: één advieskaart (5 toestanden) + alle vertrekvensters (48u).
 // Alleen presentatie; alle afleidingen komen uit lib/tocht.ts.
 import { localHM, localDateISO } from "@/lib/tz";
-import { dirLabel16 } from "@/lib/format";
+import { aankomstLabel, dirLabel16, tijdblok } from "@/lib/format";
 import { wxLabel } from "@/lib/weather";
 import {
-  adviesState, adviesUitleg, effectLabel, letOp, stroomVerloop, weatherAt,
+  adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, stroomVerloop, weatherAt,
   type AdviesKind, type DepOption, type GustSample, type StroomVerloop,
 } from "@/lib/tocht";
 import type { TideData, WeatherSeries } from "@/lib/types";
@@ -29,13 +29,6 @@ function dagLabel(ms: number, nowMs: number): string {
   return [dag, nacht ? "nacht" : ""].filter(Boolean).join(" · ");
 }
 
-const TITEL: Record<AdviesKind, (hm: string) => string> = {
-  "ga-nu": () => "GA NU",
-  vertrek: (hm) => `VERTREK ${hm}`,
-  onzeker: () => "ONZEKER",
-  "geen-venster": () => "GEEN VENSTER",
-  "zonder-stroom": () => "ZONDER STROOM",
-};
 const DISC: Record<AdviesKind, string> = { "ga-nu": "✓", vertrek: "✓", onzeker: "?", "geen-venster": "–", "zonder-stroom": "~" };
 
 function stroomNotitie(v: StroomVerloop): string {
@@ -81,7 +74,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
   const dag = best ? dagLabel(best.depMs, nowMs) : "";
-  const eta = r?.arrMs ? `ETA ${localHM(r.arrMs)}` : "ETA —";
+  const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)}` : "ETA —";
   const sub = !best || !r ? "Geen haalbaar vertrek binnen 48 uur."
     : kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · ${eta} · stroomdata deels onzeker`
     : kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · ${eta} · rekent zonder getijstroom`
@@ -103,7 +96,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
         <span className={s.label}>Huidig advies</span>
       </div>
       <div>
-        <div className={s.titel}>{TITEL[kind](hm)}</div>
+        <div className={s.titel}>{adviesTitel(kind, best?.depMs ?? null, !!(warn?.hardWind || warn?.windTegenStroom))}</div>
         <div className={s.sub}>{sub}</div>
       </div>
       {r && s0 && (
@@ -131,7 +124,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
         </div>
       )}
       {best && (
-        <button type="button" className={s.cta} onClick={onOpenVaarplan}>BEKIJK VAARPLAN →</button>
+        <button type="button" className={`is-filled ${s.cta}`} onClick={onOpenVaarplan}>BEKIJK VAARPLAN →</button>
       )}
     </div>
   );
@@ -155,7 +148,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
               aria-current={o.depMs === depMs ? "true" : undefined} onClick={() => onSelect(o.depMs)}>
               {s0 && <WindArrow dir={s0.wDir} />}
               <span className={s.rijMain}>
-                <span className={s.rijTijd}>{localHM(o.depMs)} → {r.arrMs ? localHM(r.arrMs) : "—"}</span>
+                <span className={s.rijTijd}>{tijdblok(o.depMs, r.arrMs)}</span>
                 <span className={s.rijSub}>{notitie}</span>
               </span>
               {isBest ? <span className={s.badge}>BESTE</span>

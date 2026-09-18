@@ -5,11 +5,42 @@
 import { useEffect, useRef, useState } from "react";
 import { SCREENS, type ScreenId } from "../screens";
 
-export function TopBar() {
+// Merkbalk. Vanaf 1400px ook de (enige) routechip en "bijgewerkt HH:MM"; daaronder zijn
+// die twee verborgen (CSS) en staat de routechip per scherm.
+export function TopBar({ chip, bijgewerkt }: { chip?: React.ReactNode; bijgewerkt?: string | null }) {
   return (
     <header className="shell-top">
       <span className="shell-brand">TIDAN</span>
+      {chip && <div className="shell-top-chip">{chip}</div>}
+      {bijgewerkt && <span className="shell-top-tijd">bijgewerkt&nbsp;{bijgewerkt}</span>}
     </header>
+  );
+}
+
+// Eén scherm/kolom. Vanaf 1400px scrollt elke kolom zelf; data-meer staat aan zolang er
+// inhoud onder de zichtbare rand zit (voedt de fade onderaan). Het element blijft
+// gemount, dus de scrollpositie per kolom blijft vanzelf behouden.
+export function ScreenPanel({ label, active, children }: { label: string; active: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  const [meer, setMeer] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMeer(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    for (const c of Array.from(el.children)) ro.observe(c);
+    const mo = new MutationObserver(check);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => { el.removeEventListener("scroll", check); ro.disconnect(); mo.disconnect(); };
+  }, []);
+  return (
+    <section ref={ref} className="shell-screen" data-active={active ? "" : undefined} data-meer={meer ? "" : undefined} aria-label={label}>
+      <h2 className="shell-screen-title">{label}</h2>
+      {children}
+    </section>
   );
 }
 
@@ -28,7 +59,7 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
 }
 
 // Volle-breedte kiezerchip; klik opent een paneel eronder (klik buiten sluit).
-export function PickerChip({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {
+export function PickerChip({ label, className, children }: { label: string; className?: string; children: (close: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -38,7 +69,7 @@ export function PickerChip({ label, children }: { label: string; children: (clos
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
   return (
-    <div ref={ref} className="chip-wrap">
+    <div ref={ref} className={`chip-wrap ${className ?? ""}`}>
       <button type="button" className="chip-picker" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {label}
       </button>

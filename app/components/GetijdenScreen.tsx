@@ -11,6 +11,7 @@ import type { SimWaypoint } from "@/lib/tripsim";
 import type { AlongSample } from "@/lib/route";
 import type { TideData } from "@/lib/types";
 import { Skeleton } from "./Shell";
+import { tijdblok } from "@/lib/format";
 import s from "./GetijdenScreen.module.css";
 
 const H = 3_600_000;
@@ -23,7 +24,7 @@ export interface GetijdenScreenProps {
   ready: boolean;
   nowMs: number;
   bereik: DagBereik | null;              // kiesbare dagen (één bron: useTocht.dagBereik)
-  titel: string;                          // route.via of padnamen
+  titel: string;                          // bijschrift: route.via of padnamen
   anyStroom: boolean;
   legTimelines: LegTimeline[];
   waypoints: SimWaypoint[];
@@ -104,7 +105,7 @@ function Vertrektijden({ dag, anyStroom, waypoints, alongPerLeg, legDistNm, rout
             return (
               <div key={o.depMs} className={`row ${s.blok} ${best ? "is-filled" : ""}`}>
                 <span className={s.blokMain}>
-                  <span className={s.blokTijd}>{localHM(o.depMs)} → {o.result.arrMs ? localHM(o.result.arrMs) : "—"}</span>
+                  <span className={s.blokTijd}>{tijdblok(o.depMs, o.result.arrMs)}</span>
                   <span className={s.blokReden}>{reden(o, routeTide)}</span>
                 </span>
                 {best ? <span className={s.badge}>BESTE</span> : <span className={s.label}>GOED</span>}
@@ -128,7 +129,10 @@ function Kromme({ dag, titel, legTimelines }: GetijdenScreenProps & { dag: strin
   const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD);
   return (
     <div className={`card ${s.krommeKaart}`}>
-      <div className={s.sectie}>STROOM {titel.toUpperCase()} · 24 UUR</div>
+      <div>
+        <div className={s.sectie}>STROOM LANGS ROUTE · 24 UUR</div>
+        <div className={s.via} title={titel}>{titel}</div>
+      </div>
       {!segs.length ? (
         <div className={s.leeg}>—<div className={s.noot}>geen stroomdata voor deze dag</div></div>
       ) : (

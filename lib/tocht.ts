@@ -257,3 +257,16 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[])
     };
   });
 }
+
+// Titel van de advieskaart. GA NU wordt "BESTE VERTREK HH:MM" zodra het venster een LET OP
+// heeft (harde wind of wind tegen stroom) — de keuze van het venster verandert niet.
+export function adviesTitel(kind: AdviesKind, depMs: number | null, letOpActief: boolean): string {
+  const hm = depMs != null ? localHM(depMs) : "";
+  switch (kind) {
+    case "ga-nu": return letOpActief ? `BESTE VERTREK ${hm}` : "GA NU";
+    case "vertrek": return `VERTREK ${hm}`;
+    case "onzeker": return "ONZEKER";
+    case "geen-venster": return "GEEN VENSTER";
+    case "zonder-stroom": return "ZONDER STROOM";
+  }
+}

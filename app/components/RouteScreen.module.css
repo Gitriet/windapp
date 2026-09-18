@@ -19,7 +19,8 @@
 .sectie { margin-bottom: var(--sp-3); }
 .titel {
   font-family: var(--font-num); font-size: var(--fs-decision); font-weight: var(--fw-num);
-  letter-spacing: var(--ls-beslissing); line-height: 1; color: var(--parchment); white-space: nowrap;
+  letter-spacing: var(--ls-beslissing); line-height: 1.05; color: var(--parchment);
+  text-wrap: balance;   /* "BESTE VERTREK 14:30" mag over twee regels; korte titels blijven één regel */
 }
 .sub { margin-top: var(--sp-3); font-size: var(--fs-label); color: var(--slate); }
 
@@ -42,7 +43,6 @@
 .cta {
   display: flex; align-items: center; justify-content: center; min-height: var(--tap);
   padding: var(--cta-pad); border-radius: var(--radius-sm);
-  background: var(--sea-green); color: var(--ink);
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); letter-spacing: var(--ls-merk);
 }
 
@@ -64,6 +64,11 @@
   font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-num);
 }
 .delta { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }
+
+/* chartplotter (≥1400px): het vaarplan staat ernaast, dus geen knop */
+@media (min-width: 1400px) {
+  .cta { display: none; }
+}
 
 /* desktop-kolom: compacter (screenshot 05) */
 @media (min-width: 768px) {

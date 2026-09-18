@@ -96,6 +96,9 @@
   --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: 7px;
   --compact-label: 56px;
+  --topchip-w: 360px;    /* routechip in de desktop-topbalk */
+  --fade-h: 40px;        /* fade onderaan een scrollend paneel */
+  --panel-solid: #223747; /* = --fill-faint over --ink, dekkend (sticky kop, fade) */
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
   --ls-tab: 0.03em;
@@ -161,6 +164,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell-screen { display: flex; flex-direction: column; gap: var(--sp-7); min-width: 0; }
 .shell-screen:not([data-active]) { display: none; }
 .shell-screen-title { display: none; }
+/* topbalk-chip en "bijgewerkt" bestaan alleen in de chartplotter-lay-out (≥1400px) */
+.shell-top-chip, .shell-top-tijd { display: none; }
 
 .shell-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -223,7 +228,47 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   .chip-picker { font-size: var(--fs-title); padding: var(--chip-pad-desk); }
 }
+/* Chartplotter (≥1400px): vaste topbalk met de enige routechip; vier panelen die elk
+   zelf scrollen binnen 100dvh, met een sticky kop en een fade zolang er inhoud onder zit. */
 @media (min-width: 1400px) {
-  .shell-screens { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .shell-screen:nth-child(n + 2) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }
+  .shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .shell-top {
+    position: static; flex: 0 0 auto;
+    display: flex; align-items: center; gap: var(--sp-9);
+    padding: calc(var(--sp-5) + env(safe-area-inset-top)) calc(var(--sp-12) + env(safe-area-inset-right))
+      var(--sp-5) calc(var(--sp-12) + env(safe-area-inset-left));
+    border-bottom: var(--line) solid var(--hairline-soft);
+  }
+  .shell-brand { font-size: var(--fs-merk); letter-spacing: var(--ls-merk); color: var(--parchment); }
+  .shell-top-chip { display: block; width: var(--topchip-w); }
+  .shell-top-tijd {
+    display: block; margin-left: auto;
+    font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--slate); white-space: nowrap;
+  }
+  .chip-route { display: none; }
+
+  .shell-screens {
+    flex: 1; min-height: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--sp-10);
+    padding: var(--sp-10) calc(var(--sp-12) + env(safe-area-inset-right)) calc(var(--sp-10) + env(safe-area-inset-bottom))
+      calc(var(--sp-12) + env(safe-area-inset-left));
+  }
+  .shell-screen, .shell-screen:nth-child(n) {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--fill-faint); border: var(--line) solid var(--hairline); border-radius: var(--radius-md);
+    padding: 0 var(--sp-7) var(--sp-7);
+  }
+  .shell-screen-title {
+    position: sticky; top: 0; z-index: 2;
+    margin: 0 calc(-1 * var(--sp-7)); padding: var(--sp-6) var(--sp-7);
+    text-align: left; background: var(--panel-solid); border-bottom: var(--line) solid var(--hairline);
+  }
+  /* fade onderaan: sticky laatste laag, alleen zolang er inhoud onder zit */
+  .shell-screen::after {
+    content: ""; position: sticky; bottom: calc(-1 * var(--sp-7)); flex: 0 0 auto;
+    height: var(--fade-h); margin: calc(-1 * (var(--fade-h) + var(--sp-7))) calc(-1 * var(--sp-7)) calc(-1 * var(--sp-7));
+    background: linear-gradient(to bottom, transparent, var(--panel-solid));
+    pointer-events: none; opacity: 0; transition: opacity var(--dur-hover);
+  }
+  .shell-screen[data-meer]::after { opacity: 1; }
 }

@@ -10,7 +10,8 @@ import VaarplanScreen from "./components/VaarplanScreen";
 import { useTocht, useNu } from "./use-tocht";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
-import { TopBar, TabBar, PickerChip } from "./components/Shell";
+import { TopBar, TabBar, PickerChip, ScreenPanel } from "./components/Shell";
+import { localHM } from "@/lib/tz";
 
 export default function Page() {
   const tocht = useTocht();
@@ -27,8 +28,8 @@ export default function Page() {
   useVertrekUrl(depMs, setDepMs, depOptions);
 
   // routekiezer: dezelfde chip boven ROUTE, GETIJDEN en VAARPLAN; opent de havenkiezers
-  const routeChip = (
-    <PickerChip label={endpoints ? `${endpoints.van.naam} → ${endpoints.naar.naam}` : "…"}>
+  const maakRouteChip = (className?: string) => (
+    <PickerChip className={className} label={endpoints ? `${endpoints.van.naam} → ${endpoints.naar.naam}` : "…"}>
       {() => (
         <>
           <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
@@ -54,7 +55,7 @@ export default function Page() {
   const content: Record<ScreenId, React.ReactNode> = {
     route: (
       <>
-        {routeChip}
+        {maakRouteChip("chip-route")}
         <RouteScreen
           ready={ready} nowMs={nowMs} best={bestOption} vensters={vensters} firstDepMs={firstDepMs}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs} selTrip={selTrip}
@@ -70,17 +71,17 @@ export default function Page() {
     ),
     getijden: (
       <>
-        {routeChip}
+        {maakRouteChip("chip-route")}
         <GetijdenScreen
           ready={ready} nowMs={nowMs} bereik={dagBereik}
-          titel={routeMeta.viaPassage ?? (routeMeta.pathNamen.length ? routeMeta.pathNamen.join(" → ") : "route")}
+          titel={routeMeta.viaPassage ? `via ${routeMeta.viaPassage}` : routeMeta.pathNamen.join(" → ")}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines}
           waypoints={waypoints} alongPerLeg={alongPerLeg} legDistNm={legDistNm} routeTide={routeTide} />
       </>
     ),
     vaarplan: (
       <>
-        {routeChip}
+        {maakRouteChip("chip-route")}
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
@@ -92,14 +93,11 @@ export default function Page() {
 
   return (
     <div className="shell">
-      <TopBar />
+      <TopBar chip={maakRouteChip()} bijgewerkt={nowMs ? localHM(nowMs) : null} />
       {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
       <main className="shell-screens">
         {SCREENS.map((s) => (
-          <section key={s.id} className="shell-screen" data-active={s.id === tab ? "" : undefined} aria-label={s.label}>
-            <h2 className="shell-screen-title">{s.label}</h2>
-            {content[s.id]}
-          </section>
+          <ScreenPanel key={s.id} label={s.label} active={s.id === tab}>{content[s.id]}</ScreenPanel>
         ))}
       </main>
       <TabBar active={tab} onSelect={setTab} />
