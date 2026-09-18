@@ -57,9 +57,9 @@ export default function Page() {
         {routeChip}
         <RouteScreen
           ready={ready} nowMs={nowMs} best={bestOption} vensters={vensters} firstDepMs={firstDepMs}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs}
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs} selTrip={selTrip}
           routeBearing={routeBearing} routeTide={routeTide} routeGusts={routeGusts} vanWeather={vanWeather}
-          onPick={(ms) => { setDepMs(ms); setTab("vaarplan"); }} />
+          onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>
     ),
     nu: (
@@ -93,7 +93,7 @@ export default function Page() {
   return (
     <div className="shell">
       <TopBar />
-      {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-rij-sm)" }}>Fout bij laden: {err}</div>}
+      {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
       <main className="shell-screens">
         {SCREENS.map((s) => (
           <section key={s.id} className="shell-screen" data-active={s.id === tab ? "" : undefined} aria-label={s.label}>

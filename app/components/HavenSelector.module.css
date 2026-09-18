@@ -2,12 +2,12 @@
 .wrap { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .veld { display: flex; flex-direction: column; gap: var(--sp-2); }
 .label {
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);
 }
 .select {
   min-height: var(--tap); width: 100%; padding: 0 var(--sp-6);
-  font-family: var(--font-num); font-size: var(--fs-sectie); font-weight: 700; color: var(--parchment);
+  font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment);
   background: var(--fill-faint); border: var(--line) solid var(--hairline); border-radius: var(--radius-sm);
   transition: border-color var(--dur-hover);
 }
@@ -17,11 +17,11 @@
 .statusRij { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
 .badge {
   padding: var(--sp-1) var(--sp-4); border-radius: var(--radius-sm); border: var(--line) solid var(--hairline);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; color: var(--slate); white-space: nowrap;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap;
 }
 .badge[data-tone="goed"] { background: var(--sea-green-fill); color: var(--sea-green-text); border-color: var(--sea-green-line); }
 .badge[data-tone="let-op"] { background: var(--ochre-fill); color: var(--ochre); border-color: var(--ochre-line); }
-.info { min-height: var(--tap); padding: 0 var(--sp-4); font-size: var(--fs-label); color: var(--slate); }
+.info { min-height: var(--tap); padding: 0 var(--sp-4); font-size: var(--fs-caption); color: var(--slate); }
 
 .detail { border-top: var(--line) solid var(--hairline-soft); padding-top: var(--sp-4); }
 .balkWrap { margin-bottom: var(--sp-6); }
@@ -29,15 +29,15 @@
 .balkOpen { position: absolute; top: 0; bottom: 0; background: var(--sea-green); }
 .balkAs {
   display: flex; justify-content: space-between; margin-top: var(--sp-1);
-  font-family: var(--font-num); font-size: var(--fs-min); color: var(--slate-dim); font-variant-numeric: tabular-nums;
+  font-family: var(--font-num); font-size: var(--fs-caption); color: var(--slate); font-variant-numeric: tabular-nums;
 }
-.row { display: flex; gap: var(--sp-5); padding: var(--sp-3) 0; border-top: var(--line) solid var(--hairline-soft); font-size: var(--fs-rij-sm); }
+.row { display: flex; gap: var(--sp-5); padding: var(--sp-3) 0; border-top: var(--line) solid var(--hairline-soft); font-size: var(--fs-label); }
 .rowLabel { min-width: var(--label-col); flex-shrink: 0; color: var(--slate); }
 .rowWaarde { flex: 1; min-width: 0; color: var(--body); }
 .dim { color: var(--slate); }
-.num { font-family: var(--font-num); font-weight: 700; color: var(--parchment); font-variant-numeric: tabular-nums; }
-.noot { margin-top: var(--line); font-size: var(--fs-label); color: var(--slate); }
+.num { font-family: var(--font-num); font-weight: var(--fw-num); color: var(--parchment); font-variant-numeric: tabular-nums; }
+.noot { margin-top: var(--line); font-size: var(--fs-caption); color: var(--slate); }
 .opmerking {
   margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: var(--line) solid var(--hairline-soft);
-  font-size: var(--fs-label); line-height: var(--lh-text); color: var(--slate);
+  font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--slate);
 }

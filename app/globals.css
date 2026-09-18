@@ -6,8 +6,7 @@
   --ink:            #0b2338;  /* app- en kaartachtergrond (marine) */
   --parchment:      #f3e9d2;  /* primaire tekst + gevulde nadrukvlakken */
   --slate:          #8ba0b3;  /* secundaire tekst, labels */
-  --slate-dim:      #788ea2;  /* tertiaire tekst (≥4,5:1 op --ink) */
-  --slate-disabled: #5d7285;  /* disabled, lijnen, inactieve pijlen — geen tekst */
+  --slate-dim:      #5d7285;  /* ALLEEN disabled, lijnen, inactieve pijlen — nooit gewone tekst */
   --body:           #b6c4d1;  /* lopende tekst op donker */
   --ink-muted:      #4a5f70;  /* secundaire tekst op perkament */
   --ochre:          #e6935a;  /* wind / waarschuwing */
@@ -22,12 +21,12 @@
   --sea-green-text: #6bdead;  /* groene tekst op groene chip */
   --sea-green-fill: rgba(30, 143, 95, 0.22);
   --sea-green-line: rgba(79, 211, 148, 0.4);
-  --hairline:       rgba(243, 233, 210, 0.2);   /* standaard rand */
-  --hairline-soft:  rgba(243, 233, 210, 0.15);  /* scheiding tabbar/kolom, nullijn */
-  --hairline-strong: rgba(243, 233, 210, 0.25); /* routechip */
-  --hairline-hover: rgba(243, 233, 210, 0.35);
+  --hairline:       rgba(243, 233, 210, 0.32);  /* standaard rand */
+  --hairline-soft:  rgba(243, 233, 210, 0.22);  /* scheiding tabbar/kolom, nullijn */
+  --hairline-strong: rgba(243, 233, 210, 0.38); /* routechip */
+  --hairline-hover: rgba(243, 233, 210, 0.5);
   --ring-inactive:  rgba(243, 233, 210, 0.3);   /* inactieve tabstip */
-  --fill-faint:     rgba(243, 233, 210, 0.08);
+  --fill-faint:     rgba(243, 233, 210, 0.1);
   --grad-card: linear-gradient(180deg, rgba(243, 233, 210, 0.04), transparent);
   --grad-rose: radial-gradient(circle at 30% 30%, rgba(230, 147, 90, 0.08), transparent 70%);
 
@@ -40,17 +39,17 @@
   /* typografie — families via next/font (app/layout.tsx) */
   --font-num: var(--font-space-grotesk), system-ui, sans-serif;  /* cijfers, labels, tabs */
   --font-text: var(--font-inter), system-ui, sans-serif;         /* lopende tekst */
-  --fs-kern: 40px;       /* windsnelheid */
-  --fs-beslissing: 32px; /* GA NU */
-  --fs-tijdblok: 20px;
+  --fs-hero: 48px;          /* windsnelheid */
+  --fs-decision: 36px;      /* GA NU */
+  --fs-decision-desk: 30px; /* in een kolom van ~290px past 36 niet */
+  --fs-time: 22px;          /* tijdblok */
   --fs-merk: 18px;
-  --fs-sectie: 14px;
-  --fs-rij: 13px;
-  --fs-rij-sm: 12px;
-  --fs-label: 11px;
-  --fs-label-sm: 10px;
-  --fs-min: 9px;         /* ondergrens: nooit kleiner */
-  --ls-label: 0.1em;
+  --fs-title: 15px;         /* sectiekop, rijtitel */
+  --fs-label: 12px;         /* labels (uppercase, --ls-label) en kleine cijfers */
+  --fs-caption: 11px;       /* bijschrift — ondergrens: nooit kleiner */
+  --fw-num: 700;            /* cijfers */
+  --fw-label: 600;          /* labels */
+  --ls-label: 0.08em;
   --ls-kop: 0.06em;
 
   /* ruimte */
@@ -67,14 +66,12 @@
   --sp-11: 32px;
   --sp-12: 36px;
   --gutter: 20px;
-  --tap: 44px;           /* minimale tapvlak */
-  --tabbar-space: 88px;  /* ruimte onder de content voor de vaste tabbar (mobiel) */
+  --tap: 48px;           /* minimale tapvlak én minimale rij-/tegelhoogte */
+  --tabbar-space: 72px;  /* tabbar boven de inset (10 + 48) + 14 lucht; inset komt er apart bij */
   --tabbar-pad-bottom: 18px;
   --tab-gap: 5px;
   --chip-pad: 9px var(--sp-7);
   --chip-pad-desk: 7px var(--sp-6);
-  --fs-merk-desk: 16px;
-  --fs-beslissing-desk: 26px;
   --ls-beslissing: -0.5px;
   --lh-text: 1.4;
   --disc: 18px;          /* advies-schijf */
@@ -83,24 +80,18 @@
   --cta-pad: 11px;
   --label-col: 62px;     /* labelkolom in detailrijen */
   --chip-pad-sm: 5px 9px;
-  --kompas: 104px;
-  --kompas-desk: 84px;
+  --kompas: 120px;
   --ring-2: rgba(243, 233, 210, 0.12);
   --ring-tick: rgba(243, 233, 210, 0.4);
   --ls-kern: -1px;
-  --fs-kern-eenheid: 15px;
   --staaf-h: 72px;
   --staaf-h-desk: 64px;
   --staaf-rust: 0.55;    /* staven na "nu" iets gedimd */
   --wind-fris: rgba(230, 147, 90, 0.6);
-  --dag-col: 32px;
-  --dag-col-desk: 30px;  /* dagrij-kolommen desktop: 30/22/58/40 */
-  --temp-col-desk: 22px;
-  --wind-col-desk: 58px;
-  --vlaag-col-desk: 40px;
+  --dag-col: 40px;
   --nav-knop: 22px;      /* zichtbare week-navknop (tapvlak blijft --tap) */
   --blok-pad: 12px 14px; /* vertrektijdblok GETIJDEN */
-  --kromme-lijn: 2px;
+  --kromme-lijn: 2.5px;
   --ls-tijdblok: -0.4px;
   --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: 7px;
@@ -131,7 +122,7 @@ body {
    .is-filled = perkament-nadrukvlak: geen hover-kleurwissel. */
 .card, .row { border: var(--line) solid var(--hairline); transition: border-color var(--dur-hover); }
 .card { border-radius: var(--radius-md); }
-.row { border-radius: var(--radius-sm); }
+.row { border-radius: var(--radius-sm); min-height: var(--tap); }
 .is-filled { background: var(--parchment); color: var(--ink); border-color: var(--parchment); }
 @media (hover: hover) {
   .card:not(.is-filled):hover, .row:not(.is-filled):hover, .chip-picker:hover { border-color: var(--hairline-hover); }
@@ -150,18 +141,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ══ Schil ═══════════════════════════════════════════════════════════
-   < 768px: één scherm per tab + vaste tabbar · 768–1100px: 2 kolommen ·
-   ≥ 1100px: 4 kolommen (chartplotter). Breekpunten staan letterlijk in de
+   < 768px: één scherm per tab + vaste tabbar · 768–1400px: 2 kolommen ·
+   ≥ 1400px: 4 kolommen (chartplotter). Breekpunten staan letterlijk in de
    media-queries (CSS kent geen var() in een media-conditie). */
 .shell-top {
   display: flex; align-items: center;
   padding: calc(var(--sp-7) + env(safe-area-inset-top)) calc(var(--gutter) + env(safe-area-inset-right))
     var(--sp-5) calc(var(--gutter) + env(safe-area-inset-left));
 }
-.shell-brand { font-family: var(--font-num); font-size: var(--fs-merk); font-weight: 700; letter-spacing: var(--ls-merk); color: var(--parchment); }
+.shell-brand { font-family: var(--font-num); font-size: var(--fs-merk); font-weight: var(--fw-num); letter-spacing: var(--ls-merk); color: var(--parchment); }
 
 .shell-screens {
-  padding: 0 calc(var(--gutter) + env(safe-area-inset-right)) calc(var(--tabbar-space) + env(safe-area-inset-bottom))
+  padding: 0 calc(var(--gutter) + env(safe-area-inset-right)) calc(var(--tabbar-space) + max(var(--tabbar-pad-bottom), env(safe-area-inset-bottom)))
     calc(var(--gutter) + env(safe-area-inset-left));
 }
 .shell-screen { display: flex; flex-direction: column; gap: var(--sp-7); min-width: 0; }
@@ -172,16 +163,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   display: flex; background: var(--ink);
   border-top: var(--line) solid var(--hairline-soft);
-  padding: var(--sp-5) calc(var(--sp-9) + env(safe-area-inset-right)) calc(var(--tabbar-pad-bottom) + env(safe-area-inset-bottom))
+  /* onderkant: de home-indicator-inset óf 18px, niet opgeteld (anders staat de tabbar
+     in de beginschermmodus ~52pt boven de rand) */
+  padding: var(--sp-5) calc(var(--sp-9) + env(safe-area-inset-right)) max(var(--tabbar-pad-bottom), env(safe-area-inset-bottom))
     calc(var(--sp-9) + env(safe-area-inset-left));
 }
 .shell-tab {
   flex: 1; min-height: var(--tap);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tab-gap);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 600; letter-spacing: var(--ls-tab); color: var(--slate);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-tab); color: var(--slate);
 }
 .shell-tab-dot { width: var(--sp-4); height: var(--sp-4); border-radius: 50%; border: var(--line) solid var(--ring-inactive); }
-.shell-tab[aria-current="page"] { color: var(--parchment); font-weight: 700; }
+.shell-tab[aria-current="page"] { color: var(--parchment); font-weight: var(--fw-num); }
 .shell-tab[aria-current="page"] .shell-tab-dot { background: var(--parchment); border-color: var(--parchment); }
 
 /* kiezerchip (route / locatie) */
@@ -191,7 +184,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
   padding: var(--chip-pad);
   background: var(--fill-faint); border: var(--line) solid var(--hairline-strong); border-radius: var(--radius-sm);
-  font-family: var(--font-num); font-size: var(--fs-sectie); font-weight: 700; color: var(--parchment);
+  font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment);
   text-transform: uppercase; transition: border-color var(--dur-hover);
 }
 .chip-panel {
@@ -202,16 +195,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   max-height: 60vh; overflow-y: auto;
 }
 
-.chip-option { min-height: var(--tap); padding: var(--sp-5) var(--sp-6); text-align: left; font-size: var(--fs-rij); }
+.chip-option { min-height: var(--tap); padding: var(--sp-5) var(--sp-6); text-align: left; font-size: var(--fs-title); }
 .chip-option[aria-current="true"] { border-color: var(--parchment); }
 
 @media (min-width: 768px) {
+  /* geen eigen balk: het merk staat klein linksboven in de bovenmarge van het raster,
+     links van de gecentreerde kolomkoppen — de kolommen beginnen direct bovenaan */
   .shell-top {
-    padding: calc(var(--sp-7) + env(safe-area-inset-top)) calc(var(--sp-9) + env(safe-area-inset-right))
-      var(--sp-7) calc(var(--sp-9) + env(safe-area-inset-left));
-    border-bottom: var(--line) solid var(--hairline-soft);
+    position: absolute; top: calc(var(--sp-4) + env(safe-area-inset-top)); left: calc(var(--sp-12) + env(safe-area-inset-left));
+    padding: 0;
   }
-  .shell-brand { font-size: var(--fs-merk-desk); letter-spacing: var(--ls-merk-desk); }
+  .shell-brand { font-size: var(--fs-label); letter-spacing: var(--ls-merk-desk); color: var(--slate); }
   .shell-tabbar { display: none; }
   .shell-screens {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-10);
@@ -222,11 +216,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .shell-screen:nth-child(2n) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }
   .shell-screen-title {
     display: block; margin: 0; text-align: center;
-    font-family: var(--font-num); font-size: var(--fs-tijdblok); font-weight: 700; letter-spacing: var(--ls-kop); color: var(--parchment);
+    font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); letter-spacing: var(--ls-label); color: var(--parchment);
   }
-  .chip-picker { font-size: var(--fs-rij-sm); padding: var(--chip-pad-desk); }
+  .chip-picker { font-size: var(--fs-title); padding: var(--chip-pad-desk); }
 }
-@media (min-width: 1100px) {
+@media (min-width: 1400px) {
   .shell-screens { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .shell-screen:nth-child(n + 2) { border-left: var(--line) solid var(--hairline-soft); padding-left: var(--sp-10); }
 }

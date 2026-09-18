@@ -1,15 +1,15 @@
 /* GETIJDEN — maten uit screenshots/03-getijden.png (mobiel) en 05-desktop.png. */
 .sectie {
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);
 }
-.noot { margin-top: var(--sp-1); font-size: var(--fs-label-sm); color: var(--slate-dim); }
-.leeg { margin-top: var(--sp-4); font-family: var(--font-num); font-size: var(--fs-tijdblok); color: var(--slate-dim); }
+.noot { margin-top: var(--sp-1); font-size: var(--fs-caption); color: var(--slate); }
+.leeg { margin-top: var(--sp-4); font-family: var(--font-num); font-size: var(--fs-time); color: var(--slate); }
 
 .kopRij { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
 .vandaag {
   position: relative; min-height: var(--tap); display: inline-flex; align-items: center; padding: 0 var(--sp-3);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; color: var(--ochre);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--ochre);
 }
 /* zichtbare okerrand kleiner dan het 44px-tapvlak */
 .vandaag::after {
@@ -20,7 +20,7 @@
 .maandRij { display: flex; align-items: center; gap: var(--sp-3); }
 .maand {
   flex: 1; text-align: center;
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700; letter-spacing: var(--ls-kop); color: var(--slate);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-kop); color: var(--slate);
 }
 /* 44px tapvlak, 22px zichtbaar vierkant */
 .nav { width: var(--tap); height: var(--tap); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--slate); }
@@ -30,7 +30,7 @@
   transition: border-color var(--dur-hover);
 }
 @media (hover: hover) { .nav:not(:disabled):hover .navVlak { border-color: var(--hairline-hover); } }
-.nav:disabled { color: var(--slate-disabled); cursor: default; }
+.nav:disabled { color: var(--slate-dim); cursor: default; }
 .nav:disabled .navVlak { border-color: var(--hairline-soft); }
 
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); }
@@ -39,26 +39,26 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
   padding: var(--sp-4) var(--line); font-family: var(--font-num); color: var(--slate);
 }
-.tegelDag { font-size: var(--fs-min); color: var(--slate-dim); }
-.tegelNr { font-size: var(--fs-rij-sm); font-weight: 700; }
+.tegelDag { font-size: var(--fs-caption); color: var(--slate); }
+.tegelNr { font-size: var(--fs-title); font-weight: 700; }
 .tegel:global(.is-filled) { color: var(--ink); }
 .tegel:global(.is-filled) .tegelDag { color: var(--ink); }
 .tegel:disabled { cursor: default; border-color: var(--hairline-soft); }
-.tegel:disabled .tegelDag, .tegel:disabled .tegelNr { color: var(--slate-disabled); }
+.tegel:disabled .tegelDag, .tegel:disabled .tegelNr { color: var(--slate-dim); }
 @media (hover: hover) { .tegel:disabled:hover { border-color: var(--hairline-soft); } }
 
 .lijst { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-4); }
 .blok { display: flex; align-items: center; gap: var(--sp-4); padding: var(--blok-pad); }
 .blokMain { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.blokTijd { font-family: var(--font-num); font-size: var(--fs-sectie); font-weight: 700; color: var(--parchment); white-space: nowrap; }
-.blokReden { margin-top: var(--sp-1); font-size: var(--fs-label); color: var(--slate); }
+.blokTijd { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
+.blokReden { margin-top: var(--sp-1); font-size: var(--fs-caption); color: var(--slate); }
 .blok:global(.is-filled) .blokTijd { color: var(--ink); }
 .blok:global(.is-filled) .blokReden { color: var(--ink-muted); }
 .badge {
   flex: 0 0 auto; padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-sm); background: var(--ink); color: var(--parchment);
-  font-family: var(--font-num); font-size: var(--fs-label-sm); font-weight: 700;
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num);
 }
-.label { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: 700; color: var(--slate); white-space: nowrap; }
+.label { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }
 
 .krommeKaart { padding: var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-4); }
 .kromme { width: 100%; height: auto; display: block; overflow: visible; }
@@ -66,7 +66,7 @@
 .lijn { fill: none; stroke: var(--sea-green); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
 .piekMee { fill: var(--sea-green); }
 .piekTegen { fill: var(--slate); }
-.as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label-sm); color: var(--slate); }
+.as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
 .legenda { gap: var(--sp-7); }
 .legenda > span { display: inline-flex; align-items: center; gap: var(--sp-3); }
@@ -75,7 +75,7 @@
 .stip.piekTegen { background: var(--slate); }
 
 @media (min-width: 768px) {
-  .tegelDag { font-size: var(--fs-min); }
-  .tegelNr { font-size: var(--fs-label-sm); }
-  .blokTijd { font-size: var(--fs-rij); }
+  .tegelDag { font-size: var(--fs-caption); }
+  .tegelNr { font-size: var(--fs-title); }
+  .blokTijd { font-size: var(--fs-title); }
 }

@@ -1,6 +1,6 @@
 // Advies-afleidingen (lib/tocht.ts): de vijf toestanden, de LET OP-drempels uit
 // WARN.hardWind, het stroomeffect-label en het weer-uur-sample.
-import { adviesState, letOp, effectLabel, weatherAt, stroomVerloop, type DepOption } from "../lib/tocht";
+import { adviesState, letOp, effectLabel, weatherAt, stroomVerloop, adviesUitleg, type DepOption } from "../lib/tocht";
 import { WARN } from "../lib/constants";
 import type { SimResult, SimStep } from "../lib/tripsim";
 import type { WeatherSeries } from "../lib/types";
@@ -58,5 +58,11 @@ ok("tegen hele tocht", JSON.stringify(sv(-1, null)) === JSON.stringify({ kind: "
 ok("kentering na aankomst telt niet", JSON.stringify(sv(1, T0 + 3 * H)) === JSON.stringify({ kind: "mee", totMs: null }));
 ok("onzeker", sv(1, null, { voorbijHorizon: true }).kind === "onzeker");
 ok("geen stroomdata", stroomVerloop({ steps: [] } as unknown as SimResult, false).kind === "geen");
+
+console.log("— adviesUitleg —");
+const tr = { ...trip([12, 12, 12], 1, 270), kentMs: null } as SimResult;
+const beste = adviesUitleg(tr, true)!, gekozen = adviesUitleg(tr, true, false)!;
+ok("beste: met slotzin", beste.endsWith("— snelste combinatie van stroom en zeilhoek."), beste);
+ok("gekozen: 'Bij vertrek HH:MM:' en geen beste-claim", /^Bij vertrek \d\d:\d\d: stroom mee/.test(gekozen) && !gekozen.includes("snelste"), gekozen);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

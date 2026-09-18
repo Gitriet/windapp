@@ -112,7 +112,7 @@ function Uren({ pts }: { pts: ForecastResponse["points"] }) {
             data-verdict={verdict(p.speed_kn, p.gust_kn) ?? undefined}>
             <span className={s.vlaag}>{Math.round(p.gust_kn)}</span>
             <span className={s.kn}>{Math.round(p.speed_kn)}</span>
-            <span className={s.pijl}><WindArrow dir={p.dir_deg} size={12} /></span>
+            <span className={s.pijl}><WindArrow dir={p.dir_deg} /></span>
             <div className={s.balk} style={{ height: `${Math.round((p.speed_kn / max) * 65)}%` }} />
           </div>
         ))}
