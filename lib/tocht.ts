@@ -209,7 +209,10 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): 
   if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
   const zin = stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr);
   if (!isBeste) return `Bij vertrek ${localHM(b.departMs)}: ${zin.charAt(0).toLowerCase()}${zin.slice(1)}.`;
-  const tail = anyStroom ? "Eerstvolgende vertrek met gunstige stroom en zeilhoek" : "Eerstvolgende vertrek met gunstige zeilhoek";
+  // alleen "gunstige stroom" claimen als de stroom netto tijd wint
+  const tail = !anyStroom ? "Eerstvolgende vertrek met gunstige zeilhoek"
+    : b.effectMin < 0 ? "Eerstvolgende vertrek met gunstige stroom en zeilhoek"
+    : "Eerstvolgend gunstig vertrekmoment";
   return `${zin}. ${tail}.`;
 }
 

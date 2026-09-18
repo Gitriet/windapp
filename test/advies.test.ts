@@ -60,9 +60,11 @@ ok("onzeker", sv(1, null, { voorbijHorizon: true }).kind === "onzeker");
 ok("geen stroomdata", stroomVerloop({ steps: [] } as unknown as SimResult, false).kind === "geen");
 
 console.log("— adviesUitleg —");
-const tr = { ...trip([12, 12, 12], 1, 270), kentMs: null } as SimResult;
+const tr = { ...trip([12, 12, 12], 1, 270), kentMs: null, effectMin: -8 } as SimResult;
 const beste = adviesUitleg(tr, true)!, gekozen = adviesUitleg(tr, true, false)!;
 ok("beste: met slotzin", beste.endsWith(". Eerstvolgende vertrek met gunstige stroom en zeilhoek.") && !/[—–]/.test(beste), beste);
+const tegen = adviesUitleg({ ...trip([12, 12, 12], -1, 270), kentMs: null, effectMin: 10 } as SimResult, true)!;
+ok("beste bij tegenstroom: geen 'gunstige stroom'", tegen.endsWith(". Eerstvolgend gunstig vertrekmoment.") && !tegen.includes("gunstige stroom"), tegen);
 ok("gekozen: 'Bij vertrek HH:MM:' en geen beste-claim", /^Bij vertrek \d\d:\d\d: stroom mee/.test(gekozen) && !gekozen.includes("Eerstvolgende"), gekozen);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
