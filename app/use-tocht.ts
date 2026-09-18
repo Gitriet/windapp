@@ -3,7 +3,7 @@
 // keten, wind/stroom/getij, 48u-sweep, beste vertrek, gekozen vertrek); useNu = de
 // live conditie op één locatie. Verplaatst uit app/page.tsx; gedrag ongewijzigd.
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_BOAT } from "@/lib/polar";
+import type { BoatProfile } from "@/lib/polar";
 import { simulateTrip, type SimResult, type SimWind } from "@/lib/tripsim";
 import {
   DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchTide, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
@@ -21,7 +21,7 @@ const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 export const isTide = (t: TideData | { tide: null } | null): t is TideData => !!t && "extremes" in t;
 
-export function useTocht() {
+export function useTocht(boat: BoatProfile) {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [fromHaven, setFromHaven] = useState<string>("");
   const [toHaven, setToHaven] = useState<string>("");
@@ -142,11 +142,11 @@ export function useTocht() {
     return (dep: number): SimResult | null => {
       if (!routeWind || waypoints.length < 2) return null;
       return simulateTrip({
-        waypoints, departMs: dep, boat: DEFAULT_BOAT,
+        waypoints, departMs: dep, boat,
         wind: routeWind, along: alongPerLeg, legDistNm,
       });
     };
-  }, [routeWind, waypoints, alongPerLeg, legDistNm]);
+  }, [routeWind, waypoints, alongPerLeg, legDistNm, boat]);
 
   const depOptions: DepOption[] = useMemo(
     () => candidates.map((dep) => ({ depMs: dep, result: runSim(dep)! })).filter((o) => o.result),

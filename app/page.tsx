@@ -1,20 +1,24 @@
 "use client";
 // Tidan — vier schermen (ROUTE · NU · GETIJDEN · VAARPLAN) in één schil. Data en logica
 // leven in app/use-tocht.ts (useTocht, useNu) en lib/; dit bestand verbindt alleen.
-import { DEFAULT_BOAT } from "@/lib/polar";
+import { useState } from "react";
 import HavenSelector from "./components/HavenSelector";
 import RouteScreen from "./components/RouteScreen";
 import NuScreen from "./components/NuScreen";
 import GetijdenScreen from "./components/GetijdenScreen";
 import VaarplanScreen from "./components/VaarplanScreen";
 import { useTocht, useNu } from "./use-tocht";
+import { useBoot } from "./use-boot";
+import BootPaneel from "./components/BootPaneel";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
 import { TopBar, TabBar, PickerChip, ScreenPanel } from "./components/Shell";
 import { localHM } from "@/lib/tz";
 
 export default function Page() {
-  const tocht = useTocht();
+  const [boat, setBoat] = useBoot();
+  const [bootOpen, setBootOpen] = useState(false);
+  const tocht = useTocht(boat);
   const nu = useNu();
   const [tab, setTab] = useScreenTab();
   const { locations, locIdx, setLocIdx, loc } = nu;
@@ -33,9 +37,9 @@ export default function Page() {
       {() => (
         <>
           <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
-            havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+            havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
           <HavenSelector label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
-            havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={DEFAULT_BOAT.draftM} />
+            havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
         </>
       )}
     </PickerChip>
@@ -85,7 +89,7 @@ export default function Page() {
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
-          fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT}
+          fromTide={routeTide} via={viaHavens} boat={boat}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} />
       </>
     ),
@@ -93,7 +97,8 @@ export default function Page() {
 
   return (
     <div className="shell">
-      <TopBar chip={maakRouteChip()} bijgewerkt={nowMs ? localHM(nowMs) : null} />
+      <TopBar chip={maakRouteChip()} bijgewerkt={nowMs ? localHM(nowMs) : null} onMenu={() => setBootOpen(true)} />
+      <BootPaneel open={bootOpen} onClose={() => setBootOpen(false)} boat={boat} setBoat={setBoat} />
       {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
       <main className="shell-screens">
         {SCREENS.map((s) => (

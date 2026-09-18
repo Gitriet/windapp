@@ -98,6 +98,8 @@
   --compact-label: 56px;
   --topchip-w: 360px;    /* routechip in de desktop-topbalk */
   --fade-h: 40px;        /* fade onderaan een scrollend paneel */
+  --scrim: rgba(11, 35, 56, 0.7);   /* --ink achter een open paneel */
+  --paneel-w: 420px;   /* bootprofiel vanaf 768px */
   --panel-solid: #223747; /* = --fill-faint over --ink, dekkend (sticky kop, fade) */
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
@@ -171,6 +173,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--parchment);
 }
 .shell-top-klok { font-size: var(--fs-title); font-weight: var(--fw-num); }
+/* hamburger: opent het bootprofiel; tapvlak --tap, visueel tegen de rechterrand */
+.shell-menu {
+  width: var(--tap); height: var(--tap); margin: calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5)) var(--sp-2);
+  display: flex; align-items: center; justify-content: center; color: var(--parchment);
+}
 /* topbalk-chip en "bijgewerkt" bestaan alleen in de chartplotter-lay-out (≥1400px) */
 .shell-top-chip, .shell-top-tijd { display: none; }
 

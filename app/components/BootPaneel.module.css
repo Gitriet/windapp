@@ -1,0 +1,43 @@
+/* Bootprofiel: native dialog, op mobiel schermvullend, vanaf 768px een paneel rechts. */
+.paneel {
+  margin: 0; padding: calc(var(--sp-7) + env(safe-area-inset-top)) calc(var(--gutter) + env(safe-area-inset-right))
+    calc(var(--sp-9) + env(safe-area-inset-bottom)) calc(var(--gutter) + env(safe-area-inset-left));
+  width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; overflow-y: auto;
+  display: none; flex-direction: column; gap: var(--sp-6);
+  background: var(--ink); color: var(--parchment); border: 0;
+}
+.paneel[open] { display: flex; }
+.paneel::backdrop { background: var(--scrim); }
+
+.kop { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); }
+.titel { font-family: var(--font-num); font-size: var(--fs-merk); font-weight: var(--fw-num); letter-spacing: var(--ls-merk); }
+.sluit {
+  width: var(--tap); height: var(--tap); margin-right: calc(-1 * var(--sp-5));
+  font-size: var(--fs-title); color: var(--parchment);
+}
+
+.sectie {
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate);
+}
+.types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.type { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); letter-spacing: var(--ls-label); color: var(--parchment); }
+.type:global(.is-filled) { color: var(--ink); }
+
+.stepper { display: flex; flex-direction: column; gap: var(--sp-2); }
+.regel { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: 0 var(--sp-6); }
+.label { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); white-space: nowrap; }
+.waarde { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); text-align: right; }
+.knoppen { display: flex; align-items: center; gap: var(--sp-2); }
+.knoppen .waarde { min-width: 5.5em; text-align: center; white-space: nowrap; }
+.knop { width: var(--tap); height: var(--tap); font-size: var(--fs-time); color: var(--parchment); }
+.knop:disabled { color: var(--slate-dim); }
+
+.export {
+  justify-content: center; margin-top: var(--sp-4);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); letter-spacing: var(--ls-merk); color: var(--parchment);
+}
+.noot { font-size: var(--fs-caption); color: var(--slate); }
+
+@media (min-width: 768px) {
+  .paneel { margin-left: auto; width: var(--paneel-w); border-left: var(--line) solid var(--hairline-soft); }
+}

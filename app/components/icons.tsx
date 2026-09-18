@@ -13,6 +13,15 @@ export function WindArrow({ dir }: { dir: number }) {
   );
 }
 
+// Menu (hamburger), 2px lijn zoals de weericonen.
+export function MenuIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
 const CLOUD = "M6 17a4 4 0 0 1 .5-8 5 5 0 0 1 9.7-1.3A4.5 4.5 0 0 1 17.5 17H6Z";
 const SUN = (
   <>

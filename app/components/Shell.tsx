@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SCREENS, type ScreenId } from "../screens";
 import { localDateLong, localHM } from "@/lib/tz";
+import { MenuIcon } from "./icons";
 
 // Merkbalk. Vanaf 1400px ook de (enige) routechip en "bijgewerkt HH:MM"; daaronder zijn
 // die twee verborgen (CSS) en staat de routechip per scherm.
@@ -19,7 +20,7 @@ function useKlok(): number | null {
   return ms;
 }
 
-export function TopBar({ chip, bijgewerkt }: { chip?: React.ReactNode; bijgewerkt?: string | null }) {
+export function TopBar({ chip, bijgewerkt, onMenu }: { chip?: React.ReactNode; bijgewerkt?: string | null; onMenu?: () => void }) {
   const nu = useKlok();
   return (
     <header className="shell-top">
@@ -31,6 +32,7 @@ export function TopBar({ chip, bijgewerkt }: { chip?: React.ReactNode; bijgewerk
         </time>
       )}
       {bijgewerkt && <span className="shell-top-tijd">bijgewerkt&nbsp;{bijgewerkt}</span>}
+      {onMenu && <button type="button" className="shell-menu" aria-label="Bootprofiel" onClick={onMenu}><MenuIcon size={22} /></button>}
     </header>
   );
 }
