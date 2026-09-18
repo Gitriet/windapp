@@ -101,6 +101,14 @@ export function pickVensters(sweep: DepOption[], best: DepOption | null): DepOpt
   return picked.sort((a, b) => a.depMs - b.depMs);
 }
 
+// snelste = kortste tocht onder de zekere vertrekken; onzeker alleen als niets zeker is.
+export function pickSnelste(opts: DepOption[]): DepOption | null {
+  const reach = opts.filter((o) => o.result?.arrMs != null);
+  const certain = reach.filter((o) => !o.result.voorbijHorizon);
+  const pool = certain.length ? certain : reach;
+  return pool.length ? pool.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b)) : null;
+}
+
 const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 // Wind-tegen-stroom: waar wind > 15 kn EN |stroom| > 0,5 kn EN wind en stroom

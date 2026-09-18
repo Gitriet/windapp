@@ -5,7 +5,7 @@ import { localHM, localDateISO } from "@/lib/tz";
 import { aankomstLabel, dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import { wxLabel } from "@/lib/weather";
 import {
-  adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, stroomVerloop, weatherAt,
+  adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, pickSnelste, stroomVerloop, weatherAt,
   type AdviesKind, type DepOption, type GustSample, type StroomVerloop,
 } from "@/lib/tocht";
 import type { TideData, WeatherSeries } from "@/lib/types";
@@ -133,6 +133,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
 function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: RouteScreenProps) {
   const rows = [...(best ? [best] : []), ...vensters].sort((a, b) => a.depMs - b.depMs);
   if (!rows.length) return null;
+  const snelste = pickSnelste(rows);
   return (
     <div>
       <div className={s.sectie}>ALLE VERTREKKEN · 48 UUR</div>
@@ -152,6 +153,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
                 <span className={s.rijSub}>{notitie}</span>
               </span>
               {isBest && <span className={s.badge}>BESTE</span>}
+              {!isBest && o.depMs === snelste?.depMs && <span className={s.badge}>SNELST</span>}
               <span className={s.duur}>{fmtDuurKort(r.tripMin)}</span>
             </button>
           );

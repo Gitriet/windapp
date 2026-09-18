@@ -1,6 +1,6 @@
 // Afleidingen uit lib/tocht.ts + lib/verdict.ts: beste vertrek = vroegste zekere lokale
 // duur-minimum, stroomgaten blijven null, en de verdict-grenzen.
-import { pickBest, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
+import { pickBest, pickSnelste, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
 import { verdict } from "../lib/verdict";
 import type { SimResult } from "../lib/tripsim";
 import type { RouteCurrent } from "../lib/planner-data";
@@ -16,6 +16,11 @@ const opt = (i: number, tripMin: number, voorbijHorizon = false, reach = true): 
   depMs: i * H,
   result: { tripMin, arrMs: reach ? i * H + tripMin * 60000 : null, voorbijHorizon } as SimResult,
 });
+
+console.log("— pickSnelste —");
+ok("kortste zekere tocht", pickSnelste([opt(0, 56), opt(7, 36), opt(19, 35), opt(40, 20, true)])?.depMs === 19 * H);
+ok("onzeker alleen als niets zeker is", pickSnelste([opt(0, 60, true), opt(1, 50, true)])?.depMs === 1 * H);
+ok("niets bereikbaar → null", pickSnelste([opt(0, 60, false, false)]) === null);
 
 console.log("— pickBest —");
 // duur: 60 55 70 50 65 40(onzeker) → lokale minima 55 (i=1), 50 (i=3); vroegste = i=1
