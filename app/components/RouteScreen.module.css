@@ -42,6 +42,7 @@
 .cta {
   display: flex; align-items: center; justify-content: center; min-height: var(--tap);
   padding: var(--cta-pad); border-radius: var(--radius-sm);
+  background: var(--sea-green); color: var(--ink);
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); letter-spacing: var(--ls-merk);
 }
 

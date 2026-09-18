@@ -22,8 +22,8 @@ function windContext(pts: ForecastResponse["points"]): string {
   const p0 = pts[0];
   const t = pts[Math.min(6, pts.length - 1)];
   const d = t.speed_kn - p0.speed_kn;
-  const trend = d > 2 ? `bouwt op naar ${Math.round(t.speed_kn)} kn`
-    : d < -2 ? `neemt af naar ${Math.round(t.speed_kn)} kn`
+  const trend = d > 2 ? `bouwt op naar ${Math.round(t.speed_kn)}\u00A0kn`
+    : d < -2 ? `neemt af naar ${Math.round(t.speed_kn)}\u00A0kn`
     : "vrij constant";
   const turn = Math.abs(((t.dir_deg - p0.dir_deg + 540) % 360) - 180);
   const draai = turn >= 25 ? `draait naar ${dirLabel16(t.dir_deg)}` : `blijft ${dirLabel16(p0.dir_deg)}`;
@@ -60,15 +60,15 @@ export default function NuScreen({ fc, week, tide, loc, nowMs, dagen }: NuScreen
         <div>
           <div className={s.kern}>{Math.round(p0.speed_kn)}<span className={s.kernEenheid}>KN</span></div>
           <div className={s.richting}>{dirLabel16(p0.dir_deg)} · {String(Math.round(p0.dir_deg)).padStart(3, "0")}°</div>
-          <div className={s.bft}>BFT {bft} · {bftLabel(bft).toUpperCase()} · VLAAG {Math.round(p0.gust_kn)} KN</div>
+          <div className={s.bft}>BFT&nbsp;{bft} · {bftLabel(bft).toUpperCase()} · VLAAG&nbsp;{Math.round(p0.gust_kn)}&nbsp;KN</div>
         </div>
       </div>
 
       <div>
         <div className={s.chips}>
-          {hw && <span className={s.chip}>HW {localHM(tms(hw.t))}</span>}
+          {hw && <span className={s.chip}>HW&nbsp;{localHM(tms(hw.t))}</span>}
           {temp0 != null && <span className={s.chip}>{Math.round(temp0)}°C</span>}
-          <span className={s.chip} data-leeg={wave0 == null ? "" : undefined}>GOLF {wave0 != null ? `${komma(wave0)} M` : "—"}</span>
+          <span className={s.chip} data-leeg={wave0 == null ? "" : undefined}>GOLF&nbsp;{wave0 != null ? `${komma(wave0)}\u00A0M` : "—"}</span>
         </div>
         {wave0 == null && <div className={s.reden}>golfhoogte: geen golfdata voor dit punt</div>}
       </div>
@@ -145,8 +145,8 @@ function Dagen({ week, dagen }: { week: WeekResponse | null; dagen: NuScreenProp
               <span className={s.dagNaam}>{dag(d.date)}</span>
               <span className={s.dagIcoon}><WxIcon code={d.code} size={16} /></span>
               <span className={s.dagTemp}>{d.tmax != null ? `${Math.round(d.tmax)}°` : "—"}</span>
-              <span className={s.dagWind}>{wind} KN</span>
-              <span className={s.dagVlaag}><span className={s.alleenMobiel}>VLAGEN</span><span className={s.alleenDesktop}>VLG</span> {d.gust != null ? Math.round(d.gust) : "—"}</span>
+              <span className={s.dagWind}>{wind}&nbsp;KN</span>
+              <span className={s.dagVlaag}><span className={s.alleenMobiel}>VLAGEN</span><span className={s.alleenDesktop}>VLG</span>&nbsp;{d.gust != null ? Math.round(d.gust) : "—"}</span>
               <span className={s.dagVerdict}>{v ? VERDICT_LABEL[v] : "—"}</span>
             </div>
           );

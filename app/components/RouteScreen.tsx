@@ -108,14 +108,14 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
       </div>
       {r && s0 && (
         <div className={s.chips}>
-          <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)} {Math.round(s0.wSpd)} KN</span>
+          <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)}&nbsp;{Math.round(s0.wSpd)}&nbsp;KN</span>
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
           {verloop && "totMs" in verloop && !(verloop.kind === "mee" && r.effectMin > 0) && (
             <span className={`${s.chip} ${verloop.kind === "mee" ? s.chipMee : s.chipTegen}`}>
               {verloop.kind === "mee" ? "MEE" : "TEGEN"} {verloop.totMs != null ? `TOT ${localHM(verloop.totMs)}` : "HELE TOCHT"}
             </span>
           )}
-          {hw && <span className={`${s.chip} ${s.chipHw}`}>HW {localHM(tms(hw.t))}</span>}
+          {hw && <span className={`${s.chip} ${s.chipHw}`}>HW&nbsp;{localHM(tms(hw.t))}</span>}
           {warn?.hardWind && <span className={`${s.chip} ${s.chipLetOp}`}>LET OP · HARDE WIND</span>}
           {warn?.windTegenStroom && <span className={`${s.chip} ${s.chipLetOp}`}>LET OP · WIND TEGEN STROOM</span>}
         </div>
@@ -131,7 +131,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
         </div>
       )}
       {best && (
-        <button type="button" className={`is-filled ${s.cta}`} onClick={onOpenVaarplan}>BEKIJK VAARPLAN →</button>
+        <button type="button" className={s.cta} onClick={onOpenVaarplan}>BEKIJK VAARPLAN →</button>
       )}
     </div>
   );
@@ -148,7 +148,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
           const r = o.result, isBest = o.depMs === best?.depMs, s0 = r.steps[0];
           const delta = best ? Math.round(r.tripMin - best.result.tripMin) : 0;
           const dag = dagLabel(o.depMs, nowMs);
-          const notitie = [dag, s0 ? `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)} kn` : "", stroomNotitie(stroomVerloop(r, anyStroom))]
+          const notitie = [dag, s0 ? `${dirLabel16(s0.wDir)}\u00A0${Math.round(s0.wSpd)}\u00A0kn` : "", stroomNotitie(stroomVerloop(r, anyStroom))]
             .filter(Boolean).join(" · ");
           return (
             <button key={o.depMs} type="button" className={`row ${s.rij} ${isBest ? "is-filled" : ""}`}
@@ -160,7 +160,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
               </span>
               {isBest ? <span className={s.badge}>BESTE</span>
                 : r.voorbijHorizon ? <span className={s.delta}>ONZEKER</span>
-                : <span className={s.delta}>{delta > 0 ? "+" : delta < 0 ? "−" : "±"}{Math.abs(delta)} MIN</span>}
+                : <span className={s.delta}>{delta > 0 ? "+" : delta < 0 ? "−" : "±"}{Math.abs(delta)}&nbsp;MIN</span>}
             </button>
           );
         })}

@@ -40,8 +40,8 @@ ok("wind tegen stroom", letOp(trip([20, 20, 20], 1, 0), 0, []).windTegenStroom);
 ok("wind mee met stroom", !letOp(trip([20, 20, 20], 1, 180), 0, []).windTegenStroom);
 
 console.log("— effectLabel —");
-ok("sneller", effectLabel(-12) === "12 min sneller dan bij stilstaand water");
-ok("tegen", effectLabel(9) === "stroom tegen, 9 min langer dan bij stilstaand water");
+ok("sneller", effectLabel(-12) === "12\u00A0min sneller dan bij stilstaand water");
+ok("tegen", effectLabel(9) === "stroom tegen, 9\u00A0min langer dan bij stilstaand water");
 ok("gelijk", effectLabel(0) === "even snel als bij stilstaand water");
 
 console.log("— weatherAt —");

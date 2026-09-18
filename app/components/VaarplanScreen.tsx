@@ -80,7 +80,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
         <div className={s.sub}>{dag}{anyStroom && trip.arrMs ? ` · ${effectLabel(trip.effectMin)}` : ""}</div>
       </div>
       <div className={s.kpis}>
-        <Kpi label="AFSTAND" waarde={distanceNm != null ? `${komma(distanceNm)} NM` : "—"} />
+        <Kpi label="AFSTAND" waarde={distanceNm != null ? `${komma(distanceNm)}\u00A0NM` : "—"} />
         <Kpi label="DUUR" waarde={trip.arrMs ? fmtDuurKort(trip.tripMin) : "—"} />
         <Kpi label="KOERS" waarde={bearingDeg != null ? `${String(Math.round(bearingDeg)).padStart(3, "0")}°` : "—"} />
       </div>
@@ -98,7 +98,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
             <div key={e.label} className={`card ${s.etappe}`}>
               <div className={s.etappeKop}>
                 <span className={s.etappeNaam}>{e.label}</span>
-                <span className={s.etappeNm}>{komma(e.distNm)} NM</span>
+                <span className={s.etappeNm}>{komma(e.distNm)}&nbsp;NM</span>
               </div>
               {e.segmenten.length ? (
                 <div className={s.balken} role="img" aria-label={`stroom langs ${e.label}`}>
@@ -112,8 +112,8 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
               {e.windDir != null && e.windKn != null && (
                 <div className={s.wind}>
                   <WindArrow dir={e.windDir} />
-                  <span className={s.windKn}>{dirLabel16(e.windDir)} {Math.round(e.windKn)} KN</span>
-                  {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN {Math.round(e.vlaagKn)}</span>}
+                  <span className={s.windKn}>{dirLabel16(e.windDir)}&nbsp;{Math.round(e.windKn)}&nbsp;KN</span>
+                  {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN&nbsp;{Math.round(e.vlaagKn)}</span>}
                 </div>
               )}
             </div>
@@ -135,7 +135,7 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
           </div>
           <div className={`row ${s.compact}`}>
             <span className={s.compactLabel}>UITWIJK</span>
-            <span>{via.length ? via.map((v) => `${v.haven.naam} (~${komma(v.nmFromStart)} nm${v.haven.havenInfo?.getijgebonden ? ", getijgebonden" : ""})`).join(" · ") : "geen tussenhavens op deze route"}</span>
+            <span>{via.length ? via.map((v) => `${v.haven.naam} (~${komma(v.nmFromStart)}\u00A0nm${v.haven.havenInfo?.getijgebonden ? ", getijgebonden" : ""})`).join(" · ") : "geen tussenhavens op deze route"}</span>
           </div>
           <div className={s.noot}>VHF indicatief — controleer de actuele kanalen (ANWB Wateralmanak). {boatNaam} · {Math.round(boat.performance * 100)}% polaire</div>
         </div>
@@ -161,7 +161,7 @@ function Haven({ rol, haven }: { rol: string; haven: RouteHaven }) {
     <div className={`card ${s.haven}`}>
       <div className={s.etappeKop}>
         <span className={s.havenNaam}>{rol} · {haven.naam}</span>
-        {vhf && <span className={s.havenVhf} title={vhf.dienst}>VHF {vhf.kanaal}</span>}
+        {vhf && <span className={s.havenVhf} title={vhf.dienst}>VHF&nbsp;{vhf.kanaal}</span>}
       </div>
       {h && <div className={s.havenSub}>{h.havenNaam}{h.getijgebonden ? " · getijgebonden" : ""}{h.sluis ? ` · ${h.sluis.naam}` : ""}</div>}
     </div>

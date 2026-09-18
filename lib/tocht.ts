@@ -136,8 +136,8 @@ export function adviesState(best: DepOption | null, firstDepMs: number | null, a
 
 // Stroomeffect t.o.v. dezelfde tocht bij stilstaand water (tripsim.effectMin).
 export function effectLabel(effectMin: number): string {
-  if (effectMin < 0) return `${-effectMin} min sneller dan bij stilstaand water`;
-  if (effectMin > 0) return `stroom tegen, ${effectMin} min langer dan bij stilstaand water`;
+  if (effectMin < 0) return `${-effectMin}\u00A0min sneller dan bij stilstaand water`;
+  if (effectMin > 0) return `stroom tegen, ${effectMin}\u00A0min langer dan bij stilstaand water`;
   return "even snel als bij stilstaand water";
 }
 
@@ -201,9 +201,9 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): 
       stroomStr = startMee ? "stroom mee vrijwel de hele tocht" : "stroom overwegend tegen";
     }
   }
-  let windStr = `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)} kn ${sailPhrase(s0.twa)}`;
+  let windStr = `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)}\u00A0kn ${sailPhrase(s0.twa)}`;
   const maxSpd = Math.max(...body.map((s) => s.wSpd));
-  if (maxSpd - s0.wSpd >= 4) windStr += `, bouwt op naar ${Math.round(maxSpd)} kn`;
+  if (maxSpd - s0.wSpd >= 4) windStr += `, bouwt op naar ${Math.round(maxSpd)}\u00A0kn`;
   const sEnd = body[body.length - 1];
   const veer = sEnd ? Math.abs(((sEnd.wDir - s0.wDir + 540) % 360) - 180) : 0;
   if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;

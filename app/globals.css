@@ -128,8 +128,11 @@ body {
   .card:not(.is-filled):hover, .row:not(.is-filled):hover, .chip-picker:hover { border-color: var(--hairline-hover); }
 }
 :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-/* de pagina zelf scrollt nooit horizontaal */
+/* de pagina zelf scrollt nooit horizontaal; scrollbars zijn nergens zichtbaar (scrollen
+   met muis, trackpad en touch blijft werken) */
 html, body { overflow-x: hidden; }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 
 .skeleton { display: flex; flex-direction: column; gap: var(--sp-3); }

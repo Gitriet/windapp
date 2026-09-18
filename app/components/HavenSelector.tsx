@@ -16,14 +16,14 @@ import st from "./HavenSelector.module.css";
 const DAY = 24 * 3600000;
 
 const m2 = (n: number) => n.toFixed(2).replace(".", ",");
-const napSigned = (n: number) => `${n >= 0 ? "+" : "−"}${m2(Math.abs(n))} m NAP`;
+const napSigned = (n: number) => `${n >= 0 ? "+" : "−"}${m2(Math.abs(n))}\u00A0m NAP`;
 const isTide = (t: TideData | { tide: null } | null): t is TideData => !!t && "expected" in t;
 
 // "nog X" / "over X" — uren, of minuten onder het uur.
 function duur(ms: number): string {
   const h = ms / 3600000;
-  if (h >= 1) return `${Math.round(h)} u`;
-  return `${Math.max(1, Math.round(ms / 60000))} min`;
+  if (h >= 1) return `${Math.round(h)}\u00A0u`;
+  return `${Math.max(1, Math.round(ms / 60000))}\u00A0min`;
 }
 
 type Status =
@@ -180,7 +180,7 @@ function Detail({ havenInfo: h, bootDiepgang }: { havenInfo: HavenInfo; bootDiep
       {h.sluis && (
         <Row label="Sluis">
           {h.sluis.naam}
-          {h.sluis.vhf != null && <span className={st.dim}> · VHF {h.sluis.vhf}</span>}
+          {h.sluis.vhf != null && <span className={st.dim}> · VHF&nbsp;{h.sluis.vhf}</span>}
           <div className={st.noot}>{h.sluis.bediening}</div>
         </Row>
       )}
