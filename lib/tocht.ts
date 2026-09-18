@@ -1,7 +1,7 @@
 // Pure afleidingen voor de Tocht-planner (client-safe). Verplaatst uit app/page.tsx
 // zodat data/logica los van de presentatie staat; gedrag ongewijzigd.
 import type { SimResult, SimStep, SimWind } from "./tripsim";
-import type { RouteCurrent } from "./planner-data";
+import type { RouteCurrent, RouteHaven } from "./planner-data";
 import type { WeatherSeries } from "./types";
 import { WARN } from "./constants";
 import { localHM } from "./tz";
@@ -13,6 +13,7 @@ const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 export type DepOption = { depMs: number; result: SimResult };
 export type WindTLSample = { t: string; speedKn: number; dirDeg: number };
 export type LegTimeline = { label: string; cur: RouteCurrent | null; distNm: number };
+export type ViaHaven = { haven: RouteHaven; nmFromStart: number };
 
 // Route-descriptor voor de planner-UI: het pad, per-segment stroomtijdlijnen en de
 // stroom-dekkingsvlaggen. Bij 1 leg gedraagt dit zich als de oude directe route.
@@ -167,7 +168,7 @@ export function effectLabel(effectMin: number): string {
 }
 
 // Vlaag-sample van een station (uit de forecast-punten), voor de harde-wind-check.
-export type GustSample = { ms: number; gustKn: number };
+export type GustSample = { ms: number; gustKn: number; key?: string };   // key = station
 
 // LET OP voor een gekozen venster: harde wind (maximum over alle stappen van de tocht
 // ≥ WARN.hardWind.amberKn, of vlaag ≥ amberGust binnen [vertrek-uur, aankomst]) en/of
@@ -233,4 +234,49 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean): string | null {
   if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
   const tail = anyStroom ? "snelste combinatie van stroom en zeilhoek" : "gunstigste zeilhoek van de dag";
   return (stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr)) + ` — ${tail}.`;
+}
+
+// ── etappes (VAARPLAN) ──────────────────────────────────────────────────
+// Per leg: de stroom langs de koers in K segmenten (gemiddelde sim-cur per segment),
+// de positie van de eerste kentering binnen de leg (0–1), en de wind/vlaag onderweg.
+// Alles uit de al berekende SimResult + vlaag-samples; geen nieuwe fysica.
+export type EtappeLeg = { label: string; distNm: number; vanKey: string; naarKey: string; stroom: boolean };
+export type Etappe = {
+  label: string; distNm: number; stroom: boolean;
+  segmenten: number[];            // kn langs de koers per segment (>0 mee)
+  kenteringFrac: number | null;   // 0–1 langs de leg, of null
+  windDir: number | null; windKn: number | null; vlaagKn: number | null;
+};
+export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[]): Etappe[] {
+  const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
+  let start = 0;
+  return legs.map((leg) => {
+    const van = start, tot = start + leg.distNm;
+    start = tot;
+    const st = body.filter((s) => s.prog >= van - 1e-9 && s.prog < tot - 1e-9);
+    const K = Math.max(3, Math.min(8, Math.round(leg.distNm)));
+    const segmenten = Array.from({ length: K }, (_, k) => {
+      const a = van + (k * leg.distNm) / K, b = van + ((k + 1) * leg.distNm) / K;
+      const inSeg = st.filter((s) => s.prog >= a && s.prog < b);
+      if (inSeg.length) return inSeg.reduce((sum, s) => sum + s.cur, 0) / inSeg.length;
+      // korte segmenten zonder eigen stap: dichtstbijzijnde stap
+      const mid = (a + b) / 2;
+      const near = st.reduce<SimStep | null>((n, s) => (!n || Math.abs(s.prog - mid) < Math.abs(n.prog - mid) ? s : n), null);
+      return near?.cur ?? 0;
+    });
+    let kenteringFrac: number | null = null;
+    for (let i = 1; i < st.length && leg.stroom; i++) {
+      if ((st[i - 1].cur >= 0) !== (st[i].cur >= 0)) { kenteringFrac = (st[i].prog - van) / leg.distNm; break; }
+    }
+    let e = 0, n = 0, spd = 0;
+    for (const s of st) { const r = (s.wDir * Math.PI) / 180; e += Math.sin(r); n += Math.cos(r); spd += s.wSpd; }
+    const windDir = st.length ? ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360 : null;
+    const windKn = st.length ? spd / st.length : null;
+    const t0 = st.length ? Math.floor(st[0].tMs / H) * H : 0, t1 = st.length ? st[st.length - 1].tMs : 0;
+    const vl = gusts.filter((g) => (g.key === leg.vanKey || g.key === leg.naarKey) && g.ms >= t0 && g.ms <= t1).map((g) => g.gustKn);
+    return {
+      label: leg.label, distNm: leg.distNm, stroom: leg.stroom, segmenten: leg.stroom ? segmenten : [],
+      kenteringFrac, windDir, windKn, vlaagKn: vl.length ? Math.max(...vl) : null,
+    };
+  });
 }

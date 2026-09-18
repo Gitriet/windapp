@@ -12,11 +12,10 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  combineWindStations, pickBest, pickVensters, stroomSpanOf, type DepOption, type GustSample, type RouteMeta,
+  combineWindStations, pickBest, pickVensters, stroomSpanOf, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { Location, TideData } from "@/lib/types";
 import { datumBereik } from "@/lib/getij";
-import type { ViaHaven } from "./components/VaarplanView";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -32,7 +31,6 @@ export function useTocht() {
   const [routeFc, setRouteFc] = useState<Record<string, ForecastResponse>>({});   // per station: vlagen + weer
   const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
   const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
-  const [routeTideTo, setRouteTideTo] = useState<TideData | null>(null);  // aankomsthaven
   const [nowMs, setNowMs] = useState<number>(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -98,21 +96,19 @@ export function useTocht() {
   };
 
   // ── tochtdata bij tochtwissel ── wind per distinct station, stroom per been (teken
-  // al gecorrigeerd in fetchRouteCurrent), getij bij beide havens via het eigen station.
+  // al gecorrigeerd in fetchRouteCurrent), getij bij de vertrekhaven via het eigen station.
   useEffect(() => {
-    if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); setRouteTideTo(null); return; }
+    if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); return; }
     const keys = [...new Set(waypoints.map((w) => w.location_key))];
     const vanSlug = (chain ? chain.havens[0] : endpoints?.van)?.haven ?? null;
-    const naarSlug = (chain ? chain.havens[chain.havens.length - 1] : endpoints?.naar)?.haven ?? null;
     const legs = chain?.legs ?? [];
     let ignore = false;
     (async () => {
       try {
-        const [winds, curs, tide, tideTo] = await Promise.all([
+        const [winds, curs, tide] = await Promise.all([
           Promise.all(keys.map((k) => fetchForecast(k))),
           Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
           vanSlug ? fetchHavenTide(vanSlug) : Promise.resolve(null),
-          naarSlug ? fetchHavenTide(naarSlug) : Promise.resolve(null),
         ]);
         if (ignore) return;
         const wind: SimWind = {};
@@ -122,7 +118,6 @@ export function useTocht() {
         setRouteFc(fcs);
         setLegCurrents(curs);
         setRouteTide(isTide(tide) ? tide : null);
-        setRouteTideTo(isTide(tideTo) ? tideTo : null);
       } catch (e) {
         if (!ignore) setErr(String(e));
       }
@@ -206,9 +201,18 @@ export function useTocht() {
     return datumBereik([stroomSpanOf(routeMeta.legTimelines), tideSpan]);
   }, [routeTide, legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // legs voor de etappe-weergave (VAARPLAN): label, lengte, stations aan beide kanten
+  const etappeLegs = useMemo<EtappeLeg[]>(
+    () => (chain?.legs ?? []).map((l, i) => ({
+      label: l.label, distNm: l.route.lengte_nm, stroom: l.route.stroom,
+      vanKey: chain!.havens[i].key, naarKey: chain!.havens[i + 1].key,
+    })),
+    [chain],
+  );
+
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
   const routeGusts = useMemo<GustSample[]>(
-    () => Object.values(routeFc).flatMap((f) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn }))),
+    () => Object.entries(routeFc).flatMap(([key, f]) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn, key }))),
     [routeFc],
   );
   const vanWeather = endpoints ? routeFc[endpoints.van.key]?.weather ?? null : null;
@@ -218,8 +222,8 @@ export function useTocht() {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, vanWeather, dagBereik, waypoints, alongPerLeg, legDistNm,
-    routeTide, routeTideTo, ready: !!routeWind, nowMs, err,
+    routeGusts, vanWeather, dagBereik, etappeLegs, waypoints, alongPerLeg, legDistNm,
+    routeTide, ready: !!routeWind, nowMs, err,
   };
 }
 

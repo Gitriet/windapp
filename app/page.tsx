@@ -2,12 +2,11 @@
 // Tidan — vier schermen (ROUTE · NU · GETIJDEN · VAARPLAN) in één schil. Data en logica
 // leven in app/use-tocht.ts (useTocht, useNu) en lib/; dit bestand verbindt alleen.
 import { DEFAULT_BOAT } from "@/lib/polar";
-import { stroomSpanOf } from "@/lib/tocht";
 import HavenSelector from "./components/HavenSelector";
 import RouteScreen from "./components/RouteScreen";
 import NuScreen from "./components/NuScreen";
 import GetijdenScreen from "./components/GetijdenScreen";
-import VaarplanView from "./components/VaarplanView";
+import VaarplanScreen from "./components/VaarplanScreen";
 import { useTocht, useNu } from "./use-tocht";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
@@ -20,10 +19,10 @@ export default function Page() {
   const { locations, locIdx, setLocIdx, loc } = nu;
   const err = tocht.err ?? nu.err;
   const {
-    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
+    fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, vensters, firstDepMs, selTrip,
-    routeTide, routeTideTo, routeGusts, vanWeather, dagBereik, waypoints, alongPerLeg, legDistNm, ready, nowMs,
+    routeTide, routeGusts, vanWeather, dagBereik, etappeLegs, waypoints, alongPerLeg, legDistNm, ready, nowMs,
   } = tocht;
   useVertrekUrl(depMs, setDepMs, depOptions);
 
@@ -82,14 +81,11 @@ export default function Page() {
     vaarplan: (
       <>
         {routeChip}
-        {selTrip && depMs != null && endpoints ? (
-          <VaarplanView
-            depMs={depMs} trip={selTrip} from={endpoints.van} to={endpoints.naar}
-            distanceNm={routeDistNm} bearingDeg={routeBearing}
-            routeLabel={{ pathNamen: routeMeta.pathNamen, viaPassage: routeMeta.viaPassage, legCount: routeMeta.legCount }}
-            fromTide={routeTide} toTide={routeTideTo} via={viaHavens} boat={DEFAULT_BOAT}
-            stroomSpan={stroomSpanOf(routeMeta.legTimelines)} />
-        ) : <VaarplanEmpty />}
+        <VaarplanScreen
+          ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
+          distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
+          fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT} boatNaam="Winner 11.20"
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} />
       </>
     ),
   };
@@ -107,16 +103,6 @@ export default function Page() {
         ))}
       </main>
       <TabBar active={tab} onSelect={setTab} />
-    </div>
-  );
-}
-
-function VaarplanEmpty() {
-  return (
-    <div style={{ padding: "20px var(--view-pad-x) 34px" }}>
-      <div style={{ fontSize: 14, color: "rgba(233,233,237,.5)" }}>
-        Geen vertrekmoment geselecteerd. Kies eerst een vertrek in de Tocht-planner.
-      </div>
     </div>
   );
 }

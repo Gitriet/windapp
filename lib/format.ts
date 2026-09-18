@@ -32,3 +32,5 @@ const BFT_LABEL = [
   "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
 ];
 export const bftLabel = (bft: number) => BFT_LABEL[bft] ?? "";
+// Duur als "1U 02M" (VAARPLAN-KPI); afronden vóór splitsen, zoals fmtDur.
+export const fmtDuurKort = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}U ${String(m % 60).padStart(2, "0")}M`; };

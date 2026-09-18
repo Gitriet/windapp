@@ -102,6 +102,10 @@
   --nav-knop: 22px;      /* zichtbare week-navknop (tapvlak blijft --tap) */
   --blok-pad: 12px 14px; /* vertrektijdblok GETIJDEN */
   --kromme-lijn: 2px;
+  --ls-tijdblok: -0.4px;
+  --balk-h: 16px;        /* stroombalkjes per etappe */
+  --etappe-gap: 7px;
+  --compact-label: 56px;
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
   --ls-tab: 0.03em;
