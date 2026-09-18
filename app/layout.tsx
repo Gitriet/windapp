@@ -8,7 +8,7 @@ const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "700"],
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Tidan — Tocht planner",
+  title: "Tidan",
   description: "Windvoorspelling, getijstroom en polaire-ETA voor de kust en Wadden.",
 };
 

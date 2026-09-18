@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  combineWindStations, pickBest, pickVensters, stroomSpanOf, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
+  pickBest, pickVensters, stroomSpanOf, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { Location, TideData } from "@/lib/types";
 import { datumBereik } from "@/lib/getij";
@@ -81,7 +81,6 @@ export function useTocht() {
   const stroomFlags = chain?.legs.map((l) => l.route.stroom) ?? [];
   const stroomComplete = stroomFlags.length > 0 && stroomFlags.every(Boolean);
   const stroomPartial = stroomFlags.some(Boolean) && !stroomComplete;
-  const legsZonderStroom = chain?.legs.filter((l) => !l.route.stroom).map((l) => l.label) ?? [];
 
   // Van en Naar zijn vrij kiesbaar; bij een botsing draait de keuze de tocht om.
   const chooseFrom = (h: string) => {
@@ -176,21 +175,11 @@ export function useTocht() {
     return out;
   }, [chain]);
 
-  const windSeries = useMemo(() => combineWindStations(routeWind), [routeWind]);
-  const windStations = useMemo(() => {
-    const hs = chain ? chain.havens : endpoints ? [endpoints.van, endpoints.naar] : [];
-    return Array.from(new Set(hs.map((h) => h.stationNaam)));
-  }, [chain, endpoints]);
-
   const routeMeta: RouteMeta = {
-    hasRoute: !!chain,
-    legCount: chain?.legs.length ?? 0,
     pathNamen: chain?.namen ?? [],
-    viaHavens: chain?.viaNamen ?? [],
     viaPassage: chain && chain.legs.length === 1 ? (chain.legs[0].route.via ?? null) : null,
-    stroomComplete, stroomPartial, legsZonderStroom,
+    stroomComplete, stroomPartial,
     legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
-    windSeries, windStations,
   };
 
   // Kiesbare dagen voor GETIJDEN — één bron (lib/getij.datumBereik). Fase 1: het

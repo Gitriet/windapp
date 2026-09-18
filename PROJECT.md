@@ -114,21 +114,33 @@ her-sampelt uit intacte R2-grids.
 
 ## Frontend
 
-- **Route:** één pagina, `app/page.tsx` (client), met twee views: **Nu**
-  (live wind + 12 u prognose + 7-daagse strip) en **Tocht planner** (routekeuze,
-  vertrekvensters, stroom-/tocht-tijdlijnen). `app/layout.tsx` = root layout (nl,
-  Inter). Geen kaart-widget/Leaflet — alles is SVG + canvas.
-- **Componenten:** `app/components/charts.tsx` (SVG's: `CurrentTimeline`,
-  `WindTimeline`, `TripChart`, `SummaryRow`, `DepartureCards`, `WindBarbs`,
-  `Compass`) en `app/components/WindCanvas.tsx` (geanimeerde windparticles).
+- **Schermen:** één pagina, `app/page.tsx` (client), met vier schermen in een vaste
+  volgorde uit `app/screens.ts`: **ROUTE** (advies GA NU/VERTREK/ONZEKER/GEEN VENSTER/
+  ZONDER STROOM + alle vertrekken 48 u), **NU** (live wind op één locatie, 12 u, 4/7
+  dagen), **GETIJDEN** (weekstrip, vertrektijden op stroom zonder wind, 24-uurs
+  stroomkromme) en **VAARPLAN** (gekozen vertrek: KPI's, etappes, haveninfo). Mobiel
+  (<768px) één scherm per tab met vaste tabbar; 768–1100px 2 kolommen; ≥1100px 4
+  kolommen. `?tab=` en `?vertrek=` staan in de URL. Geen kaart-widget — alles is SVG.
+- **Structuur:** data + logica in `app/use-tocht.ts` (`useTocht`, `useNu`) en pure
+  afleidingen in `lib/tocht.ts` (beste vertrek, advies, LET OP, etappes),
+  `lib/getij.ts` (datumbereik, ISO-week, ranking op stroom, kromme) en `lib/verdict.ts`
+  (GOED/FRIS/LICHT/LET OP). Presentatie in `app/components/*Screen.tsx` + CSS-modules;
+  schil (tabbar, kiezerchip, skeleton) in `app/components/Shell.tsx`.
+- **Vormgeving:** "nautisch instrument" — tokens (kleur, radius, typografie, ruimte)
+  uitsluitend in `app/globals.css`; Space Grotesk (cijfers/labels) + Inter (tekst) via
+  `next/font`. Ontwerpbron: `design_handoff_tidan_nautisch/`.
+- **GETIJDEN-historie (fase 2):** het datumbereik komt uit één functie
+  (`lib/getij.ts` `datumBereik`, gevoed in `useTocht`); nu het venster van de geladen
+  stroom- en getijreeksen, straks aangevuld met het R2-hindcastbereik.
 - **API-routes** (`app/api/*`, alle `force-dynamic`): `forecast/[key]`,
-  `week/[key]`, `tide/[key]`, `locations`, `stroom?box=…` (R2-arrows),
-  `route-stroom?routes=…` (Neon punt-forecast), `routes` (havens+routes+dichtstbijzijnd
-  station).
+  `week/[key]`, `tide/[key]`, `tide/haven/[slug]`, `locations`, `stroom?box=…`
+  (R2-arrows), `route-stroom?routes=…` (Neon punt-forecast), `routes`
+  (havens+routes+dichtstbijzijnd station).
 - **Dataophaling:** `lib/planner-data.ts` wrapt `fetch` met `cache:"no-store"`
   (elke load vers); geen client-cache-laag. Kern-libs: `serving`/`correction`
-  (bias), `stroom`, `tide`, `polar`/`passage`/`tripsim` (ETA), `route`/`netwerk-path`,
+  (bias), `tide`, `polar`/`passage`/`tripsim` (ETA), `route`/`netwerk-path`,
   `gates`, `leads` (`hoursToLead`: uren→dag1/2/3).
+- **Tests:** `npm test` draait alle `test/*.test.ts` (tsx, geen framework).
 
 ## Routenetwerk
 
@@ -137,8 +149,8 @@ Opgebouwd uit `data/routes/routes-R01-R21.geojson` + `havens.json` door
 (LineStrings met `lengte_nm`), en samplepunten per ~1 NM. Pathfinding zit
 **client-side** in `lib/netwerk-path.ts`: `shortestPath()` is Dijkstra op een gewogen
 buur-graaf van havens en ketent buurroutes tot een multi-leg tocht (`RouteLeg` met
-reversed-vlag + bearing). Stroom per segment: `lib/stroom.ts` decodeert de float16-grids
-("latest-wins" per valid_time), en `planner-data.fetchRouteCurrent` projecteert `u/v`
+reversed-vlag + bearing). Stroom per route komt uit `/api/route-stroom` (Neon
+punt-forecast, nieuwste run), en `planner-data.fetchRouteCurrent` projecteert `u/v`
 langs de routekoers → `alongKn` (>0 mee, <0 tegen). Alleen R09 (Marsdiep Den
 Helder→Texel) heeft momenteel punt-stroomforecast geïngest; `DEFAULT_ROUTE_ID = "R09"`.
 
@@ -158,9 +170,9 @@ referentievlakken geladen → gate = "onbekend").
 
 ## Conventies
 
-- **Kleuren per datatype** (`lib/colors.ts`): wind = amber `#C4832D`, water/getij =
-  blauw `#4A90D9`, mee-stroom = zeegroen `#17A878`, tegen-stroom = rood `#c07a7a`,
-  weer/UI = violet `#8B7DD6`, SOG = wit `#e9e9ed`, kentering = geel `#e8b94a`.
+- **Kleuren per datatype** (tokens in `app/globals.css`): wind + waarschuwing + getij-chip
+  = oker `--ochre`, meestroom = `--sea-green`, tegenstroom = oker `--ochre-line` (balkjes)
+  / `--slate` (kromme), neutraal/UI = `--slate`, nadruk = gevuld `--parchment`. Geen paars.
 - **Eenheden:** wind in **knopen** (`kn`) + Beaufort; afstand in **NM**; stroom-`u/v`
   in **m/s** in de API, `alongKn` in de UI; richting in graden (16-sector labels N/NNO/…).
 - **NAP/getij:** getijhoogtes t.o.v. NAP; getijpoort combineert kaartdiepte (ALAT/LAT)
@@ -180,7 +192,7 @@ referentievlakken geladen → gate = "onbekend").
   grids in R2, punt-forecast in Neon. Alleen R09 (Marsdiep) heeft punt-forecast → de
   Tocht-planner staat vast op die route.
 - **Getij:** live RWS-laag met astronomische cache, alleen voor Wad-/getijpunten.
-- **Bekende gaten / open punten** (zie `windapp/app/KOPPELING.md`):
+- **Bekende gaten / open punten:**
   golfhoogte en watertemperatuur hebben geen databron (`—` in de UI); stroom-horizon
   ~52 u met ~67% niet-null (vertrek voorbij de horizon simuleert met `cur=0`, nog zonder
   zekerheidsvlag); `GATE_DATUMS` leeg dus getijpoort = "onbekend"; `tripsim.ts`

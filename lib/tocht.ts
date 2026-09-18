@@ -1,6 +1,6 @@
 // Pure afleidingen voor de Tocht-planner (client-safe). Verplaatst uit app/page.tsx
 // zodat data/logica los van de presentatie staat; gedrag ongewijzigd.
-import type { SimResult, SimStep, SimWind } from "./tripsim";
+import type { SimResult, SimStep } from "./tripsim";
 import type { RouteCurrent, RouteHaven } from "./planner-data";
 import type { WeatherSeries } from "./types";
 import { WARN } from "./constants";
@@ -11,40 +11,14 @@ const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 export type DepOption = { depMs: number; result: SimResult };
-export type WindTLSample = { t: string; speedKn: number; dirDeg: number };
 export type LegTimeline = { label: string; cur: RouteCurrent | null; distNm: number };
 export type ViaHaven = { haven: RouteHaven; nmFromStart: number };
 
-// Route-descriptor voor de planner-UI: het pad, per-segment stroomtijdlijnen en de
-// stroom-dekkingsvlaggen. Bij 1 leg gedraagt dit zich als de oude directe route.
+// Route-descriptor voor de UI: padnamen, doorgang, stroom-dekking en de stroom per leg.
 export type RouteMeta = {
-  hasRoute: boolean; legCount: number; pathNamen: string[]; viaHavens: string[];
-  viaPassage: string | null; stroomComplete: boolean; stroomPartial: boolean;
-  legsZonderStroom: string[]; legTimelines: LegTimeline[];
-  windSeries: WindTLSample[]; windStations: string[];
+  pathNamen: string[]; viaPassage: string | null;
+  stroomComplete: boolean; stroomPartial: boolean; legTimelines: LegTimeline[];
 };
-
-// Combineert de wind-per-station (SimWind) tot één route-reeks voor de windtijdlijn:
-// per tijdstip de scalaire gemiddelde snelheid + vector-gemiddelde richting over de
-// stations die op dat moment data hebben. De stations delen hetzelfde forecast-grid.
-export function combineWindStations(wind: SimWind | null): WindTLSample[] {
-  if (!wind) return [];
-  const series = Object.values(wind).filter((s) => s.length);
-  if (!series.length) return [];
-  const times = Array.from(new Set(series.flatMap((s) => s.map((x) => x.time)))).sort();
-  const maps = series.map((s) => new Map(s.map((x) => [x.time, x])));
-  return times.map((t) => {
-    let e = 0, n = 0, spd = 0, k = 0;
-    for (const m of maps) {
-      const x = m.get(t);
-      if (!x) continue;
-      const r = (x.dir_deg * Math.PI) / 180;
-      e += Math.sin(r); n += Math.cos(r); spd += x.speed_kn; k++;
-    }
-    if (!k) return { t, speedKn: 0, dirDeg: 0 };
-    return { t, speedKn: spd / k, dirDeg: ((Math.atan2(e / k, n / k) * 180) / Math.PI + 360) % 360 };
-  });
-}
 
 // Combineert de per-leg stroomreeksen tot ÉÉN gewogen-gemiddelde tijdlijn langs de
 // hele tocht. Weging = beenlengte (nm): een langer been telt zwaarder mee. Per tijdstip
