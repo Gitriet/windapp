@@ -41,7 +41,6 @@ export interface VaarplanScreenProps {
   fromTide: TideData | null;
   via: ViaHaven[];
   boat: BoatProfile;
-  boatNaam: string;
   anyStroom: boolean;
 }
 
@@ -54,7 +53,7 @@ export default function VaarplanScreen(p: VaarplanScreenProps) {
   return <Plan {...p} trip={trip} depMs={depMs} from={from} to={to} />;
 }
 
-function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, fromTide, via, boat, boatNaam, anyStroom }:
+function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, fromTide, via, boat, anyStroom }:
   VaarplanScreenProps & { trip: SimResult; depMs: number; from: RouteHaven; to: RouteHaven }) {
   const et = useMemo(() => etappes(trip, legs, gusts), [trip, legs, gusts]);
   const warn = letOp(trip, bearingDeg ?? 0, gusts);
@@ -137,7 +136,6 @@ function Plan({ trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, from
             <span className={s.compactLabel}>UITWIJK</span>
             <span>{via.length ? via.map((v) => `${v.haven.naam} (~${komma(v.nmFromStart)}\u00A0nm${v.haven.havenInfo?.getijgebonden ? ", getijgebonden" : ""})`).join(" · ") : "geen tussenhavens op deze route"}</span>
           </div>
-          <div className={s.noot}>VHF indicatief. Controleer de actuele kanalen (ANWB Wateralmanak). {boatNaam} · {Math.round(boat.performance * 100)}% polaire</div>
         </div>
       </div>
     </>

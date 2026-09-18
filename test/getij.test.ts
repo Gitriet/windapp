@@ -1,6 +1,6 @@
 // GETIJDEN-afleidingen (lib/getij.ts): datumbereik, ISO-week, stroom-ranking zonder wind
 // en de kromme (gaten blijven gaten, pieken per fase).
-import { datumBereik, binnenBereik, isoWeek, weekDagen, rankOpStroom, krommeSegmenten, krommePieken, RANKING_STW_KN } from "../lib/getij";
+import { datumBereik, binnenBereik, stripDagen, rankOpStroom, krommeSegmenten, krommePieken, RANKING_STW_KN } from "../lib/getij";
 import type { AlongSample } from "../lib/route";
 
 let fail = 0;
@@ -17,13 +17,12 @@ ok("22:30Z = volgende lokale dag", datumBereik([{ first: Date.parse("2026-09-17T
 ok("geen spans → null", datumBereik([null]) === null);
 ok("binnen/buiten", binnenBereik("2026-09-18", b) && !binnenBereik("2026-09-21", b) && !binnenBereik("2026-09-18", null));
 
-console.log("— ISO-week —");
-ok("18 sep 2026 = week 38", isoWeek("2026-09-18") === 38);
-ok("1 jan 2026 (do) = week 1", isoWeek("2026-01-01") === 1);
-ok("1 jan 2027 (vr) = week 53", isoWeek("2027-01-01") === 53, String(isoWeek("2027-01-01")));
-const wk = weekDagen("2026-09-18");
-ok("week ma 14 t/m zo 20", wk[0] === "2026-09-14" && wk[6] === "2026-09-20" && wk.length === 7, wk.join(","));
-ok("over zomertijdgrens (29 mrt 2026)", weekDagen("2026-03-29")[0] === "2026-03-23");
+console.log("— dagstrip —");
+const st = stripDagen("2026-09-18", "2026-09-18");
+ok("vandaag vooraan, 7 dagen", st[0] === "2026-09-18" && st[6] === "2026-09-24" && st.length === 7, st.join(","));
+ok("nooit vóór vandaag", stripDagen("2026-09-11", "2026-09-18")[0] === "2026-09-18");
+ok("latere start blijft", stripDagen("2026-09-25", "2026-09-18")[0] === "2026-09-25");
+ok("over zomertijdgrens (29 mrt 2026)", stripDagen("2026-03-28", "2026-03-28")[2] === "2026-03-30");
 
 console.log("— rankOpStroom —");
 // sinusvormige stroom (periode 12u, 1 kn) langs één leg van ~5 nm, de hele dag gedekt

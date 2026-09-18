@@ -1,4 +1,4 @@
-// GETIJDEN — pure afleidingen: datumbereik, ISO-week, vertrek-ranking op stroom en de
+// GETIJDEN: pure afleidingen: datumbereik, dagstrip, vertrek-ranking op stroom en de
 // 24-uurs stroomkromme. Client-safe. Datums zijn lokale kalenderdagen "YYYY-MM-DD"
 // (Europe/Amsterdam); rekenen op datums gebeurt in UTC-middag zodat zomertijd niet stoort.
 import { simulateTrip, type SimWaypoint, type SimWind } from "./tripsim";
@@ -29,18 +29,10 @@ export function datumBereik(spans: ({ first: number; last: number } | null)[]): 
 }
 export const binnenBereik = (d: string, b: DagBereik | null) => !!b && d >= b.eerste && d <= b.laatste;
 
-// ── ISO-week (ma–zo) ────────────────────────────────────────────────────
-export function maandagVan(d: string): string {
-  const dow = (new Date(noon(d)).getUTCDay() + 6) % 7;   // 0 = maandag
-  return addDays(d, -dow);
-}
-export const weekDagen = (d: string) => Array.from({ length: 7 }, (_, i) => addDays(maandagVan(d), i));
-// ISO-weeknummer: de week met de donderdag erin bepaalt jaar en nummer.
-export function isoWeek(d: string): number {
-  const donderdag = addDays(maandagVan(d), 3);
-  const jan1 = `${donderdag.slice(0, 4)}-01-01`;
-  return Math.floor((noon(donderdag) - noon(jan1)) / DAY / 7) + 1;
-}
+// ── dagstrip ─────────────────────────────────────────────────────────────
+// Zeven dagen vanaf `van`; `van` nooit vóór vandaag (geen oude dagen tonen).
+export const stripDagen = (van: string, vandaag: string) =>
+  Array.from({ length: 7 }, (_, i) => addDays(van < vandaag ? vandaag : van, i));
 
 // ── vertrek-ranking op stroom (zonder wind) ─────────────────────────────
 // Bestaande tripsim-integratie met een motorprofiel op vaste STW: de wind speelt dan

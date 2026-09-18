@@ -15,7 +15,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 | | `app/components/Shell.tsx` | Merkbalk, tabbar, kiezerchip, skeleton. |
 | Data + logica | `app/use-tocht.ts` | `useTocht` (havens, keten, wind/stroom/getij, 48u-sweep, beste vertrek, datumbereik) en `useNu` (locatie, forecast, week, getij). |
 | Pure afleidingen | `lib/tocht.ts` | Beste vertrek/vensters, advies (5 toestanden), LET OP, stroomverloop, uitlegzin, etappes. |
-| | `lib/getij.ts` | Datumbereik (enige bron), ISO-week, ranking op stroom, stroomkromme. |
+| | `lib/getij.ts` | Datumbereik (enige bron), dagstrip vanaf vandaag, ranking op stroom, stroomkromme. |
 | | `lib/verdict.ts` | GOED/FRIS/LICHT/LET OP — ook de staafkleur in NU. |
 | | `lib/format.ts` | Kompaslabels, Beaufort-label, duur. |
 | Presentatie | `app/components/{Route,Nu,Getijden,Vaarplan}Screen.tsx` + `.module.css` | Alleen weergave; tokens uit `app/globals.css`. |
@@ -46,7 +46,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 ### GETIJDEN
 | Blok | Bron | Afleiding |
 |---|---|---|
-| Kiesbare dagen | geladen stroomreeks + getijreeks vertrekhaven | `datumBereik()` — **fase 2: R2-hindcastbereik als extra span** |
+| Kiesbare dagen | geladen stroomreeks + getijreeks vertrekhaven | `datumBereik()`; de strip begint altijd bij vandaag (`stripDagen`) |
 | Beste vertrektijden | `/api/route-stroom` per leg | `rankOpStroom()`: tripsim met motorprofiel op 5 kn, zónder wind; alleen vertrekken waarbij de stroom helpt |
 | Stroomkromme | zelfde reeks, lengte-gewogen over de legs | `krommeSegmenten()` (null = gat), `krommePieken()` |
 
@@ -65,8 +65,6 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 - **Watertemperatuur**: geen bron; weggelaten.
 - **VHF-kanalen uit het prototype** (09/12) zijn voorbeeldwaarden; de app toont `havens-info`.
 
-## Fase 2 — GETIJDEN-historie
-Hindcast staat alleen in R2 (`hindcast-punten/YYYY/MM/DD.parquet`; Neon `stroom_hindcast` is
-leeg). Nodig: één alleen-lezen API-route die de parquet leest (pure-JS lezer) + een
-tide-functie met vrije periode. Aansluiten = een extra span doorgeven aan `datumBereik()` in
-`useTocht` en de reeksen voor de gekozen dag laden; weekstrip en kromme veranderen niet.
+## GETIJDEN toont geen verleden
+Besluit 2026-09-18: de dagstrip begint altijd bij vandaag en toont nooit oude dagen. De
+eerder geplande GETIJDEN-historie uit de R2-hindcast vervalt daarmee.

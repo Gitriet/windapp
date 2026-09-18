@@ -85,7 +85,7 @@ export default function Page() {
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
-          fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT} boatNaam="Winner 11.20"
+          fromTide={routeTide} via={viaHavens} boat={DEFAULT_BOAT}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} />
       </>
     ),

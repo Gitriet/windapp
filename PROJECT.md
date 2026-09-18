@@ -123,15 +123,15 @@ her-sampelt uit intacte R2-grids.
   kolommen. `?tab=` en `?vertrek=` staan in de URL. Geen kaart-widget — alles is SVG.
 - **Structuur:** data + logica in `app/use-tocht.ts` (`useTocht`, `useNu`) en pure
   afleidingen in `lib/tocht.ts` (beste vertrek, advies, LET OP, etappes),
-  `lib/getij.ts` (datumbereik, ISO-week, ranking op stroom, kromme) en `lib/verdict.ts`
+  `lib/getij.ts` (datumbereik, dagstrip vanaf vandaag, ranking op stroom, kromme) en `lib/verdict.ts`
   (GOED/FRIS/LICHT/LET OP). Presentatie in `app/components/*Screen.tsx` + CSS-modules;
   schil (tabbar, kiezerchip, skeleton) in `app/components/Shell.tsx`.
 - **Vormgeving:** "nautisch instrument" — tokens (kleur, radius, typografie, ruimte)
   uitsluitend in `app/globals.css`; Space Grotesk (cijfers/labels) + Inter (tekst) via
   `next/font`. Ontwerpbron: `design_handoff_tidan_nautisch/`.
-- **GETIJDEN-historie (fase 2):** het datumbereik komt uit één functie
-  (`lib/getij.ts` `datumBereik`, gevoed in `useTocht`); nu het venster van de geladen
-  stroom- en getijreeksen, straks aangevuld met het R2-hindcastbereik.
+- **GETIJDEN-dagen:** het datumbereik komt uit één functie (`lib/getij.ts` `datumBereik`,
+  gevoed in `useTocht`): het venster van de geladen stroom- en getijreeksen. De dagstrip
+  begint altijd bij vandaag (`stripDagen`); oude dagen worden nooit getoond (geen historie).
 - **API-routes** (`app/api/*`, alle `force-dynamic`): `forecast/[key]`,
   `week/[key]`, `tide/[key]`, `tide/haven/[slug]`, `locations`, `stroom?box=…`
   (R2-arrows), `route-stroom?routes=…` (Neon punt-forecast), `routes`

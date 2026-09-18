@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { localHM, localDateISO, localMidnight } from "@/lib/tz";
 import {
-  addDays, binnenBereik, isoWeek, krommePieken, krommeSegmenten, rankOpStroom, weekDagen, type DagBereik,
+  addDays, binnenBereik, krommePieken, krommeSegmenten, rankOpStroom, stripDagen, type DagBereik,
 } from "@/lib/getij";
 import { combineLegTimelines, stroomVerloop, type DepOption, type LegTimeline } from "@/lib/tocht";
 import type { SimWaypoint } from "@/lib/tripsim";
@@ -36,34 +36,35 @@ export interface GetijdenScreenProps {
 export default function GetijdenScreen(p: GetijdenScreenProps) {
   const vandaag = localDateISO(p.nowMs || Date.now());
   const [dag, setDag] = useState<string | null>(null);
-  const [weekVan, setWeekVan] = useState<string | null>(null);
-  const gekozen = dag ?? vandaag;
-  const week = weekDagen(weekVan ?? gekozen);
+  const [stripVan, setStripVan] = useState<string | null>(null);
+  const gekozen = dag && dag >= vandaag ? dag : vandaag;
+  const week = stripDagen(stripVan ?? vandaag, vandaag);
 
   if (!p.ready) return <Skeleton rows={4} height={64} label="getij laden" />;
 
-  const kies = (d: string) => { setDag(d); setWeekVan(d); };
-  const vorigeKan = binnenBereik(addDays(week[0], -1), p.bereik) || (!!p.bereik && p.bereik.laatste < week[0]);
-  const volgendeKan = binnenBereik(addDays(week[6], 1), p.bereik) || (!!p.bereik && p.bereik.eerste > week[6]);
+  const naarVandaag = () => { setDag(vandaag); setStripVan(null); };
+  const vorigeKan = week[0] > vandaag;
+  const volgendeKan = binnenBereik(addDays(week[6], 1), p.bereik);
+  const maanden = [...new Set([week[0], week[6]].map((d) => fmt(d, { month: "long" })))].join(" · ");
 
   return (
     <>
       <div>
         <div className={s.kopRij}>
-          <span className={s.sectie}>HISTORIE · KIES DATUM</span>
-          <button type="button" className={s.vandaag} onClick={() => kies(vandaag)}>VANDAAG</button>
+          <span className={s.sectie}>KIES DATUM</span>
+          <button type="button" className={s.vandaag} onClick={naarVandaag}>VANDAAG</button>
         </div>
         <div className={s.maandRij}>
-          <button type="button" className={s.nav} aria-label="vorige week" disabled={!vorigeKan}
-            onClick={() => setWeekVan(addDays(week[0], -7))}><span className={s.navVlak}>‹</span></button>
-          <span className={s.maand}>{fmt(week[3], { month: "long" })} · WEEK {isoWeek(week[0])}</span>
-          <button type="button" className={s.nav} aria-label="volgende week" disabled={!volgendeKan}
-            onClick={() => setWeekVan(addDays(week[0], 7))}><span className={s.navVlak}>›</span></button>
+          <button type="button" className={s.nav} aria-label="vorige 7 dagen" disabled={!vorigeKan}
+            onClick={() => setStripVan(addDays(week[0], -7))}><span className={s.navVlak}>‹</span></button>
+          <span className={s.maand}>{maanden}</span>
+          <button type="button" className={s.nav} aria-label="volgende 7 dagen" disabled={!volgendeKan}
+            onClick={() => setStripVan(addDays(week[0], 7))}><span className={s.navVlak}>›</span></button>
         </div>
         <div className={s.week}>
           {week.map((d) => (
             <button key={d} type="button" className={`row ${s.tegel} ${d === gekozen ? "is-filled" : ""}`}
-              aria-pressed={d === gekozen} disabled={!binnenBereik(d, p.bereik)} onClick={() => kies(d)}
+              aria-pressed={d === gekozen} disabled={!binnenBereik(d, p.bereik)} onClick={() => setDag(d)}
               aria-label={fmt(d, { weekday: "long", day: "numeric", month: "long" })}>
               <span className={s.tegelDag}>{fmt(d, { weekday: "short" }).slice(0, 2)}</span>
               <span className={s.tegelNr}>{fmt(d, { day: "numeric" })}</span>
