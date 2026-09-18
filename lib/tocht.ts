@@ -180,9 +180,10 @@ export function stroomVerloop(r: SimResult, anyStroom: boolean): StroomVerloop {
   return { kind: mee ? "mee" : "tegen", totMs: kent ? r.kentMs : null };
 }
 
-// Uitlegzin bij het advies: stroom + wind uit de sim-stappen van het beste vertrek.
-// (Tekst ongewijzigd overgenomen uit de oude antwoord-/redenregel.)
-export function adviesUitleg(b: SimResult, anyStroom: boolean): string | null {
+// Uitlegzin: stroom + wind uit de sim-stappen van een vertrek. Voor het beste vertrek met
+// de slotzin waarom het het beste is; voor een ander gekozen vertrek zonder die claim en
+// met "Bij vertrek HH:MM:" ervoor.
+export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): string | null {
   if (!b.arrMs || !b.steps.length) return null;
   const s0 = b.steps[0];
   const body = b.steps.length > 1 ? b.steps.slice(0, -1) : b.steps;
@@ -206,8 +207,10 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean): string | null {
   const sEnd = body[body.length - 1];
   const veer = sEnd ? Math.abs(((sEnd.wDir - s0.wDir + 540) % 360) - 180) : 0;
   if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
+  const zin = stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr);
+  if (!isBeste) return `Bij vertrek ${localHM(b.departMs)}: ${zin.charAt(0).toLowerCase()}${zin.slice(1)}.`;
   const tail = anyStroom ? "snelste combinatie van stroom en zeilhoek" : "gunstigste zeilhoek van de dag";
-  return (stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr)) + ` — ${tail}.`;
+  return `${zin} — ${tail}.`;
 }
 
 // ── etappes (VAARPLAN) ──────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
   type AdviesKind, type DepOption, type GustSample, type StroomVerloop,
 } from "@/lib/tocht";
 import type { TideData, WeatherSeries } from "@/lib/types";
+import type { SimResult } from "@/lib/tripsim";
 import { Skeleton } from "./Shell";
 import { WindArrow, WxIcon } from "./icons";
 import s from "./RouteScreen.module.css";
@@ -51,6 +52,7 @@ export interface RouteScreenProps {
   firstDepMs: number | null;
   anyStroom: boolean;
   depMs: number | null;
+  selTrip: SimResult | null;          // het gekozen vertrek (voor de uitlegzin)
   routeBearing: number | null;
   routeTide: TideData | null;
   routeGusts: GustSample[];
@@ -74,7 +76,7 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
+function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
@@ -89,7 +91,9 @@ function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTi
   const verloop = r ? stroomVerloop(r, anyStroom) : null;
   const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= best.depMs) : undefined;
   const warn = r ? letOp(r, routeBearing ?? 0, routeGusts) : null;
-  const uitleg = r ? adviesUitleg(r, anyStroom) : null;
+  // uitlegzin volgt het gekozen vertrek; zonder (afwijkende) keuze die van het beste
+  const gekozen = selTrip && best && selTrip.departMs !== best.depMs ? selTrip : null;
+  const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom) : null;
   const wx = best ? weatherAt(vanWeather, best.depMs) : null;
 
   return (
