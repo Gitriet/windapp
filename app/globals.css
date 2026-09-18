@@ -1,23 +1,87 @@
-/* Design tokens + utility classes — recreated from the Tidan handoff
-   (design_handoff_tocht_planner/README.md). The prototype leaned on a private
-   "nocturne" stylesheet; these classes reproduce the same look from the tokens
-   and screenshots. */
+/* Design tokens — "nautisch instrument" (design_handoff_tidan_nautisch/OPDRACHT.md §3).
+   Kleur, maat, radius, typografie en beweging komen ALLEEN hieruit; componenten
+   gebruiken var(--…), nooit losse waarden. */
 :root {
-  --bg-app: #0f1119;
-  --bg-card: #161826;
-  --bg-card-inner: #191c2b;
-  --border-subtle: #3f424d;
-  --text-primary: #e9e9ed;
+  /* kleur */
+  --ink:            #0b2338;  /* app- en kaartachtergrond (marine) */
+  --parchment:      #f3e9d2;  /* primaire tekst + gevulde nadrukvlakken */
+  --slate:          #8ba0b3;  /* secundaire tekst, labels */
+  --slate-dim:      #788ea2;  /* tertiaire tekst (≥4,5:1 op --ink) */
+  --slate-disabled: #5d7285;  /* disabled, lijnen, inactieve pijlen — geen tekst */
+  --body:           #b6c4d1;  /* lopende tekst op donker */
+  --ink-muted:      #4a5f70;  /* secundaire tekst op perkament */
+  --ochre:          #e6935a;  /* wind / waarschuwing */
+  --ochre-strong:   #c25b1f;
+  --ochre-text:     #ffb27a;  /* okertekst op ingekleurde chip */
+  --ochre-fill:     rgba(194, 91, 31, 0.1);   /* waarschuwingsvlak */
+  --ochre-chip:     rgba(230, 147, 90, 0.2);  /* windchip */
+  --ochre-chip-hw:  rgba(194, 91, 31, 0.22);  /* getij (HW/LW) chip */
+  --ochre-line:     rgba(230, 147, 90, 0.4);  /* waarschuwingsrand, tegenstroom-balk */
+  --ochre-soft:     rgba(230, 147, 90, 0.3);  /* windstaaf rustig-oker */
+  --sea-green:      #4fd394;  /* meestroom / gunstig */
+  --sea-green-deep: #1e8f5f;  /* gevulde "goed"-badge */
+  --sea-green-text: #6bdead;  /* groene tekst op groene chip */
+  --sea-green-fill: rgba(30, 143, 95, 0.22);
+  --sea-green-line: rgba(79, 211, 148, 0.4);
+  --hairline:       rgba(243, 233, 210, 0.2);   /* standaard rand */
+  --hairline-soft:  rgba(243, 233, 210, 0.15);  /* scheiding tabbar/kolom, nullijn */
+  --hairline-strong: rgba(243, 233, 210, 0.25); /* routechip */
+  --hairline-hover: rgba(243, 233, 210, 0.35);
+  --ring-inactive:  rgba(243, 233, 210, 0.3);   /* inactieve tabstip */
+  --fill-faint:     rgba(243, 233, 210, 0.08);
+  --grad-card: linear-gradient(180deg, rgba(243, 233, 210, 0.04), transparent);
+  --grad-rose: radial-gradient(circle at 30% 30%, rgba(230, 147, 90, 0.08), transparent 70%);
+
+  /* vorm */
+  --radius-xs: 2px;   /* staven, balkjes */
+  --radius-sm: 4px;   /* chips, rijen, badges */
+  --radius-md: 6px;   /* kaarten */
+  --line: 1px;
+
+  /* typografie — families via next/font (app/layout.tsx) */
+  --font-num: var(--font-space-grotesk), system-ui, sans-serif;  /* cijfers, labels, tabs */
+  --font-text: var(--font-inter), system-ui, sans-serif;         /* lopende tekst */
+  --fs-kern: 40px;       /* windsnelheid */
+  --fs-beslissing: 32px; /* GA NU */
+  --fs-tijdblok: 20px;
+  --fs-merk: 18px;
+  --fs-sectie: 14px;
+  --fs-rij: 13px;
+  --fs-rij-sm: 12px;
+  --fs-label: 11px;
+  --fs-label-sm: 10px;
+  --fs-min: 9px;         /* ondergrens: nooit kleiner */
+  --ls-label: 0.1em;
+  --ls-kop: 0.06em;
+
+  /* ruimte */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 10px;
+  --sp-6: 12px;
+  --sp-7: 14px;
+  --sp-8: 16px;
+  --sp-9: 20px;
+  --sp-10: 22px;
+  --sp-11: 32px;
+  --sp-12: 36px;
+  --gutter: 16px;
+  --tap: 44px;           /* minimale tapvlak */
+
+  /* beweging + focus */
+  --dur-hover: 150ms;
+  --focus-ring: 2px solid var(--ochre);
+
+  /* ── LEGACY (oude views, verdwijnt in stap 9) ── */
+  --bg-card: var(--ink);
+  --text-primary: var(--parchment);
   --text-secondary: rgba(233, 233, 237, 0.7);
   --text-muted: rgba(233, 233, 237, 0.35);
   --accent-purple: #8B7DD6;
   --accent-purple-light: #d2cefd;
   --accent-purple-bg: rgba(139, 125, 214, 0.16);
-  --current-mee: #2BA6A0;
-  --current-tegen: #c07a7a;
-  --wind-teal: #6ab6aa;
-  --kentering-gold: #e8b94a;
-  /* gedeelde zijpadding voor de view-content (Nu + Tocht planner) */
   --view-pad-x: 40px;
 }
 
@@ -25,9 +89,9 @@
 
 body {
   margin: 0;
-  background: var(--bg-card);
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  color: var(--text-primary);
+  background: var(--ink);
+  font-family: var(--font-text);
+  color: var(--parchment);
   -webkit-font-smoothing: antialiased;
 }
 
