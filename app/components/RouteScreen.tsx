@@ -55,7 +55,8 @@ export interface RouteScreenProps {
   routeTide: TideData | null;
   routeGusts: GustSample[];
   vanWeather: WeatherSeries | null;
-  onPick: (depMs: number) => void;   // selecteer vertrek + open VAARPLAN
+  onSelect: (depMs: number) => void; // vertrek kiezen (blijft op ROUTE)
+  onOpenVaarplan: () => void;        // naar VAARPLAN met het gekozen vertrek
 }
 
 export default function RouteScreen(p: RouteScreenProps) {
@@ -73,7 +74,7 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onPick }: RouteScreenProps) {
+function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
@@ -126,13 +127,13 @@ function AdviesKaart({ best, firstDepMs, anyStroom, nowMs, routeBearing, routeTi
         </div>
       )}
       {best && (
-        <button type="button" className={`is-filled ${s.cta}`} onClick={() => onPick(best.depMs)}>BEKIJK VAARPLAN →</button>
+        <button type="button" className={`is-filled ${s.cta}`} onClick={onOpenVaarplan}>BEKIJK VAARPLAN →</button>
       )}
     </div>
   );
 }
 
-function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onPick }: RouteScreenProps) {
+function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: RouteScreenProps) {
   const rows = [...(best ? [best] : []), ...vensters].sort((a, b) => a.depMs - b.depMs);
   if (!rows.length) return null;
   return (
@@ -147,7 +148,7 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onPick }: Route
             .filter(Boolean).join(" · ");
           return (
             <button key={o.depMs} type="button" className={`row ${s.rij} ${isBest ? "is-filled" : ""}`}
-              aria-current={o.depMs === depMs ? "true" : undefined} onClick={() => onPick(o.depMs)}>
+              aria-current={o.depMs === depMs ? "true" : undefined} onClick={() => onSelect(o.depMs)}>
               {s0 && <WindArrow dir={s0.wDir} />}
               <span className={s.rijMain}>
                 <span className={s.rijTijd}>{localHM(o.depMs)} → {r.arrMs ? localHM(r.arrMs) : "—"}</span>

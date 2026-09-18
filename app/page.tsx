@@ -59,7 +59,7 @@ export default function Page() {
           ready={ready} nowMs={nowMs} best={bestOption} vensters={vensters} firstDepMs={firstDepMs}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs}
           routeBearing={routeBearing} routeTide={routeTide} routeGusts={routeGusts} vanWeather={vanWeather}
-          onPick={(ms) => { setDepMs(ms); setTab("vaarplan"); }} />
+          onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>
     ),
     nu: (
