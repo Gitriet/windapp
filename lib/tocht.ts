@@ -4,6 +4,8 @@ import type { SimResult, SimStep, SimWind } from "./tripsim";
 import type { RouteCurrent } from "./planner-data";
 import type { WeatherSeries } from "./types";
 import { WARN } from "./constants";
+import { localHM } from "./tz";
+import { dirLabel16, sailPhrase } from "./format";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -80,21 +82,6 @@ export function combineLegTimelines(
 export function stroomSpanOf(legTimelines: { cur: RouteCurrent | null; distNm: number }[]): { first: number; last: number } | null {
   const ms = combineLegTimelines(legTimelines).series.filter((p) => p.alongKn != null).map((p) => tms(p.t));
   return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
-}
-
-// kentering-momenten = nuldoorgangen van de gecombineerde stroom-langs-reeks.
-export function kenteringTicks(legTimelines: { cur: RouteCurrent | null; distNm: number }[]): number[] {
-  const s = combineLegTimelines(legTimelines).series
-    .filter((p) => p.alongKn != null).map((p) => ({ m: tms(p.t), v: p.alongKn as number }));
-  const out: number[] = [];
-  for (let i = 1; i < s.length; i++) {
-    if ((s[i - 1].v >= 0) !== (s[i].v >= 0)) {
-      const a = Math.abs(s[i - 1].v), b = Math.abs(s[i].v);
-      const f = a + b === 0 ? 0 : a / (a + b);
-      out.push(s[i - 1].m + f * (s[i].m - s[i - 1].m));
-    }
-  }
-  return out;
 }
 
 // beste vertrek = het DICHTSTBIJZIJNDE goede venster (niet de globale snelste, die vaak
@@ -203,4 +190,47 @@ export function weatherAt(w: WeatherSeries | null | undefined, ms: number): { te
   const i = w.time.findIndex((t) => tms(t) === hour);
   if (i < 0) return null;
   return { temp: w.temp[i], code: w.code[i], precip: w.precip[i] };
+}
+
+// Stroomverloop van één vertrek: mee/tegen bij vertrek en tot wanneer (eerste kentering
+// binnen de tocht), of onzeker/zonder data. Voedt de MEE TOT-chip en de rijnotitie.
+export type StroomVerloop =
+  | { kind: "mee" | "tegen"; totMs: number | null }   // totMs null = de hele tocht
+  | { kind: "onzeker" | "geen" };
+export function stroomVerloop(r: SimResult, anyStroom: boolean): StroomVerloop {
+  if (!anyStroom) return { kind: "geen" };
+  if (r.voorbijHorizon) return { kind: "onzeker" };
+  const mee = (r.steps[0]?.cur ?? 0) >= 0;
+  const kent = r.kentMs != null && r.kentMs > r.departMs && (r.arrMs == null || r.kentMs < r.arrMs);
+  return { kind: mee ? "mee" : "tegen", totMs: kent ? r.kentMs : null };
+}
+
+// Uitlegzin bij het advies: stroom + wind uit de sim-stappen van het beste vertrek.
+// (Tekst ongewijzigd overgenomen uit de oude antwoord-/redenregel.)
+export function adviesUitleg(b: SimResult, anyStroom: boolean): string | null {
+  if (!b.arrMs || !b.steps.length) return null;
+  const s0 = b.steps[0];
+  const body = b.steps.length > 1 ? b.steps.slice(0, -1) : b.steps;
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  let stroomStr = "";
+  if (anyStroom) {
+    const startMee = (s0.cur ?? 0) >= 0;
+    const kent = b.kentMs && b.kentMs > b.departMs && b.kentMs < b.arrMs;
+    if (kent) {
+      const hrs = Math.max(1, Math.round((b.kentMs! - b.departMs) / H));
+      stroomStr = startMee
+        ? `meestroom eerste ${hrs} uur, kentering om ${localHM(b.kentMs!)}`
+        : `tegenstroom tot kentering ${localHM(b.kentMs!)}`;
+    } else {
+      stroomStr = startMee ? "stroom mee vrijwel de hele tocht" : "stroom overwegend tegen";
+    }
+  }
+  let windStr = `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)} kn ${sailPhrase(s0.twa)}`;
+  const maxSpd = Math.max(...body.map((s) => s.wSpd));
+  if (maxSpd - s0.wSpd >= 4) windStr += `, bouwt op naar ${Math.round(maxSpd)} kn`;
+  const sEnd = body[body.length - 1];
+  const veer = sEnd ? Math.abs(((sEnd.wDir - s0.wDir + 540) % 360) - 180) : 0;
+  if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
+  const tail = anyStroom ? "snelste combinatie van stroom en zeilhoek" : "gunstigste zeilhoek van de dag";
+  return (stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr)) + ` — ${tail}.`;
 }

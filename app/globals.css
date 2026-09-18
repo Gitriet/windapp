@@ -67,7 +67,7 @@
   --sp-10: 22px;
   --sp-11: 32px;
   --sp-12: 36px;
-  --gutter: 16px;
+  --gutter: 20px;
   --tap: 44px;           /* minimale tapvlak */
   --tabbar-space: 88px;  /* ruimte onder de content voor de vaste tabbar (mobiel) */
   --tabbar-pad-bottom: 18px;
@@ -75,6 +75,14 @@
   --chip-pad: 9px var(--sp-7);
   --chip-pad-desk: 7px var(--sp-6);
   --fs-merk-desk: 16px;
+  --fs-beslissing-desk: 26px;
+  --ls-beslissing: -0.5px;
+  --lh-text: 1.4;
+  --disc: 18px;          /* advies-schijf */
+  --chip-pad-lg: 7px 11px;
+  --row-pad: 9px var(--sp-6);
+  --cta-pad: 11px;
+  --label-col: 62px;     /* labelkolom in detailrijen */
   --ls-merk: 0.02em;
   --ls-merk-desk: 0.04em;
   --ls-tab: 0.03em;

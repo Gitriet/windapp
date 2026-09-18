@@ -1,6 +1,6 @@
 // Advies-afleidingen (lib/tocht.ts): de vijf toestanden, de LET OP-drempels uit
 // WARN.hardWind, het stroomeffect-label en het weer-uur-sample.
-import { adviesState, letOp, effectLabel, weatherAt, type DepOption } from "../lib/tocht";
+import { adviesState, letOp, effectLabel, weatherAt, stroomVerloop, type DepOption } from "../lib/tocht";
 import { WARN } from "../lib/constants";
 import type { SimResult, SimStep } from "../lib/tripsim";
 import type { WeatherSeries } from "../lib/types";
@@ -49,5 +49,14 @@ const w = { time: ["2026-09-18T10:00", "2026-09-18T11:00"], temp: [17, 18], code
 ok("uur waarin ms valt", weatherAt(w, T0 + 59 * 60000)?.temp === 17);
 ok("volgend uur", weatherAt(w, T0 + H)?.precip === 0.4);
 ok("buiten reeks → null", weatherAt(w, T0 + 5 * H) === null);
+
+console.log("— stroomVerloop —");
+const sv = (cur: number, kentMs: number | null, extra: Partial<SimResult> = {}) =>
+  stroomVerloop({ steps: [step(T0, 10, cur)], departMs: T0, arrMs: T0 + 2 * H, kentMs, voorbijHorizon: false, ...extra } as SimResult, true);
+ok("mee tot kentering", JSON.stringify(sv(1, T0 + H)) === JSON.stringify({ kind: "mee", totMs: T0 + H }));
+ok("tegen hele tocht", JSON.stringify(sv(-1, null)) === JSON.stringify({ kind: "tegen", totMs: null }));
+ok("kentering na aankomst telt niet", JSON.stringify(sv(1, T0 + 3 * H)) === JSON.stringify({ kind: "mee", totMs: null }));
+ok("onzeker", sv(1, null, { voorbijHorizon: true }).kind === "onzeker");
+ok("geen stroomdata", stroomVerloop({ steps: [] } as unknown as SimResult, false).kind === "geen");
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

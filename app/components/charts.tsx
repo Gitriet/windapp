@@ -9,14 +9,10 @@ import { localHM, localMidnight } from "@/lib/tz";
 import { COLORS, alpha } from "@/lib/colors";
 import { relativeWindAngle } from "@/lib/wind";
 import { WindRoseIcon } from "./WindRoseIcon";
+import { dirLabel16, fmtDur } from "@/lib/format";
 import { windAgainstCurrent, type DepOption, type WindTLSample } from "@/lib/tocht";
 
 const H = 3_600_000;
-const P16 = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
-export const dirLabel16 = (d: number) => P16[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
-// Rond eerst de totale minuten af, splits dan pas — anders kan Math.round(min % 60)
-// naar 60 afronden terwijl het uur al is afgekapt (1859,6 min → "30u60" i.p.v. "31u00").
-export const fmtDur = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}u${String(m % 60).padStart(2, "0")}`; };
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 
 // waarschuwingskleur (amber) voor wind-tegen-stroom e.d.
@@ -47,11 +43,6 @@ function densify(src: { ms: number; v: number | null }[], startMs: number, endMs
 // Rasterstap voor densify: ~10 min, maar nooit meer dan ~40 balken over het venster.
 const denseStep = (span: number) => Math.max(10 * 60_000, Math.round(span / 40));
 
-// Zeilhoek in woorden uit de TWA (0–180). Grenzen exact zoals gevraagd.
-export function sailPhrase(twa: number): string {
-  const a = Math.abs(twa);
-  return a < 45 ? "aan de wind" : a < 90 ? "halve wind" : a < 135 ? "ruime wind" : "voor de wind";
-}
 
 // Gemiddelde wind: scalaire gemiddelde snelheid + vector-gemiddelde richting over de
 // body-stappen (de laatste stap is een duplicaat-aankomststap). Met `windowMs` middelt

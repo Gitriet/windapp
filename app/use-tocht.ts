@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  combineWindStations, kenteringTicks, pickBest, type DepOption, type GustSample, type RouteMeta,
+  combineWindStations, pickBest, pickVensters, type DepOption, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { Location, TideData } from "@/lib/types";
 import type { ViaHaven } from "./components/VaarplanView";
@@ -158,6 +158,7 @@ export function useTocht() {
     [candidates, runSim],
   );
   const bestOption = useMemo(() => pickBest(depOptions), [depOptions]);
+  const vensters = useMemo(() => pickVensters(depOptions, bestOption), [depOptions, bestOption]);
 
   // Zolang de gebruiker niets koos (depMs == null) volgt de selectie het beste vertrek.
   useEffect(() => {
@@ -166,10 +167,6 @@ export function useTocht() {
 
   const selTrip = useMemo(() => (depMs != null ? runSim(depMs) : null), [depMs, runSim]);
 
-  const hwMs = useMemo(
-    () => (routeTide?.extremes ?? []).filter((e) => e.kind === "HW").map((e) => tms(e.t)),
-    [routeTide],
-  );
 
   // tussenliggende havens (uitwijk) + cumulatieve nm-vanaf-vertrek, voor het vaarplan.
   const viaHavens = useMemo<ViaHaven[]>(() => {
@@ -207,14 +204,13 @@ export function useTocht() {
   );
   const vanWeather = endpoints ? routeFc[endpoints.van.key]?.weather ?? null : null;
 
-  const kentTicks = useMemo(() => kenteringTicks(routeMeta.legTimelines), [legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
-    depMs, setDepMs, depOptions, bestOption, selTrip, kentTicks, firstDepMs: candidates[0] ?? null,
+    depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     routeGusts, vanWeather,
-    routeTide, routeTideTo, hwMs, ready: !!routeWind, nowMs, err,
+    routeTide, routeTideTo, ready: !!routeWind, nowMs, err,
   };
 }
 
