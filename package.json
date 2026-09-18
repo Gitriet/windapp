@@ -8,7 +8,7 @@
     "start": "next start",
     "seed": "node scripts/seed.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/correction.test.ts",
+    "test": "for f in test/*.test.ts; do echo \"▸ $f\"; tsx \"$f\" > /dev/null || exit 1; done",
     "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
