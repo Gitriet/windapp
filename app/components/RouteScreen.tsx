@@ -2,7 +2,7 @@
 // ROUTE — beslisscherm: één advieskaart (5 toestanden) + alle vertrekvensters (48u).
 // Alleen presentatie; alle afleidingen komen uit lib/tocht.ts.
 import { localHM, localDateISO } from "@/lib/tz";
-import { aankomstLabel, dirLabel16, tijdblok } from "@/lib/format";
+import { aankomstLabel, dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import { wxLabel } from "@/lib/weather";
 import {
   adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, stroomVerloop, weatherAt,
@@ -140,7 +140,6 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
         {rows.map((o) => {
           const r = o.result, isBest = o.depMs === best?.depMs, s0 = r.steps[0];
           const gekozen = o.depMs === (depMs ?? best?.depMs);   // de gekozen rij is gevuld, niet per se de beste
-          const delta = best ? Math.round(r.tripMin - best.result.tripMin) : 0;
           const dag = dagLabel(o.depMs, nowMs);
           const notitie = [dag, s0 ? `${dirLabel16(s0.wDir)}\u00A0${Math.round(s0.wSpd)}\u00A0kn` : "", stroomNotitie(stroomVerloop(r, anyStroom))]
             .filter(Boolean).join(" · ");
@@ -152,9 +151,8 @@ function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: Rou
                 <span className={s.rijTijd}>{tijdblok(o.depMs, r.arrMs)}</span>
                 <span className={s.rijSub}>{notitie}</span>
               </span>
-              {isBest ? <span className={s.badge}>BESTE</span>
-                : r.voorbijHorizon ? <span className={s.delta}>ONZEKER</span>
-                : <span className={s.delta}>{delta > 0 ? "+" : delta < 0 ? "−" : "±"}{Math.abs(delta)}&nbsp;MIN</span>}
+              {isBest && <span className={s.badge}>BESTE</span>}
+              <span className={s.duur}>{fmtDuurKort(r.tripMin)}</span>
             </button>
           );
         })}

@@ -55,7 +55,7 @@
 .rij:global(.is-filled) { color: var(--ink); }
 .rij:not(:global(.is-filled)) svg { color: var(--slate); }
 .rij:not(:global(.is-filled)) .badge { background: none; border: var(--line) solid var(--hairline-strong); }
-.rij:global(.is-filled) .delta { color: var(--ink-muted); }
+.rij:global(.is-filled) .duur { color: var(--ink-muted); }
 .rijMain { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .rijTijd { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); white-space: nowrap; }
 .rijSub { margin-top: var(--line); font-size: var(--fs-caption); color: var(--slate); }
@@ -65,7 +65,7 @@
   background: var(--ink); color: var(--parchment);
   font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-num);
 }
-.delta { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }
+.duur { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }
 
 /* chartplotter (≥1400px): het vaarplan staat ernaast, dus geen knop */
 @media (min-width: 1400px) {
