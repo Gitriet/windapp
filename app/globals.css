@@ -96,7 +96,6 @@
   --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: 7px;
   --compact-label: 56px;
-  --topchip-w: 360px;    /* routechip in de desktop-topbalk */
   --fade-h: 40px;        /* fade onderaan een scrollend paneel */
   --scrim: rgba(11, 35, 56, 0.7);   /* --ink achter een open paneel */
   --paneel-w: 420px;   /* bootprofiel vanaf 768px */
@@ -257,7 +256,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     border-bottom: var(--line) solid var(--hairline-soft);
   }
   .shell-brand { font-size: var(--fs-merk); letter-spacing: var(--ls-merk); color: var(--parchment); }
-  .shell-top-chip { display: block; width: var(--topchip-w); }
+  /* chip vooraan, exact boven de ROUTE-kolom: zelfde padding als .shell-screens, dus 1 van 4 kolommen */
+  .shell-top-chip { display: block; order: -1; width: calc((100% - 3 * var(--sp-10)) / 4); }
   .shell-top-klok { font-size: var(--fs-title); }
   .shell-top-tijd {
     display: block;
