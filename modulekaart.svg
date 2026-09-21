@@ -1,0 +1,131 @@
+<svg width="100%" viewBox="0 0 680 680" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Modulekaart van windapp</title><desc>Vier clusters — lib, app, ingest en api — elk een knooppunt met zijn bestanden eromheen; punten geschaald op regelaantal.</desc>
+<style>.dot,.hub{fill:#4b4e48}.sp{stroke:#4b4e48;stroke-width:.6;fill:none;opacity:.6}.lk{stroke:#4b4e48;stroke-width:1;fill:none;opacity:.55}</style>
+<line class="lk" x1="182" y1="196" x2="348" y2="332"/>
+<line class="lk" x1="284" y1="524" x2="348" y2="332"/>
+<line class="lk" x1="506" y1="186" x2="348" y2="332"/>
+<line class="sp" x1="348.0" y1="332.0" x2="416.7" y2="306.9"/>
+<line class="sp" x1="348.0" y1="332.0" x2="452.0" y2="330.8"/>
+<line class="sp" x1="348.0" y1="332.0" x2="422.0" y2="332.3"/>
+<line class="sp" x1="348.0" y1="332.0" x2="404.3" y2="359.2"/>
+<line class="sp" x1="348.0" y1="332.0" x2="427.8" y2="392.1"/>
+<line class="sp" x1="348.0" y1="332.0" x2="412.2" y2="391.1"/>
+<line class="sp" x1="348.0" y1="332.0" x2="367.8" y2="386.6"/>
+<line class="sp" x1="348.0" y1="332.0" x2="372.7" y2="418.1"/>
+<line class="sp" x1="348.0" y1="332.0" x2="352.3" y2="430.3"/>
+<line class="sp" x1="348.0" y1="332.0" x2="325.4" y2="388.8"/>
+<line class="sp" x1="348.0" y1="332.0" x2="319.2" y2="402.8"/>
+<line class="sp" x1="348.0" y1="332.0" x2="276.6" y2="407.3"/>
+<line class="sp" x1="348.0" y1="332.0" x2="286.2" y2="366.6"/>
+<line class="sp" x1="348.0" y1="332.0" x2="292.5" y2="357.9"/>
+<line class="sp" x1="348.0" y1="332.0" x2="246.3" y2="333.7"/>
+<line class="sp" x1="348.0" y1="332.0" x2="265.0" y2="320.2"/>
+<line class="sp" x1="348.0" y1="332.0" x2="291.7" y2="316.2"/>
+<line class="sp" x1="348.0" y1="332.0" x2="279.8" y2="269.2"/>
+<line class="sp" x1="348.0" y1="332.0" x2="286.4" y2="257.9"/>
+<line class="sp" x1="348.0" y1="332.0" x2="319.0" y2="279.9"/>
+<line class="sp" x1="348.0" y1="332.0" x2="339.1" y2="252.6"/>
+<line class="sp" x1="348.0" y1="332.0" x2="336.9" y2="229.5"/>
+<line class="sp" x1="348.0" y1="332.0" x2="367.8" y2="267.1"/>
+<line class="sp" x1="348.0" y1="332.0" x2="383.7" y2="274.9"/>
+<line class="sp" x1="348.0" y1="332.0" x2="407.0" y2="247.7"/>
+<line class="sp" x1="348.0" y1="332.0" x2="419.1" y2="294.5"/>
+<line class="sp" x1="182.0" y1="196.0" x2="218.4" y2="267.4"/>
+<line class="sp" x1="182.0" y1="196.0" x2="177.0" y2="263.2"/>
+<line class="sp" x1="182.0" y1="196.0" x2="167.8" y2="242.2"/>
+<line class="sp" x1="182.0" y1="196.0" x2="122.3" y2="238.6"/>
+<line class="sp" x1="182.0" y1="196.0" x2="107.5" y2="212.5"/>
+<line class="sp" x1="182.0" y1="196.0" x2="132.9" y2="191.6"/>
+<line class="sp" x1="182.0" y1="196.0" x2="136.3" y2="151.4"/>
+<line class="sp" x1="182.0" y1="196.0" x2="141.5" y2="125.4"/>
+<line class="sp" x1="182.0" y1="196.0" x2="177.6" y2="140.7"/>
+<line class="sp" x1="182.0" y1="196.0" x2="210.7" y2="149.4"/>
+<line class="sp" x1="182.0" y1="196.0" x2="238.2" y2="137.5"/>
+<line class="sp" x1="182.0" y1="196.0" x2="245.2" y2="181.5"/>
+<line class="sp" x1="182.0" y1="196.0" x2="229.0" y2="209.7"/>
+<line class="sp" x1="182.0" y1="196.0" x2="247.5" y2="233.6"/>
+<line class="sp" x1="284.0" y1="524.0" x2="350.7" y2="552.2"/>
+<line class="sp" x1="284.0" y1="524.0" x2="325.4" y2="591.5"/>
+<line class="sp" x1="284.0" y1="524.0" x2="296.1" y2="570.9"/>
+<line class="sp" x1="284.0" y1="524.0" x2="255.8" y2="578.7"/>
+<line class="sp" x1="284.0" y1="524.0" x2="215.7" y2="572.6"/>
+<line class="sp" x1="284.0" y1="524.0" x2="229.3" y2="537.2"/>
+<line class="sp" x1="284.0" y1="524.0" x2="239.1" y2="498.1"/>
+<line class="sp" x1="284.0" y1="524.0" x2="231.2" y2="461.0"/>
+<line class="sp" x1="284.0" y1="524.0" x2="272.0" y2="458.0"/>
+<line class="sp" x1="284.0" y1="524.0" x2="307.3" y2="483.8"/>
+<line class="sp" x1="284.0" y1="524.0" x2="338.5" y2="472.5"/>
+<line class="sp" x1="284.0" y1="524.0" x2="360.7" y2="516.2"/>
+<line class="sp" x1="506.0" y1="186.0" x2="476.6" y2="250.2"/>
+<line class="sp" x1="506.0" y1="186.0" x2="460.9" y2="198.0"/>
+<line class="sp" x1="506.0" y1="186.0" x2="458.2" y2="171.2"/>
+<line class="sp" x1="506.0" y1="186.0" x2="486.1" y2="117.0"/>
+<line class="sp" x1="506.0" y1="186.0" x2="530.1" y2="137.2"/>
+<line class="sp" x1="506.0" y1="186.0" x2="545.1" y2="166.1"/>
+<line class="sp" x1="506.0" y1="186.0" x2="564.0" y2="221.7"/>
+<line class="sp" x1="506.0" y1="186.0" x2="530.9" y2="243.8"/>
+<circle class="dot" cx="416.7" cy="306.9" r="3.63"><title>lib/borrowed.ts — 41 regels</title></circle>
+<circle class="dot" cx="452.0" cy="330.8" r="3.72"><title>lib/constants.ts — 47 regels</title></circle>
+<circle class="dot" cx="422.0" cy="332.3" r="4.15"><title>lib/correction.ts — 83 regels</title></circle>
+<circle class="dot" cx="404.3" cy="359.2" r="3.32"><title>lib/db.ts — 23 regels</title></circle>
+<circle class="dot" cx="427.8" cy="392.1" r="3.63"><title>lib/format.ts — 41 regels</title></circle>
+<circle class="dot" cx="412.2" cy="391.1" r="4.91"><title>lib/gates.ts — 170 regels</title></circle>
+<circle class="dot" cx="367.8" cy="386.6" r="4.29"><title>lib/getij.ts — 97 regels</title></circle>
+<circle class="dot" cx="372.7" cy="418.1" r="3.7"><title>lib/haven-info.ts — 46 regels</title></circle>
+<circle class="dot" cx="352.3" cy="430.3" r="4.64"><title>lib/instrument.ts — 136 regels</title></circle>
+<circle class="dot" cx="325.4" cy="388.8" r="2.94"><title>lib/leads.ts — 8 regels</title></circle>
+<circle class="dot" cx="319.2" cy="402.8" r="4.16"><title>lib/netwerk-path.ts — 84 regels</title></circle>
+<circle class="dot" cx="276.6" cy="407.3" r="4.79"><title>lib/openmeteo.ts — 154 regels</title></circle>
+<circle class="dot" cx="286.2" cy="366.6" r="5.36"><title>lib/passage.ts — 237 regels</title></circle>
+<circle class="dot" cx="292.5" cy="357.9" r="4.25"><title>lib/planner-data.ts — 93 regels</title></circle>
+<circle class="dot" cx="246.3" cy="333.7" r="4.93"><title>lib/polar.ts — 173 regels</title></circle>
+<circle class="dot" cx="265.0" cy="320.2" r="3.65"><title>lib/r2.ts — 42 regels</title></circle>
+<circle class="dot" cx="291.7" cy="316.2" r="4.92"><title>lib/route.ts — 172 regels</title></circle>
+<circle class="dot" cx="279.8" cy="269.2" r="5.75"><title>lib/serving.ts — 303 regels</title></circle>
+<circle class="dot" cx="286.4" cy="257.9" r="5.34"><title>lib/tide.ts — 234 regels</title></circle>
+<circle class="dot" cx="319.0" cy="279.9" r="5.64"><title>lib/tocht.ts — 283 regels</title></circle>
+<circle class="dot" cx="339.1" cy="252.6" r="5.37"><title>lib/tripsim.ts — 238 regels</title></circle>
+<circle class="dot" cx="336.9" cy="229.5" r="4.29"><title>lib/types.ts — 97 regels</title></circle>
+<circle class="dot" cx="367.8" cy="267.1" r="4.29"><title>lib/tz.ts — 97 regels</title></circle>
+<circle class="dot" cx="383.7" cy="274.9" r="3.24"><title>lib/verdict.ts — 19 regels</title></circle>
+<circle class="dot" cx="407.0" cy="247.7" r="3.95"><title>lib/weather.ts — 65 regels</title></circle>
+<circle class="dot" cx="419.1" cy="294.5" r="2.98"><title>lib/wind.ts — 9 regels</title></circle>
+<circle class="hub" cx="348" cy="332" r="8.0"><title>lib/ — 26 bestanden</title></circle>
+<circle class="dot" cx="218.4" cy="267.4" r="4.45"><title>app/components/BootPaneel.tsx — 114 regels</title></circle>
+<circle class="dot" cx="177.0" cy="263.2" r="4.81"><title>app/components/GetijdenScreen.tsx — 157 regels</title></circle>
+<circle class="dot" cx="167.8" cy="242.2" r="5.09"><title>app/components/HavenSelector.tsx — 196 regels</title></circle>
+<circle class="dot" cx="122.3" cy="238.6" r="4.81"><title>app/components/NuScreen.tsx — 157 regels</title></circle>
+<circle class="dot" cx="107.5" cy="212.5" r="4.86"><title>app/components/RouteScreen.tsx — 164 regels</title></circle>
+<circle class="dot" cx="132.9" cy="191.6" r="4.43"><title>app/components/Shell.tsx — 111 regels</title></circle>
+<circle class="dot" cx="136.3" cy="151.4" r="4.89"><title>app/components/VaarplanScreen.tsx — 167 regels</title></circle>
+<circle class="dot" cx="141.5" cy="125.4" r="3.73"><title>app/components/icons.tsx — 48 regels</title></circle>
+<circle class="dot" cx="177.6" cy="140.7" r="3.4"><title>app/layout.tsx — 27 regels</title></circle>
+<circle class="dot" cx="210.7" cy="149.4" r="4.43"><title>app/page.tsx — 111 regels</title></circle>
+<circle class="dot" cx="238.2" cy="137.5" r="3.04"><title>app/screens.ts — 11 regels</title></circle>
+<circle class="dot" cx="245.2" cy="181.5" r="3.96"><title>app/use-app-url.ts — 66 regels</title></circle>
+<circle class="dot" cx="229.0" cy="209.7" r="3.32"><title>app/use-boot.ts — 23 regels</title></circle>
+<circle class="dot" cx="247.5" cy="233.6" r="5.48"><title>app/use-tocht.ts — 257 regels</title></circle>
+<circle class="hub" cx="182" cy="196" r="6.5"><title>app/ — 14 bestanden</title></circle>
+<circle class="dot" cx="350.7" cy="552.2" r="5.72"><title>ingest/migrate_marsdiep_to_r2.py — 298 regels</title></circle>
+<circle class="dot" cx="325.4" cy="591.5" r="5.52"><title>ingest/netwerk.py — 264 regels</title></circle>
+<circle class="dot" cx="296.1" cy="570.9" r="4.37"><title>ingest/netwerk_validate.py — 105 regels</title></circle>
+<circle class="dot" cx="255.8" cy="578.7" r="3.81"><title>ingest/restore_punt_forecast.py — 54 regels</title></circle>
+<circle class="dot" cx="215.7" cy="572.6" r="5.56"><title>ingest/smoke_stroom_cron.py — 270 regels</title></circle>
+<circle class="dot" cx="229.3" cy="537.2" r="4.23"><title>ingest/storage.py — 91 regels</title></circle>
+<circle class="dot" cx="239.1" cy="498.1" r="5.84"><title>ingest/stroom.py — 321 regels</title></circle>
+<circle class="dot" cx="231.2" cy="461.0" r="5.37"><title>ingest/stroom_cron.py — 238 regels</title></circle>
+<circle class="dot" cx="272.0" cy="458.0" r="5.84"><title>ingest/stroom_db.py — 409 regels</title></circle>
+<circle class="dot" cx="307.3" cy="483.8" r="4.61"><title>ingest/stroom_grid_io.py — 132 regels</title></circle>
+<circle class="dot" cx="338.5" cy="472.5" r="4.19"><title>ingest/stroom_punten.py — 87 regels</title></circle>
+<circle class="dot" cx="360.7" cy="516.2" r="4.91"><title>ingest/tiles.py — 171 regels</title></circle>
+<circle class="hub" cx="284" cy="524" r="6.5"><title>ingest/ — 12 bestanden</title></circle>
+<circle class="dot" cx="476.6" cy="250.2" r="3.12"><title>app/api/forecast/[key]/route.ts — 14 regels</title></circle>
+<circle class="dot" cx="460.9" cy="198.0" r="2.94"><title>app/api/locations/route.ts — 8 regels</title></circle>
+<circle class="dot" cx="458.2" cy="171.2" r="4.24"><title>app/api/route-stroom/route.ts — 92 regels</title></circle>
+<circle class="dot" cx="486.1" cy="117.0" r="3.95"><title>app/api/routes/route.ts — 65 regels</title></circle>
+<circle class="dot" cx="530.1" cy="137.2" r="3.42"><title>app/api/stroom/route.ts — 28 regels</title></circle>
+<circle class="dot" cx="545.1" cy="166.1" r="3.12"><title>app/api/tide/[key]/route.ts — 14 regels</title></circle>
+<circle class="dot" cx="564.0" cy="221.7" r="3.17"><title>app/api/tide/haven/[slug]/route.ts — 16 regels</title></circle>
+<circle class="dot" cx="530.9" cy="243.8" r="3.12"><title>app/api/week/[key]/route.ts — 14 regels</title></circle>
+<circle class="hub" cx="506" cy="186" r="5.5"><title>api/ — 8 bestanden</title></circle>
+</svg>
