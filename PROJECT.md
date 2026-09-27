@@ -114,14 +114,15 @@ her-sampelt uit intacte R2-grids.
 
 ## Frontend
 
-- **Schermen:** één pagina, `app/page.tsx` (client), met vier schermen in een vaste
+- **Schermen:** één pagina, `app/page.tsx` (client), met drie schermen in een vaste
   volgorde uit `app/screens.ts`: **ROUTE** (advies GA NU/VERTREK/ONZEKER/GEEN VENSTER/
-  ZONDER STROOM + alle vertrekken 48 u), **NU** (live wind op één locatie, 12 u, 4/7
-  dagen), **GETIJDEN** (weekstrip, vertrektijden op stroom zonder wind, 24-uurs
-  stroomkromme) en **VAARPLAN** (gekozen vertrek: KPI's, etappes, haveninfo). Mobiel
-  (<768px) één scherm per tab met vaste tabbar; 768–1400px 2 kolommen; ≥1400px 4
+  ZONDER STROOM + alle vertrekken 48 u), **WEER & GETIJ** (één weekstrip; schakelaar
+  VERTREK/AANKOMST-haven bovenaan; kompaskaart met live wind + dagweer van de gekozen
+  dag, 12 u, onderaan het getij van de gekozen dag: HW/LW en getijcurve) en **VAARPLAN** (gekozen vertrek: KPI's, kiesbare etappes met
+  eigen 24-uurs stroomkromme, vertrektijden op stroom zonder wind, haveninfo). Mobiel
+  (<768px) één scherm per tab met vaste tabbar; 768–1400px 2 kolommen; ≥1400px 3
   kolommen. `?tab=` en `?vertrek=` staan in de URL. Geen kaart-widget — alles is SVG.
-- **Structuur:** data + logica in `app/use-tocht.ts` (`useTocht`, `useNu`) en pure
+- **Structuur:** data + logica in `app/use-tocht.ts` (`useTocht`, `useHaven`) en pure
   afleidingen in `lib/tocht.ts` (beste vertrek, advies, LET OP, etappes),
   `lib/getij.ts` (datumbereik, dagstrip vanaf vandaag, ranking op stroom, kromme) en `lib/verdict.ts`
   (GOED/FRIS/LICHT/LET OP). Presentatie in `app/components/*Screen.tsx` + CSS-modules;
@@ -129,8 +130,8 @@ her-sampelt uit intacte R2-grids.
 - **Vormgeving:** "nautisch instrument" — tokens (kleur, radius, typografie, ruimte)
   uitsluitend in `app/globals.css`; Space Grotesk (cijfers/labels) + Inter (tekst) via
   `next/font`. Ontwerpbron: `design_handoff_tidan_nautisch/`.
-- **GETIJDEN-dagen:** het datumbereik komt uit één functie (`lib/getij.ts` `datumBereik`,
-  gevoed in `useTocht`): het venster van de geladen stroom- en getijreeksen. De dagstrip
+- **WEER & GETIJ-dagen:** het datumbereik komt uit één functie (`lib/getij.ts` `datumBereik`,
+  gevoed in `WeerGetijScreen`): het venster van de weer- en getijreeksen van beide havens. De dagstrip
   begint altijd bij vandaag (`stripDagen`); oude dagen worden nooit getoond (geen historie).
 - **API-routes** (`app/api/*`, alle `force-dynamic`): `forecast/[key]`,
   `week/[key]`, `tide/[key]`, `tide/haven/[slug]`, `locations`, `stroom?box=…`
@@ -192,7 +193,7 @@ gehaald/net-aan/niet-gehaald/onbekend. `GATE_DATUMS` wordt opgebouwd uit
   toont ~16 locaties.
 - **Getijstroom (fase 3):** uurlijkse cron operationeel met inshore/offshore-splitsing;
   grids in R2, punt-forecast in Neon voor alle 26 routes; hindcast-punten per dag in R2.
-  De routekiezer (ROUTE/GETIJDEN/VAARPLAN) kan elke haven-combinatie kiezen.
+  De routekiezer (ROUTE/WEER & GETIJ/VAARPLAN) kan elke haven-combinatie kiezen.
 - **Getij:** live RWS-laag met astronomische cache, alleen voor Wad-/getijpunten.
 - **Bekende gaten / open punten:**
   watertemperatuur heeft geen databron (niet getoond); golfhoogte komt uit de

@@ -13,7 +13,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 | | `app/screens.ts` | Volgorde + labels van de schermen (tabbar, kolommen, `?tab=`). |
 | | `app/use-app-url.ts` | `?tab=` / `?vertrek=` (replaceState) + scrollpositie per tab. |
 | | `app/components/Shell.tsx` | Merkbalk, tabbar, kiezerchip, skeleton. |
-| Data + logica | `app/use-tocht.ts` | `useTocht` (havens, keten, wind/stroom/getij, 48u-sweep, beste vertrek, datumbereik) en `useNu` (locatie, forecast, week, getij). |
+| Data + logica | `app/use-tocht.ts` | `useTocht` (havens, keten, wind/stroom/getij, 48u-sweep, beste vertrek) en `useHaven` (forecast, week, getij van één route-haven). |
 | Pure afleidingen | `lib/tocht.ts` | Beste vertrek/vensters, advies (5 toestanden), LET OP, stroomverloop, uitlegzin, etappes. |
 | | `lib/getij.ts` | Datumbereik (enige bron), dagstrip vanaf vandaag, ranking op stroom, stroomkromme. |
 | | `lib/verdict.ts` | GOED/FRIS/LICHT/LET OP — ook de staafkleur in NU. |
@@ -33,28 +33,25 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 | Chip HW | `/api/tide/haven/{vertrekhaven}` → `extremes` | eerste HW ≥ vertrek |
 | LET OP | sim-stappen + vlaagpunten van de stations langs de route | `letOp()`: `WARN.hardWind` (oker-drempel) of `windAgainstCurrent` |
 | Weerregel | `/api/forecast/{station vertrekhaven}` → `weather` | `weatherAt()` op het vertrekuur |
-| Alle vertrekken | zelfde sweep | `pickVensters()`; rechts het verschil met het beste venster |
+| Alle vertrekken | zelfde sweep | `pickVensters()`; rechts de tochtduur (`fmtDuurKort`: "48m", "1u 15m", ≥24u "1d 3u") |
 
-### NU
+### WEER & GETIJ (per haven: schakelaar VERTREK / AANKOMST)
 | Blok | Bron | Afleiding |
 |---|---|---|
-| Kompas, knopen, BFT, vlaag | `/api/forecast/{locatie}` → `points[0]` (gekalibreerd) | `beaufort`, `bftLabel` |
-| Chips HW / temp / golf | tide-extremes; `weather.temp[0]`; `weather.wave[0]` (Open-Meteo Marine) | golf ontbreekt → "—" + reden |
+| Kiesbare dagen | weekreeks + getijreeks van beide havens | `datumBereik()`; de strip begint altijd bij vandaag (`stripDagen`) |
+| Kompas, knopen, BFT, vlaag | `/api/forecast/{station haven}` → `points[0]` (gekalibreerd) | `beaufort`, `bftLabel` |
+| Chips temp / golf | `weather.temp[0]`; `weather.wave[0]` (Open-Meteo Marine) | golf ontbreekt → "—" + reden |
 | Komende 12 uur | `points[0..12]` | kleur via `verdict()`; mobiel even uren, desktop elk uur |
-| 4/7 dagen | `/api/week/{locatie}` (ongecorrigeerd, Open-Meteo daily) | `verdict(speedMax, gust)` |
-
-### GETIJDEN
-| Blok | Bron | Afleiding |
-|---|---|---|
-| Kiesbare dagen | geladen stroomreeks + getijreeks vertrekhaven | `datumBereik()`; de strip begint altijd bij vandaag (`stripDagen`) |
-| Beste vertrektijden | `/api/route-stroom` per leg | `rankOpStroom()`: tripsim met motorprofiel op 5 kn, zónder wind; alleen vertrekken waarbij de stroom helpt |
-| Stroomkromme | zelfde reeks, lengte-gewogen over de legs | `krommeSegmenten()` (null = gat), `krommePieken()` |
+| Dagblok: weer | `/api/week/{station haven}` (ongecorrigeerd, Open-Meteo daily) | `verdict(speedMax, gust)` |
+| Dagblok: HW/LW + getijcurve | `/api/tide/haven/{haven}` → `extremes`, `expected`, `astro` (8 dagen) | verwachting waar die reikt, astronomisch daarbuiten; alleen de gekozen dag wordt getoond |
 
 ### VAARPLAN
 | Blok | Bron | Afleiding |
 |---|---|---|
 | Tijdblok + KPI's | gekozen `SimResult`; `chain.totalNm`; peiling | `fmtDuurKort` |
-| Etappes | sim-stappen per leg + vlaagpunten van de leg-stations | `etappes()`: stroom per segment, kentering, wind/vlaag |
+| Etappes | sim-stappen per leg + vlaagpunten van de leg-stations | `etappes()`: stroom per segment, kentering, wind/vlaag, tijdvenster op de leg |
+| Stroomkromme (gekozen etappe) | `/api/route-stroom` van die leg | `krommeSegmenten()` (null = gat), `krommePieken()`; dag = start van de leg, band = onderweg |
+| Beste vertrektijden | `/api/route-stroom` per leg, vertrekdag | `rankOpStroom()`: tripsim met motorprofiel op 5 kn, zónder wind; alleen vertrekken waarbij de stroom helpt |
 | Haveninfo | `data/havens-info.json` via `/api/routes` | eerste VHF-kanaal + havennaam |
 | Getijpoort | `GATE_DATUMS` (nu alleen Vlissingen) + getijcurve vertrekhaven | `gateWindows` → OPEN / DICHT / ONBEKEND |
 | VHF-posten, uitwijk | vaste lijst verkeersposten (breedtegraad), tussenhavens van de keten | — |
@@ -65,6 +62,6 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 - **Watertemperatuur**: geen bron; weggelaten.
 - **VHF-kanalen uit het prototype** (09/12) zijn voorbeeldwaarden; de app toont `havens-info`.
 
-## GETIJDEN toont geen verleden
+## WEER & GETIJ toont geen verleden
 Besluit 2026-09-18: de dagstrip begint altijd bij vandaag en toont nooit oude dagen. De
 eerder geplande GETIJDEN-historie uit de R2-hindcast vervalt daarmee.

@@ -24,7 +24,8 @@
 }
 
 .lijst { display: flex; flex-direction: column; gap: var(--sp-4); }
-.etappe { padding: var(--sp-5) var(--sp-6); display: flex; flex-direction: column; gap: var(--etappe-gap); }
+.etappe { width: 100%; text-align: left; padding: var(--sp-5) var(--sp-6); display: flex; flex-direction: column; gap: var(--etappe-gap); }
+.etappe[aria-pressed="true"] { border-color: var(--parchment); }
 .etappeKop { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); }
 .etappeNaam { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; min-width: 0; }
 .etappeNm { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); white-space: nowrap; }
@@ -46,3 +47,33 @@
 .poort[data-status="dicht"] { color: var(--ochre); border-color: var(--ochre-line); background: var(--ochre-fill); }
 .compact { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4) var(--sp-6); font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--body); }
 .compactLabel { flex: 0 0 auto; width: var(--compact-label); font-family: var(--font-num); font-weight: var(--fw-num); color: var(--slate); }
+
+/* stroomkromme van de gekozen etappe + beste vertrektijden op stroom (uit GETIJDEN) */
+.krommeKaart { padding: var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-4); }
+.kromme { width: 100%; height: auto; display: block; overflow: visible; }
+.nullijn { stroke: var(--hairline-soft); stroke-width: var(--line); }
+.lijn { fill: none; stroke: var(--sea-green); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
+.onderweg { fill: var(--hairline-soft); }
+.piekMee { fill: var(--sea-green); }
+.piekTegen { fill: var(--slate); }
+.as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
+.as { justify-content: space-between; }
+.legenda { flex-wrap: wrap; gap: var(--sp-3) var(--sp-7); }
+.legenda > span { display: inline-flex; align-items: center; gap: var(--sp-3); }
+.stip { display: inline-block; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
+.stip.piekMee { background: var(--sea-green); }
+.stip.piekTegen { background: var(--slate); }
+.stip.stipOnderweg { border-radius: var(--radius-xs); background: var(--hairline-soft); }
+
+.lijstTop { margin-top: var(--sp-4); gap: var(--sp-3); }
+.blok { display: flex; align-items: center; gap: var(--sp-4); padding: var(--blok-pad); }
+.blokMain { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.blokTijd { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
+.blokReden { margin-top: var(--sp-1); font-size: var(--fs-caption); color: var(--slate); }
+.blok:global(.is-filled) .blokTijd { color: var(--ink); }
+.blok:global(.is-filled) .blokReden { color: var(--ink-muted); }
+.badge {
+  flex: 0 0 auto; padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-sm); background: var(--ink); color: var(--parchment);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num);
+}
+.label { flex: 0 0 auto; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }

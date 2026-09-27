@@ -214,8 +214,10 @@ async function buildTideForStation(code: string, name: string): Promise<TideData
     const cached = await readAstroCache(code);
     if (cached && cached.length) { astroFull = cached; astroStale = true; }
   }
-  // client only needs the visible window slice (cache holds the wider series)
-  const astro = astroFull.filter((p) => { const m = Date.parse(p.t); return m >= begin && m <= end; });
+  // client only needs the visible window slice (cache holds the wider series); astro
+  // reaches 8 days so the 7 day blocks on WEER & GETIJ all get HW/LW + a curve
+  const astroSliceEnd = now + 8 * DAY;
+  const astro = astroFull.filter((p) => { const m = Date.parse(p.t); return m >= begin && m <= astroSliceEnd; });
 
   if (!expected.length && !astro.length) {
     // tide station, but nothing to show (RWS down and no cache yet) — render a

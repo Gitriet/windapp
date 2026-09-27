@@ -26,9 +26,15 @@ const BFT_LABEL = [
   "hard", "stormachtig", "storm", "zware storm", "zeer zware storm", "orkaan",
 ];
 export const bftLabel = (bft: number) => BFT_LABEL[bft] ?? "";
-// Duur als "1U 02M" (VAARPLAN-KPI). Rond eerst de totale minuten af, splits dan pas —
-// anders kan min % 60 naar 60 afronden terwijl het uur al is afgekapt.
-export const fmtDuurKort = (min: number) => { const m = Math.round(min); return `${Math.floor(m / 60)}U ${String(m % 60).padStart(2, "0")}M`; };
+// Duur: onder 24 uur "48m" / "1u 15m" / "2u" (geen leidende nul); vanaf 24 uur dag/uur
+// op het kwartier afgerond: "1d 3u", "1d 3u 15m". Rond eerst de totale minuten af, splits
+// dan pas — anders kan min % 60 naar 60 afronden terwijl het uur al is afgekapt.
+export function fmtDuurKort(min: number): string {
+  let m = Math.round(min);
+  if (m >= 24 * 60) m = Math.round(m / 15) * 15;
+  const d = Math.floor(m / 1440), u = Math.floor((m % 1440) / 60), r = m % 60;
+  return [d && `${d}d`, u && `${u}u`, (r || m === 0) && `${r}m`].filter(Boolean).join(" ");
+}
 
 // Aankomsttijd bij een vertrek: "HH:MM", of met dag ervoor als de aankomst op een andere
 // lokale kalenderdag valt ("ZO 00:05"). Tijdblok: "14:30 → ZO 00:05". Europe/Amsterdam.

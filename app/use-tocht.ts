@@ -1,21 +1,20 @@
 "use client";
 // Data + logica van de app, los van de presentatie. useTocht = de tochtplanning (havens,
-// keten, wind/stroom/getij, 48u-sweep, beste vertrek, gekozen vertrek); useNu = de
-// live conditie op één locatie. Verplaatst uit app/page.tsx; gedrag ongewijzigd.
+// keten, wind/stroom/getij, 48u-sweep, beste vertrek, gekozen vertrek); useHaven = weer
+// en getij op één haven. Verplaatst uit app/page.tsx; gedrag ongewijzigd.
 import { useEffect, useMemo, useState } from "react";
 import type { BoatProfile } from "@/lib/polar";
 import { simulateTrip, type SimResult, type SimWind } from "@/lib/tripsim";
 import {
-  DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchTide, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
+  DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  pickBest, pickVensters, stroomSpanOf, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
+  pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
 } from "@/lib/tocht";
-import type { Location, TideData } from "@/lib/types";
-import { datumBereik } from "@/lib/getij";
+import type { TideData } from "@/lib/types";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -182,14 +181,6 @@ export function useTocht(boat: BoatProfile) {
     legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
   };
 
-  // Kiesbare dagen voor GETIJDEN — één bron (lib/getij.datumBereik). Fase 1: het
-  // venster van de geladen stroom- en getijreeksen; fase 2 voegt hier het R2-bereik toe.
-  const dagBereik = useMemo(() => {
-    const tidePts = [...(routeTide?.expected ?? []), ...(routeTide?.astro ?? [])].map((p) => tms(p.t));
-    const tideSpan = tidePts.length ? { first: Math.min(...tidePts), last: Math.max(...tidePts) } : null;
-    return datumBereik([stroomSpanOf(routeMeta.legTimelines), tideSpan]);
-  }, [routeTide, legCurrents, chain]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // legs voor de etappe-weergave (VAARPLAN): label, lengte, stations aan beide kanten
   const etappeLegs = useMemo<EtappeLeg[]>(
     () => (chain?.legs ?? []).map((l, i) => ({
@@ -211,47 +202,25 @@ export function useTocht(boat: BoatProfile) {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, vanWeather, dagBereik, etappeLegs, waypoints, alongPerLeg, legDistNm,
+    routeGusts, vanWeather, etappeLegs, waypoints, alongPerLeg, legDistNm,
     routeTide, ready: !!routeWind, nowMs, err,
   };
 }
 
-export function useNu() {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [locIdx, setLocIdx] = useState(0);
-  const [fc, setFc] = useState<ForecastResponse | null>(null);
-  const [week, setWeek] = useState<WeekResponse | null>(null);
-  const [tide, setTide] = useState<TideData | { tide: null } | null>(null);
+// Weer + getij op één haven (WEER & GETIJ): wind/weer van het dichtstbijzijnde station,
+// 7-daagse verwachting en getij van het eigen RWS-station van de haven.
+export function useHaven(h: RouteHaven | null) {
+  const [data, setData] = useState<{ fc: ForecastResponse; week: WeekResponse; tide: TideData | null } | null>(null);
   const [err, setErr] = useState<string | null>(null);
-
-  // ── mount: locatielijst; standaard Texel ──
+  const key = h?.key, slug = h?.haven;
   useEffect(() => {
+    setData(null);
+    if (!key || !slug) return;
     let ignore = false;
-    (fetch("/api/locations", { cache: "no-store" }).then((r) => r.json()) as Promise<Location[]>)
-      .then((locs) => {
-        if (ignore) return;
-        setLocations(locs);
-        const ti = locs.findIndex((l) => l.location_key === "texel");
-        if (ti >= 0) setLocIdx(ti);
-      })
+    Promise.all([fetchForecast(key), fetchWeek(key), fetchHavenTide(slug)])
+      .then(([fc, week, t]) => { if (!ignore) setData({ fc, week, tide: isTide(t) ? t : null }); })
       .catch((e) => { if (!ignore) setErr(String(e)); });
     return () => { ignore = true; };
-  }, []);
-
-  // ── data bij locatiewissel ──
-  const locKey = locations[locIdx]?.location_key;
-  useEffect(() => {
-    if (!locKey) return;
-    let ignore = false;
-    (async () => {
-      try {
-        const [f, w, t] = await Promise.all([fetchForecast(locKey), fetchWeek(locKey), fetchTide(locKey)]);
-        if (ignore) return;
-        setFc(f); setWeek(w); setTide(t);
-      } catch (e) { if (!ignore) setErr(String(e)); }
-    })();
-    return () => { ignore = true; };
-  }, [locKey]);
-
-  return { locations, locIdx, setLocIdx, loc: locations[locIdx], fc, week, tide, err };
+  }, [key, slug]);
+  return { ...data, err };
 }

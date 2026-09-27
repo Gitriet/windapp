@@ -51,14 +51,6 @@ export function combineLegTimelines(
   return { series, modelUnvalidated };
 }
 
-// Stroom-dekkingsvenster [first,last] uit de gecombineerde leg-tijdlijnen: het
-// bereik waar er échte stroomdata is (alongKn != null). Buiten dit venster toont
-// de tijdlijn-strip '—' i.p.v. een verzonnen 0. Gedeeld door Tocht + Vaarplan.
-export function stroomSpanOf(legTimelines: { cur: RouteCurrent | null; distNm: number }[]): { first: number; last: number } | null {
-  const ms = combineLegTimelines(legTimelines).series.filter((p) => p.alongKn != null).map((p) => tms(p.t));
-  return ms.length ? { first: Math.min(...ms), last: Math.max(...ms) } : null;
-}
-
 // beste vertrek = het DICHTSTBIJZIJNDE goede venster (niet de globale snelste, die vaak
 // ver weg + in de onzeker-zone ligt). Regel: het vroegste betrouwbare (niet voorbij de
 // horizon) lokale duur-minimum. Een lokaal minimum = een echt gunstig vertrekvenster;
@@ -234,6 +226,7 @@ export type Etappe = {
   segmenten: number[];            // kn langs de koers per segment (>0 mee)
   kenteringFrac: number | null;   // 0–1 langs de leg, of null
   windDir: number | null; windKn: number | null; vlaagKn: number | null;
+  vanMs: number | null; totMs: number | null;   // wanneer de boot op deze leg vaart
 };
 export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[]): Etappe[] {
   const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
@@ -265,6 +258,7 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[])
     return {
       label: leg.label, distNm: leg.distNm, stroom: leg.stroom, segmenten: leg.stroom ? segmenten : [],
       kenteringFrac, windDir, windKn, vlaagKn: vl.length ? Math.max(...vl) : null,
+      vanMs: st[0]?.tMs ?? null, totMs: st.length ? st[st.length - 1].tMs : null,
     };
   });
 }

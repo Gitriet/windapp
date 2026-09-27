@@ -149,7 +149,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ══ Schil ═══════════════════════════════════════════════════════════
    < 768px: één scherm per tab + vaste tabbar · 768–1400px: 2 kolommen ·
-   ≥ 1400px: 4 kolommen (chartplotter). Breekpunten staan letterlijk in de
+   ≥ 1400px: 3 kolommen (chartplotter). Breekpunten staan letterlijk in de
    media-queries (CSS kent geen var() in een media-conditie). */
 .shell-top {
   display: flex; align-items: center;
@@ -244,7 +244,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   .chip-picker { font-size: var(--fs-title); padding: var(--chip-pad-desk); }
 }
-/* Chartplotter (≥1400px): vaste topbalk met de enige routechip; vier panelen die elk
+/* Chartplotter (≥1400px): vaste topbalk met de enige routechip; drie panelen die elk
    zelf scrollen binnen 100dvh, met een sticky kop en een fade zolang er inhoud onder zit. */
 @media (min-width: 1400px) {
   .shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -256,8 +256,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     border-bottom: var(--line) solid var(--hairline-soft);
   }
   .shell-brand { font-size: var(--fs-merk); letter-spacing: var(--ls-merk); color: var(--parchment); }
-  /* chip vooraan, exact boven de ROUTE-kolom: zelfde padding als .shell-screens, dus 1 van 4 kolommen */
-  .shell-top-chip { display: block; order: -1; width: calc((100% - 3 * var(--sp-10)) / 4); }
+  /* chip vooraan, exact boven de ROUTE-kolom: zelfde padding als .shell-screens, dus 1 van 3 kolommen */
+  .shell-top-chip { display: block; order: -1; width: calc((100% - 2 * var(--sp-10)) / 3); }
   .shell-top-klok { font-size: var(--fs-title); }
   .shell-top-tijd {
     display: block;
@@ -267,7 +267,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   .shell-screens {
     flex: 1; min-height: 0;
-    grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--sp-10);
+    grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--sp-10);
     padding: var(--sp-10) calc(var(--sp-12) + env(safe-area-inset-right)) calc(var(--sp-10) + env(safe-area-inset-bottom))
       calc(var(--sp-12) + env(safe-area-inset-left));
   }

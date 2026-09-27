@@ -1,5 +1,5 @@
 // Tijdblok-formatter (lib/format.ts) en advies-titel (lib/tocht.ts).
-import { aankomstLabel, tijdblok } from "../lib/format";
+import { aankomstLabel, fmtDuurKort, tijdblok } from "../lib/format";
 import { adviesTitel } from "../lib/tocht";
 
 let fail = 0;
@@ -18,6 +18,12 @@ ok("UTC-dag anders, lokale dag gelijk → geen dag", aankomstLabel(t("2026-09-18
 ok("geen aankomst", tijdblok(t("2026-09-19T12:30:00Z"), null) === "14:30 → —");
 ok("wintertijd (CET)", tijdblok(t("2026-12-05T22:30:00Z"), t("2026-12-05T23:10:00Z")) === "23:30 → ZO 00:10",
   tijdblok(t("2026-12-05T22:30:00Z"), t("2026-12-05T23:10:00Z")));
+
+console.log("— fmtDuurKort —");
+for (const [min, exp] of [[48, "48m"], [75, "1u 15m"], [65, "1u 5m"], [120, "2u"], [0, "0m"], [1622.6, "1d 3u"],
+  [1440 + 190, "1d 3u 15m"], [1439.6, "1d"], [2 * 1440 + 7, "2d"]] as const) {
+  ok(`duur ${min}`, fmtDuurKort(min) === exp, fmtDuurKort(min));
+}
 
 console.log("— adviesTitel —");
 const dep = t("2026-09-19T12:30:00Z");

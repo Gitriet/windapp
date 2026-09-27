@@ -1,13 +1,12 @@
 "use client";
-// Tidan — vier schermen (ROUTE · NU · GETIJDEN · VAARPLAN) in één schil. Data en logica
-// leven in app/use-tocht.ts (useTocht, useNu) en lib/; dit bestand verbindt alleen.
+// Tidan — drie schermen (ROUTE · WEER & GETIJ · VAARPLAN) in één schil. Data en logica
+// leven in app/use-tocht.ts (useTocht, useHaven) en lib/; dit bestand verbindt alleen.
 import { useState } from "react";
 import HavenSelector from "./components/HavenSelector";
 import RouteScreen from "./components/RouteScreen";
-import NuScreen from "./components/NuScreen";
-import GetijdenScreen from "./components/GetijdenScreen";
+import WeerGetijScreen from "./components/WeerGetijScreen";
 import VaarplanScreen from "./components/VaarplanScreen";
-import { useTocht, useNu } from "./use-tocht";
+import { useTocht, useHaven } from "./use-tocht";
 import { useBoot } from "./use-boot";
 import BootPaneel from "./components/BootPaneel";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
@@ -19,19 +18,19 @@ export default function Page() {
   const [boat, setBoat] = useBoot();
   const [bootOpen, setBootOpen] = useState(false);
   const tocht = useTocht(boat);
-  const nu = useNu();
   const [tab, setTab] = useScreenTab();
-  const { locations, locIdx, setLocIdx, loc } = nu;
-  const err = tocht.err ?? nu.err;
   const {
     fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, vensters, firstDepMs, selTrip,
-    routeTide, routeGusts, vanWeather, dagBereik, etappeLegs, waypoints, alongPerLeg, legDistNm, ready, nowMs,
+    routeTide, routeGusts, vanWeather, etappeLegs, waypoints, alongPerLeg, legDistNm, ready, nowMs,
   } = tocht;
+  const vanData = useHaven(endpoints?.van ?? null);
+  const naarData = useHaven(endpoints?.naar ?? null);
+  const err = tocht.err ?? vanData.err ?? naarData.err;
   useVertrekUrl(depMs, setDepMs, depOptions);
 
-  // routekiezer: dezelfde chip boven ROUTE, GETIJDEN en VAARPLAN; opent de havenkiezers
+  // routekiezer: dezelfde chip boven elk scherm; opent de havenkiezers
   const maakRouteChip = (className?: string) => (
     <PickerChip className={className} label={endpoints ? `${endpoints.van.naam} → ${endpoints.naar.naam}` : "…"}>
       {() => (
@@ -44,18 +43,6 @@ export default function Page() {
       )}
     </PickerChip>
   );
-  // locatiekiezer (NU): de bestaande locatielijst
-  const locChip = (
-    <PickerChip label={loc?.name ?? "…"}>
-      {(close) => locations.map((l, i) => (
-        <button key={l.location_key} type="button" className="row chip-option" aria-current={i === locIdx ? "true" : undefined}
-          onClick={() => { setLocIdx(i); close(); }}>
-          {l.name}
-        </button>
-      ))}
-    </PickerChip>
-  );
-
   const content: Record<ScreenId, React.ReactNode> = {
     route: (
       <>
@@ -67,20 +54,11 @@ export default function Page() {
           onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>
     ),
-    nu: (
+    weergetij: (
       <>
-        {locChip}
-        <NuScreen fc={nu.fc} week={nu.week} tide={nu.tide} loc={loc} nowMs={nowMs} dagen={{ mobiel: 4, desktop: 7 }} />
-      </>
-    ),
-    getijden: (
-      <>
-        {maakRouteChip("chip-route")}
-        <GetijdenScreen
-          ready={ready} nowMs={nowMs} bereik={dagBereik}
-          titel={routeMeta.viaPassage ? `via ${routeMeta.viaPassage}` : routeMeta.pathNamen.join(" → ")}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines}
-          waypoints={waypoints} alongPerLeg={alongPerLeg} legDistNm={legDistNm} routeTide={routeTide} />
+        {/* geen routechip: de havenschakelaar staat bovenaan dit scherm */}
+        <WeerGetijScreen nowMs={nowMs} havens={{ van: endpoints?.van ?? null, naar: endpoints?.naar ?? null }}
+          data={{ van: vanData, naar: naarData }} />
       </>
     ),
     vaarplan: (
@@ -90,7 +68,8 @@ export default function Page() {
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
           fromTide={routeTide} via={viaHavens} boat={boat}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} />
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines}
+          waypoints={waypoints} alongPerLeg={alongPerLeg} legDistNm={legDistNm} />
       </>
     ),
   };

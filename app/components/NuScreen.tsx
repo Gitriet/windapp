@@ -1,21 +1,14 @@
 "use client";
-// NU — live conditie op één locatie, geen advies: kompaskaart, chips, windregel,
-// komende 12 uur (staven) en de dagverwachting. Alleen presentatie.
-import { localHM } from "@/lib/tz";
+// NU — live conditie op één haven (deel van WEER & GETIJ), geen advies: kompaskaart,
+// chips, windregel en komende 12 uur (staven). Dagverwachting en HW/LW staan in de
+// dagblokken van WeerGetijScreen. Alleen presentatie.
 import { beaufort, bftLabel, dirLabel16 } from "@/lib/format";
-import { verdict, type Verdict } from "@/lib/verdict";
-import type { ForecastResponse, WeekResponse } from "@/lib/planner-data";
-import type { Location, TideData } from "@/lib/types";
-import { isTide } from "../use-tocht";
-import { Skeleton } from "./Shell";
-import { WindArrow, WxIcon } from "./icons";
-import { wxGroup } from "@/lib/weather";
+import { verdict } from "@/lib/verdict";
+import type { ForecastResponse } from "@/lib/planner-data";
+import { WindArrow } from "./icons";
 import s from "./NuScreen.module.css";
 
-const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const komma = (n: number) => n.toFixed(1).replace(".", ",");
-
-const VERDICT_LABEL: Record<Verdict, string> = { goed: "GOED", fris: "FRIS", licht: "LICHT", letop: "LET OP" };
 
 // Contextzin uit de forecast: trend ~6u vooruit + draaiing + bron (meting/model).
 function windContext(pts: ForecastResponse["points"]): string {
@@ -33,23 +26,18 @@ function windContext(pts: ForecastResponse["points"]): string {
 }
 
 export interface NuScreenProps {
-  fc: ForecastResponse | null;
-  week: WeekResponse | null;
-  tide: TideData | { tide: null } | null;
-  loc: Location | undefined;
-  nowMs: number;
-  dagen: { mobiel: number; desktop: number };   // aantal dagrijen per lay-out
+  fc: ForecastResponse;
+  naam: string;
+  voet?: React.ReactNode;   // extra regel onderin de kompaskaart (dagweer van de gekozen dag)
 }
 
-export default function NuScreen({ fc, week, tide, loc, nowMs, dagen }: NuScreenProps) {
-  if (!fc || !loc) return <Skeleton rows={3} height={120} label="wind laden" />;
+export default function NuScreen({ fc, naam, voet }: NuScreenProps) {
   const pts = fc.points;
   if (!pts.length) return (
-    <div className={s.leeg}>—<div className={s.reden}>geen voorspelling beschikbaar voor {loc.name}</div></div>
+    <div className={s.leeg}>—<div className={s.reden}>geen voorspelling beschikbaar voor {naam}</div></div>
   );
   const p0 = pts[0];
   const bft = beaufort(p0.speed_kn);
-  const hw = isTide(tide) ? (tide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= nowMs) ?? tide.extremes.find((e) => e.kind === "HW")) : null;
   const temp0 = fc.weather?.temp?.[0] ?? null;
   const wave0 = fc.weather?.wave?.[0] ?? null;
 
@@ -61,21 +49,17 @@ export default function NuScreen({ fc, week, tide, loc, nowMs, dagen }: NuScreen
           <div className={s.kern}>{Math.round(p0.speed_kn)}<span className={s.kernEenheid}>KN</span></div>
           <div className={s.richting}>{dirLabel16(p0.dir_deg)} · {String(Math.round(p0.dir_deg)).padStart(3, "0")}°</div>
           <div className={s.bft}>BFT&nbsp;{bft} · {bftLabel(bft).toUpperCase()} · VLAAG&nbsp;{Math.round(p0.gust_kn)}&nbsp;KN</div>
+          <div className={s.chips}>
+            {temp0 != null && <span className={s.chip}>{Math.round(temp0)}°C</span>}
+            <span className={s.chip} data-leeg={wave0 == null ? "" : undefined}>GOLF&nbsp;{wave0 != null ? `${komma(wave0)}\u00A0M` : "—"}</span>
+          </div>
+          {wave0 == null && <div className={s.reden}>geen golfdata voor dit punt</div>}
         </div>
-      </div>
-
-      <div>
-        <div className={s.chips}>
-          {hw && <span className={s.chip}>HW&nbsp;{localHM(tms(hw.t))}</span>}
-          {temp0 != null && <span className={s.chip}>{Math.round(temp0)}°C</span>}
-          <span className={s.chip} data-leeg={wave0 == null ? "" : undefined}>GOLF&nbsp;{wave0 != null ? `${komma(wave0)}\u00A0M` : "—"}</span>
-        </div>
-        {wave0 == null && <div className={s.reden}>golfhoogte: geen golfdata voor dit punt</div>}
+        {voet && <div className={s.voet}>{voet}</div>}
       </div>
       <div className={s.context}>{windContext(pts)}</div>
 
       <Uren pts={pts.slice(0, 13)} />
-      <Dagen week={week} dagen={dagen} />
       <div className={s.model}>Wind: {p0.model_label}{p0.corrected ? " · gekalibreerd" : ""}</div>
     </>
   );
@@ -118,40 +102,6 @@ function Uren({ pts }: { pts: ForecastResponse["points"] }) {
         ))}
       </div>
       <div className={s.as}><span>NU</span><span>+6U</span><span>+12U</span></div>
-    </div>
-  );
-}
-
-// Dagrijen: dag, weericoon, temp, windbereik, vlagen, verdict rechts op één regel.
-function Dagen({ week, dagen }: { week: WeekResponse | null; dagen: NuScreenProps["dagen"] }) {
-  if (!week) return <Skeleton rows={dagen.mobiel} height={36} label="dagverwachting laden" />;
-  const dag = (date: string) => new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", timeZone: "Europe/Amsterdam" })
-    .format(new Date(date + "T12:00:00Z")).replace(".", "").toUpperCase();
-  const rows = week.days.slice(0, dagen.desktop);
-  return (
-    <div>
-      <div className={s.sectie}>
-        <span className={s.alleenMobiel}>{dagen.mobiel} DAGEN</span>
-        <span className={s.alleenDesktop}>{dagen.desktop} DAGEN</span>
-      </div>
-      <div className={s.dagen}>
-        {rows.map((d, i) => {
-          const v = verdict(d.speedMax, d.gust);
-          const wind = d.windMin != null && d.speedMax != null ? `${Math.round(d.windMin)}–${Math.round(d.speedMax)}`
-            : d.speedMax != null ? `${Math.round(d.speedMax)}` : "—";
-          return (
-            <div key={d.date} className={`row ${s.dag}`} data-verdict={v ?? undefined} data-desktop={i >= dagen.mobiel ? "" : undefined}
-              data-zon={wxGroup(d.code) === "clear" || wxGroup(d.code) === "fewclouds" ? "" : undefined}>
-              <span className={s.dagNaam}>{dag(d.date)}</span>
-              <span className={s.dagIcoon}><WxIcon code={d.code} size={16} /></span>
-              <span className={s.dagTemp}>{d.tmax != null ? `${Math.round(d.tmax)}°` : "—"}</span>
-              <span className={s.dagWind}>{wind}&nbsp;KN</span>
-              <span className={s.dagVlaag}><span className={s.alleenMobiel}>VLAGEN</span><span className={s.alleenDesktop}>VLG</span>&nbsp;{d.gust != null ? Math.round(d.gust) : "—"}</span>
-              <span className={s.dagVerdict}>{v ? VERDICT_LABEL[v] : "—"}</span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
