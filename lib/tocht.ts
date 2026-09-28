@@ -79,7 +79,7 @@ export function pickBest(depOptions: DepOption[]): DepOption | null {
   return pool.reduce((b, o) => (o.depMs < b.depMs ? o : b));   // vroegste = dichtstbij
 }
 
-// Vertrekvenster rond het beste vertrek: aaneengesloten vertrekken die hooguit VENSTER_PCT
+// Vertrekvenster vanaf het beste vertrek (alleen later): aaneengesloten vertrekken die hooguit VENSTER_PCT
 // langer duren, even zeker zijn en (als het beste meestroom heeft) ook meestroom houden.
 export const VENSTER_PCT = 0.05;
 export function vertrekVenster(depOptions: DepOption[], best: DepOption | null): { vanMs: number; totMs: number } | null {
@@ -90,10 +90,9 @@ export function vertrekVenster(depOptions: DepOption[], best: DepOption | null):
   const past = (o: DepOption | undefined) => !!o && o.result.arrMs != null && o.result.tripMin <= max
     && o.result.voorbijHorizon === best.result.voorbijHorizon
     && (best.result.effectMin >= 0 || o.result.effectMin < 0);
-  let a = i, b = i;
-  while (past(depOptions[a - 1])) a--;
+  let b = i;
   while (past(depOptions[b + 1])) b++;
-  return { vanMs: depOptions[a].depMs, totMs: depOptions[b].depMs };
+  return { vanMs: best.depMs, totMs: depOptions[b].depMs };
 }
 
 // andere vensters = lokale duur-minima (excl. de beste), ≥4u uit elkaar, kortste eerst
@@ -295,9 +294,8 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[],
 
 // Titel van de advieskaart. GA NU wordt "BESTE VERTREK HH:MM" zodra het venster een LET OP
 // heeft (harde wind of wind tegen stroom) — de keuze van het venster verandert niet.
-// Met venster (totMs > depMs) wordt de tijd een bereik: "VERTREK 13:40–15:10".
-export function adviesTitel(kind: AdviesKind, depMs: number | null, letOpActief: boolean, totMs?: number): string {
-  const hm = depMs != null ? localHM(depMs) + (totMs != null && totMs > depMs ? `–${localHM(totMs)}` : "") : "";
+export function adviesTitel(kind: AdviesKind, depMs: number | null, letOpActief: boolean): string {
+  const hm = depMs != null ? localHM(depMs) : "";
   switch (kind) {
     case "ga-nu": return letOpActief ? `BESTE VERTREK ${hm}` : "GA NU";
     case "vertrek": case "minst-slecht": return `VERTREK ${hm}`;

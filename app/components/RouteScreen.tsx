@@ -86,17 +86,16 @@ function AdviesKaart({ best, venster, selTrip, firstDepMs, horizonUur, anyStroom
   const dag = best ? dagLabel(best.depMs, nowMs) : "";
   const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)} · ${fmtDuurKort(r.tripMin)}` : "ETA —";
   const bereik = venster && venster.totMs > venster.vanMs ? venster : null;
-  const snelst = bereik ? `snelst ${hm} · ` : "";
   const sub = !best || !r ? "Geen haalbaar vertrek binnen 48 uur."
     : kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · ${eta} · stroomdata deels onzeker`
     : kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · ${eta} · rekent zonder getijstroom`
-    : kind === "ga-nu" && bereik ? `vertrek vóór ${localHM(bereik.totMs)} · ${eta} · ${effectLabel(r.effectMin)}`
-    : `${dag ? `${dag} · ` : ""}${snelst}${eta} · ${effectLabel(r.effectMin)}`;
+    : `${dag ? `${dag} · ` : ""}${bereik ? `kan tot ${localHM(bereik.totMs)} · ` : ""}${eta} · ${effectLabel(r.effectMin)}`;
 
   const s0 = r?.steps[0];
   const verloop = r ? stroomVerloop(r, anyStroom) : null;
   const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= best.depMs) : undefined;
   const warn = r ? letOp(r, routeBearing ?? 0, routeGusts) : null;
+  const letOpActief = !!(warn?.hardWind || warn?.windTegenStroom);
   // uitlegzin volgt het gekozen vertrek; zonder (afwijkende) keuze die van het beste
   const gekozen = selTrip && best && selTrip.departMs !== best.depMs ? selTrip : null;
   const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom, true, horizonUur) : null;
@@ -109,7 +108,7 @@ function AdviesKaart({ best, venster, selTrip, firstDepMs, horizonUur, anyStroom
         <span className={s.label}>{kind === "minst-slecht" ? `Minst slecht · komende ${horizonUur}\u00A0u` : "Huidig advies"}</span>
       </div>
       <div>
-        <div className={s.titel}>{adviesTitel(kind, bereik?.vanMs ?? best?.depMs ?? null, !!(warn?.hardWind || warn?.windTegenStroom), bereik?.totMs)}</div>
+        <div className={s.titel}>{adviesTitel(kind, best?.depMs ?? null, letOpActief)}</div>
         <div className={s.sub}>{sub}</div>
       </div>
       {r && s0 && (

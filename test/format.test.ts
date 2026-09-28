@@ -30,7 +30,6 @@ const dep = t("2026-09-19T12:30:00Z");
 ok("GA NU zonder LET OP", adviesTitel("ga-nu", dep, false) === "GA NU");
 ok("GA NU met LET OP → BESTE VERTREK", adviesTitel("ga-nu", dep, true) === "BESTE VERTREK 14:30");
 ok("VERTREK blijft VERTREK", adviesTitel("vertrek", dep, true) === "VERTREK 14:30");
-ok("VERTREK met venster → bereik", adviesTitel("vertrek", dep, false, dep + 90 * 60000) === "VERTREK 14:30–16:00");
 ok("GEEN VENSTER", adviesTitel("geen-venster", null, false) === "GEEN VENSTER");
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
