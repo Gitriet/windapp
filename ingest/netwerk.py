@@ -17,7 +17,13 @@ haven. Bronbestanden blijven onaangeroerd (heilig).
 Prefix ``netwerk_*`` volgt de ``stroom_*``-conventie en vermijdt de bestaande
 (andere) ``routes``-tabel in windapp/sql/schema.sql.
 
-CLI:  python -m ingest.netwerk        (vanuit windapp/; heeft DATABASE_URL nodig)
+Met ``--knopen`` leest het ``routes-knopen.geojson`` (gemaakt door netwerk_knopen.py):
+de originele routes plus stukken via de knooppunten uit ``knooppunten.json``. Die
+knooppunten (zeegaten/kruispunten) komen in ``netwerk_havens`` met ``soort = 'knoop'``;
+dubbele stukken krijgen ``actief = false``. ``--droog`` schrijft niets: het leest de
+huidige database en toont wat er zou veranderen.
+
+CLI:  python -m ingest.netwerk [--knopen] [--droog]   (vanuit windapp/; heeft DATABASE_URL nodig)
 """
 from __future__ import annotations
 
@@ -36,6 +42,8 @@ log = logging.getLogger("wm.netwerk")
 ROOT = Path(__file__).resolve().parent.parent.parent
 ROUTES_GEOJSON = ROOT / "data" / "routes" / "routes-R01-R21.geojson"
 HAVENS_JSON = ROOT / "data" / "routes" / "havens.json"
+KNOPEN_GEOJSON = ROOT / "data" / "routes" / "routes-knopen.geojson"
+KNOOPPUNTEN_JSON = ROOT / "data" / "routes" / "knooppunten.json"
 
 NM_M = 1852.0                  # 1 zeemijl in meter
 CLUSTER_MAX_M = 500.0          # eindpunt-tolerantie rond het knooppunt
@@ -58,6 +66,8 @@ CREATE TABLE IF NOT EXISTS netwerk_routes (
   lengte_nm  DOUBLE PRECISION NOT NULL,
   geojson    JSONB NOT NULL                    -- originele LineString-feature
 );
+ALTER TABLE netwerk_havens ADD COLUMN IF NOT EXISTS soort TEXT NOT NULL DEFAULT 'haven';  -- 'haven' | 'knoop'
+ALTER TABLE netwerk_routes ADD COLUMN IF NOT EXISTS actief BOOLEAN NOT NULL DEFAULT true;  -- false = dubbel stuk
 
 CREATE TABLE IF NOT EXISTS netwerk_samplepunten (
   route_id   TEXT NOT NULL REFERENCES netwerk_routes(id) ON DELETE CASCADE,
@@ -85,28 +95,52 @@ def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
 
 
 # --- laden ---------------------------------------------------------------
-def load_sources() -> tuple[list[dict], dict[str, dict]]:
-    """Features + {slug: haven-meta}. Valideert dat elke van/naar in havens.json zit."""
-    features = json.loads(ROUTES_GEOJSON.read_text())["features"]
-    havens = {h["id"]: h for h in json.loads(HAVENS_JSON.read_text())}
+def eind(p: dict, k: str) -> str:
+    """Knooppunt-id van een route-eind ('van'/'naar'): expliciet id, anders slug(naam)."""
+    return p.get(f"{k}_id") or slug(p[k])
+
+
+def load_sources(knopen: bool = False) -> tuple[list[dict], dict[str, dict]]:
+    """Features + {id: meta}. Valideert dat elke van/naar in havens.json (of, met
+    knopen, in knooppunten.json) zit."""
+    havens = {h["id"]: {**h, "soort": "haven"} for h in json.loads(HAVENS_JSON.read_text())}
+    if knopen:
+        if KNOPEN_GEOJSON.stat().st_mtime < max(KNOOPPUNTEN_JSON.stat().st_mtime, ROUTES_GEOJSON.stat().st_mtime):
+            raise SystemExit("routes-knopen.geojson is ouder dan zijn bronnen; draai eerst "
+                             "python -m ingest.netwerk_knopen")
+        features = json.loads(KNOPEN_GEOJSON.read_text())["features"]
+        for k in json.loads(KNOOPPUNTEN_JSON.read_text()):
+            havens[k["id"]] = {"id": k["id"], "naam": k["naam"], "sluis": False, "soort": "knoop"}
+    else:
+        features = json.loads(ROUTES_GEOJSON.read_text())["features"]
     for f in features:
         for k in ("van", "naar"):
-            s = slug(f["properties"][k])
+            s = eind(f["properties"], k)
             if s not in havens:
                 raise SystemExit(f"{f['properties']['id']}: haven {f['properties'][k]!r} "
-                                 f"(slug {s!r}) ontbreekt in havens.json")
+                                 f"(id {s!r}) ontbreekt in havens.json/knooppunten.json")
     return features, havens
 
 
 # --- Stap 2.1: knooppunten ----------------------------------------------
 def derive_nodes(features: list[dict]) -> dict[str, tuple[float, float]]:
     """Per haven-slug het canonieke punt = gemiddelde van alle route-eindpunten.
-    Hard falen als een eindpunt > 500 m van dat gemiddelde ligt."""
+    Hard falen als een eindpunt > 500 m van dat gemiddelde ligt. Geknipte stukken
+    (property 'origineel') tellen alleen mee voor eindpunten die de originele routes
+    niet al hebben (de knooppunten) — anders verschuift een haven door dubbeltelling."""
     endpoints: dict[str, list[tuple[float, float]]] = {}
     for f in features:
-        coords = f["geometry"]["coordinates"]
-        endpoints.setdefault(slug(f["properties"]["van"]), []).append(tuple(coords[0]))
-        endpoints.setdefault(slug(f["properties"]["naar"]), []).append(tuple(coords[-1]))
+        if "origineel" not in f["properties"]:
+            coords = f["geometry"]["coordinates"]
+            endpoints.setdefault(eind(f["properties"], "van"), []).append(tuple(coords[0]))
+            endpoints.setdefault(eind(f["properties"], "naar"), []).append(tuple(coords[-1]))
+    uit_origineel = set(endpoints)
+    for f in features:
+        if "origineel" in f["properties"]:
+            coords = f["geometry"]["coordinates"]
+            for k, pt in (("van", coords[0]), ("naar", coords[-1])):
+                if eind(f["properties"], k) not in uit_origineel:
+                    endpoints.setdefault(eind(f["properties"], k), []).append(tuple(pt))
 
     nodes: dict[str, tuple[float, float]] = {}
     fouten: list[str] = []
@@ -156,7 +190,9 @@ def check_connected(features: list[dict], nodes: dict[str, tuple[float, float]])
     """Alle knooppunten onderling bereikbaar via de routes? Zo niet: hard falen."""
     adj: dict[str, set[str]] = {s: set() for s in nodes}
     for f in features:
-        a, b = slug(f["properties"]["van"]), slug(f["properties"]["naar"])
+        if not f["properties"].get("actief", True):
+            continue
+        a, b = eind(f["properties"], "van"), eind(f["properties"], "naar")
         adj[a].add(b)
         adj[b].add(a)
 
@@ -205,25 +241,27 @@ def write_db(features, havens, nodes) -> dict:
             for s, (lat, lon) in sorted(nodes.items()):
                 h = havens[s]
                 cur.execute(
-                    """INSERT INTO netwerk_havens (id, naam, lat, lon, sluis)
-                       VALUES (%s,%s,%s,%s,%s)
+                    """INSERT INTO netwerk_havens (id, naam, lat, lon, sluis, soort)
+                       VALUES (%s,%s,%s,%s,%s,%s)
                        ON CONFLICT (id) DO UPDATE SET
                          naam = EXCLUDED.naam, lat = EXCLUDED.lat,
-                         lon = EXCLUDED.lon, sluis = EXCLUDED.sluis""",
-                    (s, h["naam"], lat, lon, bool(h["sluis"])))
+                         lon = EXCLUDED.lon, sluis = EXCLUDED.sluis, soort = EXCLUDED.soort""",
+                    (s, h["naam"], lat, lon, bool(h["sluis"]), h["soort"]))
 
             for f in features:
                 p = f["properties"]
                 cur.execute(
-                    """INSERT INTO netwerk_routes (id, van_haven, naar_haven, via, lengte_nm, geojson)
-                       VALUES (%s,%s,%s,%s,%s,%s)
+                    """INSERT INTO netwerk_routes (id, van_haven, naar_haven, via, lengte_nm, geojson, actief)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s)
                        ON CONFLICT (id) DO UPDATE SET
                          van_haven = EXCLUDED.van_haven, naar_haven = EXCLUDED.naar_haven,
                          via = EXCLUDED.via, lengte_nm = EXCLUDED.lengte_nm,
-                         geojson = EXCLUDED.geojson""",
-                    (p["id"], slug(p["van"]), slug(p["naar"]), p.get("via"),
-                     p["lengte_nm"], json.dumps(f)))
+                         geojson = EXCLUDED.geojson, actief = EXCLUDED.actief""",
+                    (p["id"], eind(p, "van"), eind(p, "naar"), p.get("via"),
+                     p["lengte_nm"], json.dumps(f), p.get("actief", True)))
 
+                if not p.get("actief", True):   # dubbel stuk: nooit gebruikt, geen stroom nodig
+                    continue
                 pts, _ = resample_route(f["geometry"]["coordinates"])
                 rows = [(p["id"], i, d / NM_M, lat, lon) for i, (d, lat, lon) in enumerate(pts)]
                 cur.executemany(
@@ -250,11 +288,75 @@ def write_db(features, havens, nodes) -> dict:
             "stroom_rows": stroom_after}
 
 
+def droog(features, havens, nodes) -> None:
+    """Alleen lezen: wat zou write_db veranderen t.o.v. de huidige database?"""
+    conn = connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, lat, lon FROM netwerk_havens")
+            db_h = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
+            cur.execute("SELECT id, van_haven, naar_haven, lengte_nm, geojson FROM netwerk_routes")
+            db_r = {r[0]: r[1:] for r in cur.fetchall()}
+            cur.execute("SELECT count(*) FROM netwerk_samplepunten")
+            n_samp = cur.fetchone()[0]
+            cur.execute("SELECT to_regclass('public.stroom_punt_forecast')")
+            n_stroom = None
+            if cur.fetchone()[0] is not None:
+                cur.execute("SELECT count(*) FROM stroom_punt_forecast")
+                n_stroom = cur.fetchone()[0]
+    finally:
+        conn.rollback()
+        conn.close()
+
+    nieuw_h = sorted(s for s in nodes if s not in db_h)
+    verplaatst = sorted(s for s, (la, lo) in nodes.items()
+                        if s in db_h and haversine_m(lo, la, db_h[s][1], db_h[s][0]) > 1)
+    print(f"netwerk_havens: {len(db_h)} nu -> {len(nodes)} "
+          f"({len(nieuw_h)} nieuw, {len(verplaatst)} verplaatst, soort-kolom erbij)")
+    for s in nieuw_h:
+        print(f"  + {s:20} {havens[s]['soort']:5} {havens[s]['naam']}")
+    for s in verplaatst:
+        print(f"  ~ {s} verplaatst")
+
+    bron = {f["properties"]["id"]: f for f in features}
+    nieuw_r = sorted(i for i in bron if i not in db_r)
+    gewijzigd = []
+    for i, f in bron.items():
+        if i in db_r:
+            v, n, L, gj = db_r[i]
+            p = f["properties"]
+            gj = gj if isinstance(gj, dict) else json.loads(gj)
+            if (v, n) != (eind(p, "van"), eind(p, "naar")) or abs(L - p["lengte_nm"]) > 1e-6 \
+                    or gj["geometry"]["coordinates"] != f["geometry"]["coordinates"]:
+                gewijzigd.append(i)
+    alleen_db = sorted(i for i in db_r if i not in bron)
+    inactief = sorted(i for i, f in bron.items() if not f["properties"].get("actief", True))
+    print(f"netwerk_routes: {len(db_r)} nu -> {len(bron)} ({len(nieuw_r)} nieuw, "
+          f"{len(gewijzigd)} gewijzigd, {len(inactief)} inactief (dubbel), "
+          f"{len(alleen_db)} alleen in database)")
+    print(f"  nieuw: {', '.join(nieuw_r)}")
+    if gewijzigd:
+        print(f"  gewijzigd: {', '.join(gewijzigd)}")
+    if inactief:
+        print("  inactief: " + ", ".join(i + "(=" + bron[i]["properties"]["dubbel_van"] + ")" for i in inactief))
+    if alleen_db:
+        print(f"  alleen in database (blijft staan, niet gesnoeid): {', '.join(alleen_db)}")
+    n_nieuw = sum(len(resample_route(f["geometry"]["coordinates"])[0]) for f in features
+                  if f["properties"].get("actief", True))
+    print(f"netwerk_samplepunten: {n_samp} nu -> {n_nieuw}")
+    print(f"stroom_punt_forecast: {n_stroom} rijen; blijft ongemoeid (upsert, geen delete op routes)")
+    print("\nDROGE RUN: niets geschreven.")
+
+
 def main() -> None:
+    import sys
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    features, havens = load_sources()
+    features, havens = load_sources(knopen="--knopen" in sys.argv)
     nodes = derive_nodes(features)
     check_connected(features, nodes)
+    if "--droog" in sys.argv:
+        droog(features, havens, nodes)
+        return
     stats = write_db(features, havens, nodes)
     log.info("weggeschreven: %d havens, %d routes, %d samplepunten",
              stats["havens"], stats["routes"], stats["samplepunten"])
