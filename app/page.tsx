@@ -11,7 +11,7 @@ import { useBoot } from "./use-boot";
 import BootPaneel from "./components/BootPaneel";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
-import { TopBar, TabBar, PickerChip, ScreenPanel } from "./components/Shell";
+import { TopBar, TabBar, RouteKiezer, ScreenPanel } from "./components/Shell";
 import { localHM } from "@/lib/tz";
 
 export default function Page() {
@@ -30,18 +30,18 @@ export default function Page() {
   const err = tocht.err ?? vanData.err ?? naarData.err;
   useVertrekUrl(depMs, setDepMs, depOptions);
 
-  // routekiezer: dezelfde chip boven elk scherm; opent de havenkiezers
+  // routekiezer: schakelaar VERTREK/AANKOMST boven ROUTE en VAARPLAN (en in de topbalk);
+  // elk vlak opent de havenkiezer van die kant
   const maakRouteChip = (className?: string) => (
-    <PickerChip className={className} label={endpoints ? `${endpoints.van.naam} → ${endpoints.naar.naam}` : "…"}>
-      {() => (
-        <>
-          <HavenSelector label="Van" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
-            havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
-          <HavenSelector label="Naar" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
-            havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
-        </>
+    <RouteKiezer className={className} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}>
+      {(kant) => kant === "van" ? (
+        <HavenSelector label="Vertrek" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
+          havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
+      ) : (
+        <HavenSelector label="Aankomst" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
+          havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
       )}
-    </PickerChip>
+    </RouteKiezer>
   );
   const content: Record<ScreenId, React.ReactNode> = {
     route: (

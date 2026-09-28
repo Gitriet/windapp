@@ -70,8 +70,6 @@
   --tabbar-space: 72px;  /* tabbar boven de inset (10 + 48) + 14 lucht; inset komt er apart bij */
   --tabbar-pad-bottom: 18px;
   --tab-gap: 5px;
-  --chip-pad: 9px var(--sp-7);
-  --chip-pad-desk: 7px var(--sp-6);
   --ls-beslissing: -0.5px;
   --lh-text: 1.4;
   --disc: 18px;          /* advies-schijf */
@@ -130,7 +128,8 @@ body {
 .row { border-radius: var(--radius-sm); min-height: var(--tap); }
 .is-filled { background: var(--parchment); color: var(--ink); border-color: var(--parchment); }
 @media (hover: hover) {
-  .card:not(.is-filled):hover, .row:not(.is-filled):hover, .chip-picker:hover { border-color: var(--hairline-hover); }
+  .card:not(.is-filled):hover, .row:not(.is-filled):hover { border-color: var(--hairline-hover); }
+  .schakelaar-stand:not(.is-filled):hover { background: var(--fill-faint); }
 }
 :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 /* de pagina zelf scrollt nooit horizontaal; scrollbars zijn nergens zichtbaar (scrollen
@@ -199,16 +198,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell-tab[aria-current="page"] { color: var(--parchment); font-weight: var(--fw-num); }
 .shell-tab[aria-current="page"] .shell-tab-dot { background: var(--parchment); border-color: var(--parchment); }
 
-/* kiezerchip (route / locatie) */
+/* schakelaar VERTREK / AANKOMST: één omlijnd vlak met twee standen; gevuld = gekozen
+   (WEER & GETIJ) of open (routekiezer). Gedeeld door beide. */
 .chip-wrap { position: relative; }
-.chip-picker {
-  width: 100%; min-height: var(--tap);
-  display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
-  padding: var(--chip-pad);
-  background: var(--fill-faint); border: var(--line) solid var(--hairline-strong); border-radius: var(--radius-sm);
-  font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment);
-  text-transform: uppercase; transition: border-color var(--dur-hover);
+.schakelaar {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); padding: var(--sp-1);
+  border: var(--line) solid var(--hairline-strong); border-radius: var(--radius-sm); background: var(--fill-faint);
 }
+.schakelaar-stand {
+  min-width: 0; min-height: var(--tap); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-xs); font-family: var(--font-num); color: var(--slate);
+  transition: background var(--dur-hover);
+}
+.schakelaar-rol { font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); }
+.schakelaar-naam { max-width: 100%; font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.schakelaar-stand.is-filled, .schakelaar-stand.is-filled .schakelaar-naam { color: var(--ink); }
 .chip-panel {
   position: absolute; left: 0; right: 0; top: calc(100% + var(--sp-3)); z-index: 30;
   display: flex; flex-direction: column; gap: var(--sp-7);
@@ -217,8 +221,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   max-height: 60vh; overflow-y: auto;
 }
 
-.chip-option { min-height: var(--tap); padding: var(--sp-5) var(--sp-6); text-align: left; font-size: var(--fs-title); }
-.chip-option[aria-current="true"] { border-color: var(--parchment); }
 
 @media (min-width: 768px) {
   /* geen eigen balk: het merk staat klein linksboven in de bovenmarge van het raster,
@@ -243,7 +245,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     display: block; margin: 0; text-align: center;
     font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); letter-spacing: var(--ls-label); color: var(--parchment);
   }
-  .chip-picker { font-size: var(--fs-title); padding: var(--chip-pad-desk); }
 }
 /* Chartplotter (≥1400px): vaste topbalk met de enige routechip; drie panelen die elk
    zelf scrollen binnen 100dvh, met een sticky kop en een fade zolang er inhoud onder zit. */

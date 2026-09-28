@@ -78,22 +78,32 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
   );
 }
 
-// Volle-breedte kiezerchip; klik opent een paneel eronder (klik buiten sluit).
-export function PickerChip({ label, className, children }: { label: string; className?: string; children: (close: () => void) => React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+// Routekiezer: schakelaar met VERTREK en AANKOMST (zelfde vorm als de havenschakelaar op
+// WEER & GETIJ); een vlak aantikken opent de havenkiezer van die kant eronder (klik buiten sluit).
+export type Kant = "van" | "naar";
+export function RouteKiezer({ van, naar, className, children }: {
+  van: string; naar: string; className?: string; children: (kant: Kant) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState<Kant | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null); };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
   return (
     <div ref={ref} className={`chip-wrap ${className ?? ""}`}>
-      <button type="button" className="chip-picker" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {label}
-      </button>
-      {open && <div className="chip-panel">{children(() => setOpen(false))}</div>}
+      <div className="schakelaar">
+        {([["van", "VERTREK", van], ["naar", "AANKOMST", naar]] as const).map(([k, rol, naam]) => (
+          <button key={k} type="button" className={`schakelaar-stand ${open === k ? "is-filled" : ""}`} aria-expanded={open === k}
+            onClick={() => setOpen((o) => (o === k ? null : k))}>
+            <span className="schakelaar-rol">{rol}</span>
+            <span className="schakelaar-naam">{naam}</span>
+          </button>
+        ))}
+      </div>
+      {open && <div className="chip-panel">{children(open)}</div>}
     </div>
   );
 }
