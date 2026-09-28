@@ -72,9 +72,9 @@
 .lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
-.legenda { flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); font-size: var(--fs-caption); }
-.legenda > span { display: inline-flex; align-items: center; gap: var(--sp-3); }
-.stip { display: inline-block; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
+.legenda { flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); font-size: var(--fs-caption); }
+.legenda > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.stip { display: inline-block; width: var(--sp-3); height: var(--sp-3); border-radius: 50%; }
 .stip.piekMee { background: var(--sea-green); }
 .stip.piekTegen { background: var(--ochre); }
 .stip.stipKentering { background: var(--ink); border: var(--kromme-markering) solid var(--parchment); }
