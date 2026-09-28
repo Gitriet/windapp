@@ -80,9 +80,9 @@
   --cta-pad: 11px;
   --label-col: 62px;     /* labelkolom in detailrijen */
   --chip-pad-sm: 5px 9px;
-  --kompas: 120px;
+  --kompas: 96px;
+  --fs-vlaag-nu: 28px;   /* vlaag naast de windsnelheid in de herokaart */
   --ring-2: rgba(243, 233, 210, 0.12);
-  --ring-tick: rgba(243, 233, 210, 0.4);
   --ls-kern: -1px;
   --staaf-h: 72px;
   --staaf-h-desk: 64px;
@@ -92,6 +92,7 @@
   --nav-knop: 22px;      /* zichtbare week-navknop (tapvlak blijft --tap) */
   --blok-pad: 12px 14px; /* vertrektijdblok GETIJDEN */
   --kromme-lijn: 2.5px;
+  --kromme-markering: 1.5px;  /* vertreklijn in de stroomkromme */
   --ls-tijdblok: -0.4px;
   --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: 7px;

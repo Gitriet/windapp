@@ -1,11 +1,8 @@
-// GETIJDEN: pure afleidingen: datumbereik, dagstrip, vertrek-ranking op stroom en de
+// WEER & GETIJ / VAARPLAN: pure afleidingen: datumbereik, dagstrip en de
 // 24-uurs stroomkromme. Client-safe. Datums zijn lokale kalenderdagen "YYYY-MM-DD"
 // (Europe/Amsterdam); rekenen op datums gebeurt in UTC-middag zodat zomertijd niet stoort.
-import { simulateTrip, type SimWaypoint, type SimWind } from "./tripsim";
-import { DEFAULT_BOAT, type BoatProfile } from "./polar";
 import { localDateISO } from "./tz";
 import type { AlongSample } from "./route";
-import type { DepOption } from "./tocht";
 
 const H = 3_600_000;
 const DAY = 24 * H;
@@ -33,41 +30,6 @@ export const binnenBereik = (d: string, b: DagBereik | null) => !!b && d >= b.ee
 // Zeven dagen vanaf `van`; `van` nooit vóór vandaag (geen oude dagen tonen).
 export const stripDagen = (van: string, vandaag: string) =>
   Array.from({ length: 7 }, (_, i) => addDays(van < vandaag ? vandaag : van, i));
-
-// ── vertrek-ranking op stroom (zonder wind) ─────────────────────────────
-// Bestaande tripsim-integratie met een motorprofiel op vaste STW: de wind speelt dan
-// geen rol in de snelheid (tripsim eist wel een windvector → één 0-kn-sample).
-export const RANKING_STW_KN = 5;
-const RANKING_BOAT: BoatProfile = { ...DEFAULT_BOAT, archetype: "motor", motorSpeedKn: RANKING_STW_KN };
-
-export function rankOpStroom(input: {
-  dag: string; waypoints: SimWaypoint[]; along: AlongSample[][]; legDistNm?: number[];
-}): { beste: DepOption | null; overige: DepOption[]; gedekt: boolean } {
-  const { dag, waypoints, along, legDistNm } = input;
-  if (waypoints.length < 2) return { beste: null, overige: [], gedekt: false };
-  const wind: SimWind = Object.fromEntries(waypoints.map((w) => [w.location_key, [{ time: "2000-01-01T00:00", speed_kn: 0, dir_deg: 0 }]]));
-  // kandidaten: elk half uur van de lokale dag
-  const start = Date.parse(`${addDays(dag, -1)}T12:00:00Z`);
-  const opts: DepOption[] = [];
-  for (let ms = start; ms < start + 2 * DAY; ms += H / 2) {
-    if (localDateISO(ms) !== dag) continue;
-    const r = simulateTrip({ waypoints, departMs: ms, boat: RANKING_BOAT, wind, along, legDistNm });
-    if (r.arrMs != null && !r.voorbijHorizon) opts.push({ depMs: ms, result: r });
-  }
-  // lokale duur-minima (plateau-tolerant) waarbij de stroom helpt (sneller dan
-  // stilstaand water); de 3 kortste, ≥4u uit elkaar, chronologisch
-  const minima = opts.filter((o, i, a) => (!a[i - 1] || o.result.tripMin <= a[i - 1].result.tripMin)
-    && (!a[i + 1] || o.result.tripMin <= a[i + 1].result.tripMin) && o.result.effectMin < 0);
-  const gekozen: DepOption[] = [];
-  for (const o of [...minima].sort((a, b) => a.result.tripMin - b.result.tripMin)) {
-    if (gekozen.some((g) => Math.abs(g.depMs - o.depMs) < 4 * H)) continue;
-    gekozen.push(o);
-    if (gekozen.length >= 3) break;
-  }
-  const beste = gekozen[0] ?? null;
-  // gedekt = de dag heeft stroomdata (minstens één vertrek volledig binnen de reeks)
-  return { beste, overige: gekozen.slice(1).sort((a, b) => a.depMs - b.depMs), gedekt: opts.length > 0 };
-}
 
 // ── stroomkromme ────────────────────────────────────────────────────────
 // Segmenten van de reeks binnen [fromMs, toMs]; een null breekt de lijn (gat blijft gat).

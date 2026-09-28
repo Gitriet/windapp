@@ -143,6 +143,7 @@ export function effectLabel(effectMin: number): string {
 
 // Vlaag-sample van een station (uit de forecast-punten), voor de harde-wind-check.
 export type GustSample = { ms: number; gustKn: number; key?: string };   // key = station
+export type WaveSample = { ms: number; m: number; key: string };          // golfhoogte (m) per station
 
 // LET OP voor een gekozen venster: harde wind (maximum over alle stappen van de tocht
 // ≥ WARN.hardWind.amberKn, of vlaag ≥ amberGust binnen [vertrek-uur, aankomst]) en/of
@@ -226,9 +227,10 @@ export type Etappe = {
   segmenten: number[];            // kn langs de koers per segment (>0 mee)
   kenteringFrac: number | null;   // 0–1 langs de leg, of null
   windDir: number | null; windKn: number | null; vlaagKn: number | null;
-  vanMs: number | null; totMs: number | null;   // wanneer de boot op deze leg vaart
+  golfM: number | null;          // hoogste golf onderweg (stations aan beide kanten), null = geen golfdata
+  vanMs: number | null;          // wanneer de boot aan deze leg begint
 };
-export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[]): Etappe[] {
+export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[], waves: WaveSample[] = []): Etappe[] {
   const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
   let start = 0;
   return legs.map((leg) => {
@@ -255,10 +257,11 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[])
     const windKn = st.length ? spd / st.length : null;
     const t0 = st.length ? Math.floor(st[0].tMs / H) * H : 0, t1 = st.length ? st[st.length - 1].tMs : 0;
     const vl = gusts.filter((g) => (g.key === leg.vanKey || g.key === leg.naarKey) && g.ms >= t0 && g.ms <= t1).map((g) => g.gustKn);
+    const gf = waves.filter((w) => (w.key === leg.vanKey || w.key === leg.naarKey) && w.ms >= t0 && w.ms <= t1).map((w) => w.m);
     return {
       label: leg.label, distNm: leg.distNm, stroom: leg.stroom, segmenten: leg.stroom ? segmenten : [],
-      kenteringFrac, windDir, windKn, vlaagKn: vl.length ? Math.max(...vl) : null,
-      vanMs: st[0]?.tMs ?? null, totMs: st.length ? st[st.length - 1].tMs : null,
+      kenteringFrac, windDir, windKn, vlaagKn: vl.length ? Math.max(...vl) : null, golfM: gf.length ? Math.max(...gf) : null,
+      vanMs: st[0]?.tMs ?? null,
     };
   });
 }

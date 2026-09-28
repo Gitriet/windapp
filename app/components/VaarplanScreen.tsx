@@ -2,29 +2,26 @@
 // VAARPLAN — detail van het gekozen vertrek: tijdblok + KPI's, etappes (stroom per
 // segment, kentering, wind), haveninfo met VHF uit de data, getijpoort, VHF-posten en
 // uitwijkhavens. De gekozen etappe toont zijn eigen 24-uurs stroomkromme (bij een route
-// zonder tussenstops = de hele tocht), plus de beste vertrektijden op stroom op de
-// vertrekdag. Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
+// zonder tussenstops = de hele tocht). Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
 import { useMemo, useState } from "react";
-import { localHM, localDateISO, localMidnight } from "@/lib/tz";
+import { localDateISO, localMidnight } from "@/lib/tz";
 import { dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import {
-  combineLegTimelines, effectLabel, etappes, letOp, stroomVerloop,
-  type DepOption, type Etappe, type EtappeLeg, type GustSample, type LegTimeline, type ViaHaven,
+  combineLegTimelines, effectLabel, etappes, letOp,
+  type Etappe, type EtappeLeg, type GustSample, type LegTimeline, type ViaHaven, type WaveSample,
 } from "@/lib/tocht";
-import { addDays, krommePieken, krommeSegmenten, rankOpStroom } from "@/lib/getij";
-import type { SimWaypoint } from "@/lib/tripsim";
-import type { AlongSample } from "@/lib/route";
+import { addDays, krommePieken, krommeSegmenten } from "@/lib/getij";
 import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
 import type { SimResult } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
 import type { TideData } from "@/lib/types";
 import type { BoatProfile } from "@/lib/polar";
 import { Skeleton } from "./Shell";
+import { HavenDetail } from "./HavenSelector";
 import { WindArrow } from "./icons";
 import s from "./VaarplanScreen.module.css";
 
 const H = 3_600_000;
-const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const noon = (d: string) => Date.parse(`${d}T12:00:00Z`);
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("nl-NL", { ...o, timeZone: "Europe/Amsterdam" }).format(noon(d)).replace(".", "").toUpperCase();
@@ -50,14 +47,12 @@ export interface VaarplanScreenProps {
   bearingDeg: number | null;
   legs: EtappeLeg[];
   gusts: GustSample[];
+  waves: WaveSample[];
   fromTide: TideData | null;
   via: ViaHaven[];
   boat: BoatProfile;
   anyStroom: boolean;
   legTimelines: LegTimeline[];            // stroom per etappe (zelfde volgorde als legs)
-  waypoints: SimWaypoint[];
-  alongPerLeg: AlongSample[][];
-  legDistNm?: number[];
 }
 
 export default function VaarplanScreen(p: VaarplanScreenProps) {
@@ -70,8 +65,8 @@ export default function VaarplanScreen(p: VaarplanScreenProps) {
 }
 
 function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: RouteHaven; to: RouteHaven }) {
-  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, fromTide, via, boat, anyStroom } = p;
-  const et = useMemo(() => etappes(trip, legs, gusts), [trip, legs, gusts]);
+  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, waves, fromTide, via, boat, anyStroom } = p;
+  const et = useMemo(() => etappes(trip, legs, gusts, waves), [trip, legs, gusts, waves]);
   const [selRaw, setSel] = useState(0);
   const sel = Math.min(selRaw, Math.max(0, et.length - 1));   // nieuwe route met minder etappes
   const warn = letOp(trip, bearingDeg ?? 0, gusts);
@@ -130,7 +125,8 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
                 <div className={s.wind}>
                   <WindArrow dir={e.windDir} />
                   <span className={s.windKn}>{dirLabel16(e.windDir)}&nbsp;{Math.round(e.windKn)}&nbsp;KN</span>
-                  {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN&nbsp;{Math.round(e.vlaagKn)}</span>}
+                  {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN <span className={s.windKn}>{Math.round(e.vlaagKn)}&nbsp;KN</span></span>}
+                  {e.golfM != null && <span className={s.vlaag}>GOLF <span className={s.windKn}>{komma(e.golfM)}&nbsp;M</span></span>}
                 </div>
               )}
             </button>
@@ -139,13 +135,12 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
       </div>
 
       {et[sel] && <StroomKromme etappe={et[sel]} timeline={p.legTimelines[sel]} depMs={depMs} />}
-      <Vertrektijden {...p} dag={localDateISO(depMs)} />
 
       <div>
         <div className={s.sectie}>HAVENINFO</div>
         <div className={s.lijst}>
-          <Haven rol="VERTREK" haven={from} />
-          <Haven rol="AANKOMST" haven={to} />
+          <Haven rol="VERTREK" haven={from} diepgang={boat.draftM} />
+          <Haven rol="AANKOMST" haven={to} diepgang={boat.draftM} />
           <div className={`row ${s.poort}`} data-status={poort ?? "onbekend"}>
             GETIJPOORT VERTREK · {poort === "open" ? "OPEN BIJ VERTREK" : poort === "dicht" ? "DICHT BIJ VERTREK" : "ONBEKEND"}
           </div>
@@ -173,64 +168,32 @@ function Kpi({ label, waarde }: { label: string; waarde: string }) {
 }
 
 // Havenkaart: naam + eerste VHF-kanaal uit de data; subregel = havennaam (+ getijgebonden).
-function Haven({ rol, haven }: { rol: string; haven: RouteHaven }) {
+// Klik klapt de volledige haveninfo open (zelfde detail als in de routekiezer).
+function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepgang: number }) {
+  const [open, setOpen] = useState(false);
   const h = haven.havenInfo;
   const vhf = h?.vhf[0];
-  return (
-    <div className={`card ${s.haven}`}>
+  const kop = (
+    <>
       <div className={s.etappeKop}>
         <span className={s.havenNaam}>{rol} · {haven.naam}</span>
-        {vhf && <span className={s.havenVhf} title={vhf.dienst}>VHF&nbsp;{vhf.kanaal}</span>}
+        <span className={s.havenVhf} title={vhf?.dienst}>
+          {vhf && <>VHF&nbsp;{vhf.kanaal}</>}{h && <span className={s.chevron} aria-hidden>{open ? "▴" : "▾"}</span>}
+        </span>
       </div>
       {h && <div className={s.havenSub}>{h.havenNaam}{h.getijgebonden ? " · getijgebonden" : ""}{h.sluis ? ` · ${h.sluis.naam}` : ""}</div>}
-    </div>
+    </>
   );
-}
-
-// Reden bij een vertrek: stroom bij vertrek + het getij-extreem kort ervóór (≤4u).
-function reden(o: DepOption, tide: TideData | null): string {
-  const v = stroomVerloop(o.result, true);
-  const mee = v.kind === "mee";
-  const ext = [...(tide?.extremes ?? [])].reverse().find((e) => tms(e.t) <= o.depMs && tms(e.t) >= o.depMs - 4 * H);
-  const kent = "totMs" in v && v.totMs != null ? ` · kentering ${localHM(v.totMs)}` : "";
-  return `${mee ? "meestroom" : "tegenstroom"}${ext ? ` vanaf ${ext.kind} ${localHM(tms(ext.t))}` : ""}${kent}`;
-}
-
-// Beste vertrektijden op stroom (zonder wind) voor de hele tocht, op de vertrekdag.
-function Vertrektijden({ dag, anyStroom, waypoints, alongPerLeg, legDistNm, fromTide }: VaarplanScreenProps & { dag: string }) {
-  const r = useMemo(
-    () => (anyStroom ? rankOpStroom({ dag, waypoints, along: alongPerLeg, legDistNm }) : { beste: null, overige: [], gedekt: false }),
-    [dag, anyStroom, waypoints, alongPerLeg, legDistNm],
-  );
-  const rijen = [...(r.beste ? [r.beste] : []), ...r.overige].sort((a, b) => a.depMs - b.depMs);
   return (
-    <div>
-      <div className={s.sectie}>BESTE VERTREKTIJDEN · {fmt(dag, { weekday: "short", day: "numeric", month: "short" })}</div>
-      <div className={s.noot}>op stroom, zonder wind</div>
-      {!rijen.length ? (
-        <div className={s.leeg}>—<div className={s.noot}>{!anyStroom ? "geen stroomdata voor deze route" : r.gedekt ? "geen vertrek met meestroom op deze dag" : "geen stroomdata voor deze dag"}</div></div>
-      ) : (
-        <div className={`${s.lijst} ${s.lijstTop}`}>
-          {rijen.map((o) => {
-            const best = o.depMs === r.beste?.depMs;
-            return (
-              <div key={o.depMs} className={`row ${s.blok} ${best ? "is-filled" : ""}`}>
-                <span className={s.blokMain}>
-                  <span className={s.blokTijd}>{tijdblok(o.depMs, o.result.arrMs)}</span>
-                  <span className={s.blokReden}>{reden(o, fromTide)}</span>
-                </span>
-                {best ? <span className={s.badge}>BESTE</span> : <span className={s.label}>GOED</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className={`card ${s.haven}`}>
+      {h ? <button type="button" className={s.havenKnop} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{kop}</button> : kop}
+      {h && open && <div className={s.havenDetail}><HavenDetail havenInfo={h} bootDiepgang={diepgang} /></div>}
     </div>
   );
 }
 
 // 24-uurs stroomkromme van de gekozen etappe, op de dag waarop de boot die etappe begint;
-// de band markeert wanneer de boot op de etappe vaart. Gaten blijven gaten.
+// de dunne lijn markeert het vertrek op de etappe. Gaten blijven gaten.
 const W = 300, HG = 90, PAD = 6;
 function StroomKromme({ etappe, timeline, depMs }: { etappe: Etappe; timeline?: LegTimeline; depMs: number }) {
   const dag = localDateISO(etappe.vanMs ?? depMs);
@@ -243,15 +206,15 @@ function StroomKromme({ etappe, timeline, depMs }: { etappe: Etappe; timeline?: 
   return (
     <div className={`card ${s.krommeKaart}`}>
       <div>
-        <div className={s.sectie}>STROOM · {etappe.label.toUpperCase()} · 24 UUR</div>
-        <div className={s.noot}>{fmt(dag, { weekday: "short", day: "numeric", month: "short" })}</div>
+        <div className={s.sectie}>STROOM · 24 UUR</div>
+        <div className={s.noot}>{etappe.label} · {fmt(dag, { weekday: "short", day: "numeric", month: "short" }).toLowerCase()}</div>
       </div>
       {!segs.length ? (
         <div className={s.leeg}>—<div className={s.noot}>geen stroomdata voor deze etappe op deze dag</div></div>
       ) : (
         <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`stroom langs ${etappe.label} over 24 uur`}>
-          {etappe.vanMs != null && etappe.totMs != null && (
-            <rect x={x(etappe.vanMs)} width={Math.max(1, x(etappe.totMs) - x(etappe.vanMs))} y={0} height={HG} className={s.onderweg} />
+          {etappe.vanMs != null && (
+            <line x1={x(etappe.vanMs)} x2={x(etappe.vanMs)} y1={0} y2={HG} className={s.vertrek} />
           )}
           <line x1={0} x2={W} y1={HG / 2} y2={HG / 2} className={s.nullijn} />
           {segs.map((seg, i) => (
@@ -266,7 +229,7 @@ function StroomKromme({ etappe, timeline, depMs }: { etappe: Etappe; timeline?: 
       <div className={s.legenda}>
         <span><span className={`${s.stip} ${s.piekMee}`} />MEESTROOM</span>
         <span><span className={`${s.stip} ${s.piekTegen}`} />TEGENSTROOM</span>
-        <span><span className={`${s.stip} ${s.stipOnderweg}`} />ONDERWEG</span>
+        <span><span className={`${s.stip} ${s.stipVertrek}`} />VERTREK</span>
       </div>
     </div>
   );

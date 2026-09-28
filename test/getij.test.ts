@@ -1,6 +1,5 @@
-// GETIJDEN-afleidingen (lib/getij.ts): datumbereik, ISO-week, stroom-ranking zonder wind
-// en de kromme (gaten blijven gaten, pieken per fase).
-import { datumBereik, binnenBereik, stripDagen, rankOpStroom, krommeSegmenten, krommePieken, RANKING_STW_KN } from "../lib/getij";
+// Getij-afleidingen (lib/getij.ts): datumbereik, ISO-week en de kromme (gaten blijven gaten, pieken per fase).
+import { datumBereik, binnenBereik, stripDagen, krommeSegmenten, krommePieken } from "../lib/getij";
 import type { AlongSample } from "../lib/route";
 
 let fail = 0;
@@ -24,24 +23,8 @@ ok("nooit vóór vandaag", stripDagen("2026-09-11", "2026-09-18")[0] === "2026-0
 ok("latere start blijft", stripDagen("2026-09-25", "2026-09-18")[0] === "2026-09-25");
 ok("over zomertijdgrens (29 mrt 2026)", stripDagen("2026-03-28", "2026-03-28")[2] === "2026-03-30");
 
-console.log("— rankOpStroom —");
-// sinusvormige stroom (periode 12u, 1 kn) langs één leg van ~5 nm, de hele dag gedekt
-const t0 = Date.parse("2026-09-18T00:00:00Z");
-const along: AlongSample[] = Array.from({ length: 40 }, (_, i) => ({
-  t: new Date(t0 - 4 * H + i * H).toISOString().slice(0, 19), alongKn: Math.sin((2 * Math.PI * (i - 4)) / 12),
-}));
-const wp = [{ location_key: "a", lat: 53.0, lon: 4.7 }, { location_key: "b", lat: 53.08, lon: 4.7 }];
-const r = rankOpStroom({ dag: "2026-09-18", waypoints: wp, along: [along], legDistNm: [5] });
-ok("beste gevonden", r.beste != null && r.gedekt);
-ok("dag zonder data → niet gedekt", !rankOpStroom({ dag: "2026-09-25", waypoints: wp, along: [along], legDistNm: [5] }).gedekt);
-ok("beste vertrekt met meestroom", (r.beste?.result.steps[0].cur ?? -1) > 0, String(r.beste?.result.steps[0].cur));
-ok("beste is snelste", [r.beste!, ...r.overige].every((o) => o.result.tripMin >= r.beste!.result.tripMin));
-ok("vensters ≥4u uit elkaar", [r.beste!, ...r.overige].every((o, i, a) => a.every((p, j) => i === j || Math.abs(o.depMs - p.depMs) >= 4 * H)));
-ok("alleen vertrekken waarbij de stroom helpt", [r.beste!, ...r.overige].every((o) => o.result.effectMin < 0));
-ok("STW vast (wind speelt geen rol)", Math.abs(r.beste!.result.avgStw - RANKING_STW_KN) < 1e-9);
-ok("alle vertrekken op de gekozen dag", [r.beste!, ...r.overige].every((o) => new Date(o.depMs + 2 * H).toISOString().startsWith("2026-09-18")));
-
 console.log("— kromme —");
+const t0 = Date.parse("2026-09-18T00:00:00Z");
 const s: AlongSample[] = [
   { t: "2026-09-18T00:00:00", alongKn: 0 }, { t: "2026-09-18T01:00:00", alongKn: 1 }, { t: "2026-09-18T02:00:00", alongKn: 0.5 },
   { t: "2026-09-18T03:00:00", alongKn: null },

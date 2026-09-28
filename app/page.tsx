@@ -23,7 +23,7 @@ export default function Page() {
     fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, vensters, firstDepMs, selTrip,
-    routeTide, routeGusts, vanWeather, etappeLegs, waypoints, alongPerLeg, legDistNm, ready, nowMs,
+    routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, ready, nowMs,
   } = tocht;
   const vanData = useHaven(endpoints?.van ?? null);
   const naarData = useHaven(endpoints?.naar ?? null);
@@ -66,10 +66,9 @@ export default function Page() {
         {maakRouteChip("chip-route")}
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
-          distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts}
+          distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts} waves={routeWaves}
           fromTide={routeTide} via={viaHavens} boat={boat}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines}
-          waypoints={waypoints} alongPerLeg={alongPerLeg} legDistNm={legDistNm} />
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} legTimelines={routeMeta.legTimelines} />
       </>
     ),
   };

@@ -53,21 +53,6 @@
 /* gekozen dag: weerregel, live wind, en onderaan het getij (HW/LW + curve) */
 .blok { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-5) var(--sp-4); }
 .nu { display: flex; flex-direction: column; gap: var(--sp-7); }
-.dag {
-  width: 100%; display: flex; align-items: center; gap: var(--sp-3);
-  font-family: var(--font-num); white-space: nowrap; text-align: left;
-}
-.dagNaam { flex: 0 0 auto; font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
-.dagIcoon { display: flex; width: var(--sp-8); color: var(--slate); }
-.dag[data-zon] .dagIcoon, .dag[data-verdict="letop"] .dagNaam { flex: 0 0 auto; font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
-.dagIcoon { color: var(--ochre); }
-.dagTemp { flex: 0 0 auto; font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
-.dagWind { font-size: var(--fs-label); font-weight: 700; color: var(--parchment); }
-.dagVlaag { flex: 1; font-size: var(--fs-caption); color: var(--slate); }
-.dagVerdict { flex: 0 0 auto; font-size: var(--fs-caption); font-weight: 700; color: var(--slate); }
-.dag[data-verdict="goed"] .dagVerdict { color: var(--sea-green); }
-.dag[data-verdict="letop"] .dagWind, .dag[data-verdict="letop"] .dagVlaag, .dag[data-verdict="letop"] .dagVerdict { color: var(--ochre); }
-
 .extremen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
 .extreem {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); white-space: nowrap;

@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type RouteMeta,
+  pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { TideData } from "@/lib/types";
 
@@ -195,6 +195,14 @@ export function useTocht(boat: BoatProfile) {
     () => Object.entries(routeFc).flatMap(([key, f]) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn, key }))),
     [routeFc],
   );
+  // golfhoogte per station (Open-Meteo Marine; landpunt = geen samples) voor de etappes
+  const routeWaves = useMemo<WaveSample[]>(
+    () => Object.entries(routeFc).flatMap(([key, f]) => (f.weather?.time ?? []).flatMap((t, i) => {
+      const m = f.weather.wave[i];
+      return m != null ? [{ ms: tms(t), m, key }] : [];
+    })),
+    [routeFc],
+  );
   const vanWeather = endpoints ? routeFc[endpoints.van.key]?.weather ?? null : null;
 
 
@@ -202,7 +210,7 @@ export function useTocht(boat: BoatProfile) {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, vanWeather, etappeLegs, waypoints, alongPerLeg, legDistNm,
+    routeGusts, routeWaves, vanWeather, etappeLegs,
     routeTide, ready: !!routeWind, nowMs, err,
   };
 }

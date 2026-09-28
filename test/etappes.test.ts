@@ -30,4 +30,11 @@ ok("leg 1: vlaag alleen eigen stations", l1.vlaagKn === 19, String(l1.vlaagKn));
 ok("leg 2 zonder stroomdata: geen segmenten, geen kentering", l2.segmenten.length === 0 && l2.kenteringFrac === null);
 ok("leg 2: vlaag van station c binnen de tijd", l2.vlaagKn === 25, String(l2.vlaagKn));
 
+const [g1, g2] = etappes(trip, legs, [], [
+  { ms: T0, m: 0.6, key: "a" }, { ms: T0, m: 2.0, key: "x" }, { ms: T0 + H, m: 0.9, key: "c" },
+]);
+ok("leg 1: golf alleen eigen stations", g1.golfM === 0.6, String(g1.golfM));
+ok("leg 2: golf van station c binnen de tijd", g2.golfM === 0.9, String(g2.golfM));
+ok("zonder golfdata: null", etappes(trip, legs, [])[0].golfM === null);
+
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

@@ -50,8 +50,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 |---|---|---|
 | Tijdblok + KPI's | gekozen `SimResult`; `chain.totalNm`; peiling | `fmtDuurKort` |
 | Etappes | sim-stappen per leg + vlaagpunten van de leg-stations | `etappes()`: stroom per segment, kentering, wind/vlaag, tijdvenster op de leg |
-| Stroomkromme (gekozen etappe) | `/api/route-stroom` van die leg | `krommeSegmenten()` (null = gat), `krommePieken()`; dag = start van de leg, band = onderweg |
-| Beste vertrektijden | `/api/route-stroom` per leg, vertrekdag | `rankOpStroom()`: tripsim met motorprofiel op 5 kn, zónder wind; alleen vertrekken waarbij de stroom helpt |
+| Stroomkromme (gekozen etappe) | `/api/route-stroom` van die leg | `krommeSegmenten()` (null = gat), `krommePieken()`; dag = start van de leg, lijn = vertrek op de etappe |
 | Haveninfo | `data/havens-info.json` via `/api/routes` | eerste VHF-kanaal + havennaam |
 | Getijpoort | `GATE_DATUMS` (nu alleen Vlissingen) + getijcurve vertrekhaven | `gateWindows` → OPEN / DICHT / ONBEKEND |
 | VHF-posten, uitwijk | vaste lijst verkeersposten (breedtegraad), tussenhavens van de keten | — |

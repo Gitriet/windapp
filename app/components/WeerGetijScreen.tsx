@@ -7,13 +7,10 @@
 import { useState } from "react";
 import { localHM, localDateISO, localMidnight } from "@/lib/tz";
 import { addDays, binnenBereik, datumBereik, stripDagen } from "@/lib/getij";
-import { verdict, type Verdict } from "@/lib/verdict";
-import { wxGroup } from "@/lib/weather";
 import type { ForecastResponse, RouteHaven, WeekResponse } from "@/lib/planner-data";
 import type { TideData, TidePoint } from "@/lib/types";
 import NuScreen from "./NuScreen";
 import { Skeleton } from "./Shell";
-import { WxIcon } from "./icons";
 import s from "./WeerGetijScreen.module.css";
 
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -21,7 +18,6 @@ const noon = (d: string) => Date.parse(`${d}T12:00:00Z`);
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("nl-NL", { ...o, timeZone: "Europe/Amsterdam" }).format(noon(d)).replace(".", "").toUpperCase();
 
-const VERDICT_LABEL: Record<Verdict, string> = { goed: "GOED", fris: "FRIS", licht: "LICHT", letop: "LET OP" };
 
 export type HavenData = { fc?: ForecastResponse; week?: WeekResponse; tide?: TideData | null };
 type Rol = "van" | "naar";
@@ -100,8 +96,7 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
       {!haven || !hd.fc || !hd.week ? <Skeleton rows={3} height={120} label="weer en getij laden" /> : (
         <>
           <div className={s.nu}>
-            <div className={s.sectie}>NU · {haven.naam}</div>
-            <NuScreen fc={hd.fc} naam={haven.naam} voet={<WeerDag dag={gekozen} week={hd.week} />} />
+            <NuScreen fc={hd.fc} naam={haven.naam} dag={{ date: gekozen, day: hd.week.days.find((w) => w.date === gekozen) }} />
           </div>
           <div>
             <div className={`${s.sectie} ${s.kop}`}>GETIJ · {haven.naam}</div>
@@ -110,25 +105,6 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
         </>
       )}
     </>
-  );
-}
-
-// Weer van de gekozen dag: één regel (onderin de kompaskaart), dagnaam vooraan.
-function WeerDag({ dag, week }: { dag: string; week: WeekResponse }) {
-  const d = week.days.find((w) => w.date === dag);
-  const v = d ? verdict(d.speedMax, d.gust) : null;
-  const wind = d?.windMin != null && d.speedMax != null ? `${Math.round(d.windMin)}–${Math.round(d.speedMax)}`
-    : d?.speedMax != null ? `${Math.round(d.speedMax)}` : "—";
-  return (
-    <div className={s.dag} data-verdict={v ?? undefined}
-      data-zon={d && (wxGroup(d.code) === "clear" || wxGroup(d.code) === "fewclouds") ? "" : undefined}>
-        <span className={s.dagNaam}>{fmt(dag, { weekday: "short", day: "numeric" })}</span>
-        <span className={s.dagIcoon}>{d ? <WxIcon code={d.code} size={16} /> : null}</span>
-        <span className={s.dagTemp}>{d?.tmax != null ? `${Math.round(d.tmax)}°` : "—"}</span>
-        <span className={s.dagWind}>{wind}&nbsp;KN</span>
-        <span className={s.dagVlaag}>VLG&nbsp;{d?.gust != null ? Math.round(d.gust) : "—"}</span>
-        <span className={s.dagVerdict}>{v ? VERDICT_LABEL[v] : "—"}</span>
-    </div>
   );
 }
 

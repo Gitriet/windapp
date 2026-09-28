@@ -109,7 +109,7 @@ export default function HavenSelector({
       {havenInfo && detail && (
         <div className={st.detail}>
           {(status.kind === "open" || status.kind === "dicht") && <TijdBalk windows={status.windows} />}
-          <Detail havenInfo={havenInfo} bootDiepgang={bootDiepgang} />
+          <HavenDetail havenInfo={havenInfo} bootDiepgang={bootDiepgang} />
         </div>
       )}
     </div>
@@ -156,8 +156,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-// Detail-inhoud: null-velden worden overgeslagen (geen lege rijen).
-function Detail({ havenInfo: h, bootDiepgang }: { havenInfo: HavenInfo; bootDiepgang: number }) {
+// Detail-inhoud: null-velden worden overgeslagen (geen lege rijen). Ook gebruikt in VAARPLAN.
+export function HavenDetail({ havenInfo: h, bootDiepgang }: { havenInfo: HavenInfo; bootDiepgang: number }) {
   const benodigdNap = h.drempel ? h.drempel.diepte_m_nap + bootDiepgang : null;
   return (
     <div>
