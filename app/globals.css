@@ -91,7 +91,8 @@
   --nav-knop: 22px;      /* zichtbare week-navknop (tapvlak blijft --tap) */
   --blok-pad: 12px 14px; /* vertrektijdblok GETIJDEN */
   --kromme-lijn: 2.5px;
-  --kromme-markering: 1.5px;  /* vertreklijn in de stroomkromme */
+  --kromme-markering: 1.5px;  /* rand van de kenteringstip in de stroomkromme */
+  --kromme-buiten: 0.3;       /* stroomkromme buiten de vaartijd (gedimd) */
   --ls-tijdblok: -0.4px;
   --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: var(--sp-3);

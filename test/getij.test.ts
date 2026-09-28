@@ -1,5 +1,5 @@
 // Getij-afleidingen (lib/getij.ts): datumbereik, ISO-week en de kromme (gaten blijven gaten, pieken per fase).
-import { datumBereik, binnenBereik, stripDagen, krommeSegmenten, krommePieken } from "../lib/getij";
+import { datumBereik, binnenBereik, stripDagen, krommeSegmenten, krommePieken, krommeKenteringen, krommeBereik } from "../lib/getij";
 import type { AlongSample } from "../lib/route";
 
 let fail = 0;
@@ -34,5 +34,15 @@ const segs = krommeSegmenten(s, t0, t0 + 24 * H);
 ok("null breekt de lijn in 2 segmenten", segs.length === 2 && segs[0].length === 3 && segs[1].length === 3);
 ok("meestroompiek", krommePieken(segs[0]).map((p) => p.soort).join() === "mee");
 ok("tegenstroompiek", krommePieken(segs[1]).map((p) => p.soort).join() === "tegen");
+const k = krommeKenteringen([{ ms: 0, v: 1 }, { ms: H, v: -3 }, { ms: 2 * H, v: -1 }, { ms: 3 * H, v: 1 }]);
+ok("kenteringen lineair tussen de uren", k.length === 2 && k[0].ms === H / 4 && k[1].ms === 2.5 * H, k.map((m) => m.ms / H).join());
+ok("kentering-richting", !k[0].naarMee && k[1].naarMee);
+// 28 sep 2026 = CEST (UTC+2): lokale dag = 27 sep 22:00Z t/m 28 sep 22:00Z
+const dep = Date.parse("2026-09-28T10:00:00Z");
+const kort = krommeBereik(dep, dep + 2 * H);
+ok("tocht binnen de dag: 00–24 lokaal", kort.dagweergave && kort.van === Date.parse("2026-09-27T22:00:00Z") && kort.tot === Date.parse("2026-09-28T22:00:00Z"));
+const lang = krommeBereik(dep, dep + 21 * H);
+ok("lange tocht: vanaf 3 u voor vertrek tot 1 u na aankomst", !lang.dagweergave && lang.van === dep - 3 * H && lang.tot === dep + 22 * H,
+  `${(lang.van - dep) / H}..${(lang.tot - dep) / H}`);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

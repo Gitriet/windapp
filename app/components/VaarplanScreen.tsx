@@ -4,13 +4,13 @@
 // uitwijkhavens. De gekozen etappe toont zijn eigen 24-uurs stroomkromme (bij een route
 // zonder tussenstops = de hele tocht). Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
 import { useId, useMemo, useState } from "react";
-import { localDateISO, localMidnight } from "@/lib/tz";
+import { localDateISO, localHM } from "@/lib/tz";
 import { dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import {
   combineLegTimelines, effectLabel, etappes, letOp,
   type Etappe, type EtappeLeg, type GustSample, type LegTimeline, type ViaHaven, type WaveSample,
 } from "@/lib/tocht";
-import { addDays, krommePieken, krommeSegmenten } from "@/lib/getij";
+import { krommeBereik, krommeKenteringen, krommePieken, krommeSegmenten } from "@/lib/getij";
 import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
 import type { SimResult } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
@@ -23,9 +23,6 @@ import { WindArrow } from "./icons";
 import s from "./VaarplanScreen.module.css";
 
 const H = 3_600_000;
-const noon = (d: string) => Date.parse(`${d}T12:00:00Z`);
-const fmt = (d: string, o: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat("nl-NL", { ...o, timeZone: "Europe/Amsterdam" }).format(noon(d)).replace(".", "").toUpperCase();
 const komma = (n: number) => n.toFixed(1).replace(".", ",");
 
 // Verkeersposten langs de NL-kust — handmatige seed, geselecteerd op de breedtegraad-
@@ -135,7 +132,7 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         </div>
       </div>
 
-      {et[sel] && <StroomKromme etappe={et[sel]} timelines={p.etappeTimelines[sel] ?? []} depMs={depMs} />}
+      {et[sel] && <StroomKromme etappe={et[sel]} timelines={p.etappeTimelines[sel] ?? []} depMs={depMs} arrMs={trip.arrMs} />}
 
       <div>
         <div className={s.sectie}>HAVENINFO</div>
@@ -195,56 +192,96 @@ function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepg
   );
 }
 
-// 24-uurs stroomkromme van de gekozen etappe, op de dag waarop de boot die etappe begint;
-// de dunne lijn markeert het vertrek op de etappe. Gaten blijven gaten. Een etappe via
-// knooppunten bestaat uit meerdere legs: hun stroom telt naar lengte gewogen mee.
-const W = 300, HG = 90, PAD = 6;
-function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines: LegTimeline[]; depMs: number }) {
-  const dag = localDateISO(etappe.vanMs ?? depMs);
-  const van = localMidnight(noon(dag)), tot = localMidnight(noon(addDays(dag, 1)));
+// Stroomkromme van de tocht: de vertrekdag (00–24), of bij een tocht over middernacht een
+// venster dat met de tocht meeschuift (krommeBereik). De vaartijd (vertrek–aankomst) staat
+// tussen twee haarlijnen en is in volle kleur, de rest gedimd; een gestreepte lijn = nu.
+// Gaten blijven gaten. Een etappe via knooppunten bestaat uit meerdere legs: hun stroom
+// telt naar lengte gewogen mee.
+// Labels alleen binnen de vaartijd: bij een piek sterkte + tijd (mee erboven, tegen
+// eronder), bij een kentering de tijd naast de open stip. Daarbuiten alleen gedimde
+// stippen. LBL = ruimte voor de pieklabels.
+const W = 300, HG = 116, PAD = 6, LBL = 12;
+const kn = (v: number) => Math.abs(v).toFixed(1).replace(".", ",");
+const labelX = (px: number) => Math.min(W - 34, Math.max(34, px));
+// aslabel bij een meeschuivend venster: dag erbij, want het loopt over middernacht
+const asLabel = (ms: number) =>
+  `${new Intl.DateTimeFormat("nl-NL", { weekday: "short", timeZone: "Europe/Amsterdam" }).format(ms).replace(".", "").toUpperCase()} ${localHM(ms)}`;
+function StroomKromme({ etappe, timelines, depMs, arrMs }: { etappe: Etappe; timelines: LegTimeline[]; depMs: number; arrMs: number | null }) {
+  const { van, tot, dagweergave } = krommeBereik(depMs, arrMs);
+  const eind = arrMs ?? depMs;
+  const nu = Date.now();
+  const inTocht = (ms: number) => ms >= depMs && ms <= eind;
   const { series } = combineLegTimelines(timelines);
   // alleen als élk stuk van de etappe stroomdata heeft; anders zou de curve een deel voor het geheel tonen
   const segs = etappe.stroom ? krommeSegmenten(series, van, tot) : [];
   const maxAbs = Math.max(0.5, ...segs.flat().map((q) => Math.abs(q.v)));
   const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;
-  const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD);
+  const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD - LBL);
+  const kenteringen = segs.flatMap(krommeKenteringen);
   // lijn boven de nullijn = mee (groen), eronder = tegen (oker): dezelfde lijn twee keer, geknipt
   const clip = useId().replace(/:/g, "");
   return (
     <div className={`card ${s.krommeKaart}`}>
-      <div>
-        <div className={s.sectie}>STROOM · 24 UUR</div>
-        <div className={s.noot}>{etappe.label} · {fmt(dag, { weekday: "short", day: "numeric", month: "short" }).toLowerCase()}</div>
-      </div>
+      <div className={s.sectie}>STROOM LANGS DE ROUTE · MEE / TEGEN</div>
       {!segs.length ? (
         <div className={s.leeg}>—<div className={s.noot}>{etappe.stroom ? "geen stroomdata voor deze etappe op deze dag" : "stroomdata ontbreekt voor een deel van de tocht"}</div></div>
       ) : (
         <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`stroom langs ${etappe.label} over 24 uur`}>
-          {etappe.vanMs != null && (
-            <line x1={x(etappe.vanMs)} x2={x(etappe.vanMs)} y1={0} y2={HG} className={s.vertrek} />
-          )}
           <line x1={0} x2={W} y1={HG / 2} y2={HG / 2} className={s.nullijn} />
           <clipPath id={`${clip}m`}><rect x={0} y={0} width={W} height={HG / 2} /></clipPath>
           <clipPath id={`${clip}t`}><rect x={0} y={HG / 2} width={W} height={HG / 2} /></clipPath>
-          {segs.map((seg, i) => {
-            const pts = seg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+          <clipPath id={`${clip}v`}><rect x={x(depMs)} y={0} width={Math.max(0, x(eind) - x(depMs))} height={HG} /></clipPath>
+          {/* de hele dag gedimd, de vaartijd daaroverheen in volle kleur */}
+          {[s.buiten, undefined].map((cls, laag) => (
+            <g key={laag} className={cls} clipPath={laag ? `url(#${clip}v)` : undefined}>
+              {segs.map((seg, i) => {
+                const pts = seg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+                return (
+                  <g key={i}>
+                    <polyline className={s.lijn} points={pts} clipPath={`url(#${clip}m)`} />
+                    <polyline className={`${s.lijn} ${s.lijnTegen}`} points={pts} clipPath={`url(#${clip}t)`} />
+                  </g>
+                );
+              })}
+            </g>
+          ))}
+          {[depMs, eind].map((ms) => <line key={ms} x1={x(ms)} x2={x(ms)} y1={0} y2={HG} className={s.vaartijd} />)}
+          {nu > van && nu < tot && (
+            <line x1={x(nu)} x2={x(nu)} y1={0} y2={HG} className={s.nuLijn} />
+          )}
+          {segs.flatMap(krommePieken).map((q) => (
+            <g key={q.ms} className={inTocht(q.ms) ? undefined : s.buiten}>
+              <circle cx={x(q.ms)} cy={y(q.v)} r={4} className={q.soort === "mee" ? s.piekMee : s.piekTegen} />
+              {inTocht(q.ms) && <text x={labelX(x(q.ms))} y={q.soort === "mee" ? y(q.v) - 8 : y(q.v) + 15}
+                className={`${s.krommeLabel} ${q.soort === "mee" ? s.labelMee : s.labelTegen}`}>
+                {kn(q.v)} kn · {localHM(q.ms)}
+              </text>}
+            </g>
+          ))}
+          {/* tijd rechts van de kentering aan de kant waar de lijn niet loopt; aan de rechterrand
+              links ervan (en dus aan de andere kant van de nullijn) */}
+          {kenteringen.map(({ ms, naarMee }) => {
+            const rechts = x(ms) > W - 30;
             return (
-              <g key={i}>
-                <polyline className={s.lijn} points={pts} clipPath={`url(#${clip}m)`} />
-                <polyline className={`${s.lijn} ${s.lijnTegen}`} points={pts} clipPath={`url(#${clip}t)`} />
+              <g key={ms} className={inTocht(ms) ? undefined : s.buiten}>
+                <circle cx={x(ms)} cy={HG / 2} r={3} className={s.kentering} />
+                {inTocht(ms) && <text x={x(ms) + (rechts ? -5 : 5)} y={naarMee !== rechts ? HG / 2 + 11 : HG / 2 - 5}
+                  className={s.kenteringLabel} textAnchor={rechts ? "end" : "start"}>{localHM(ms)}</text>}
               </g>
             );
           })}
-          {segs.flatMap(krommePieken).map((q) => (
-            <circle key={q.ms} cx={x(q.ms)} cy={y(q.v)} r={4} className={q.soort === "mee" ? s.piekMee : s.piekTegen} />
-          ))}
         </svg>
       )}
-      <div className={s.as}><span>00:00</span><span>12:00</span><span>24:00</span></div>
+      <div className={s.as}>
+        {dagweergave ? <><span>00:00</span><span>12:00</span><span>24:00</span></>
+          : [van, (van + tot) / 2, tot].map((ms) => <span key={ms}>{asLabel(ms)}</span>)}
+      </div>
       <div className={s.legenda}>
         <span><span className={`${s.stip} ${s.piekMee}`} />MEESTROOM</span>
         <span><span className={`${s.stip} ${s.piekTegen}`} />TEGENSTROOM</span>
-        <span><span className={`${s.stip} ${s.stipVertrek}`} />VERTREK</span>
+        <span><span className={`${s.stip} ${s.stipKentering}`} />KENTERING</span>
+        <span><span className={`${s.stip} ${s.stipVertrek}`} />VAARTIJD</span>
+        <span><span className={`${s.stip} ${s.stipNu}`} />NU</span>
       </div>
     </div>
   );

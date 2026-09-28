@@ -1,7 +1,7 @@
 // WEER & GETIJ / VAARPLAN: pure afleidingen: datumbereik, dagstrip en de
 // 24-uurs stroomkromme. Client-safe. Datums zijn lokale kalenderdagen "YYYY-MM-DD"
 // (Europe/Amsterdam); rekenen op datums gebeurt in UTC-middag zodat zomertijd niet stoort.
-import { localDateISO } from "./tz";
+import { localDateISO, localMidnight } from "./tz";
 import type { AlongSample } from "./route";
 
 const H = 3_600_000;
@@ -57,3 +57,25 @@ export function krommePieken(seg: KrommePunt[]): KrommePiek[] {
     return [];
   });
 }
+
+// Kenteringen: tijdstippen waarop de stroom van teken wisselt (lineair tussen twee uren),
+// met de richting: naarMee = van tegen naar mee (de lijn gaat omhoog).
+export function krommeKenteringen(seg: KrommePunt[]): { ms: number; naarMee: boolean }[] {
+  return seg.flatMap((p, i) => {
+    const n = seg[i + 1];
+    if (!n || p.v * n.v >= 0) return [];
+    return [{ ms: p.ms + (p.v / (p.v - n.v)) * (n.ms - p.ms), naarMee: n.v > 0 }];
+  });
+}
+
+// Tijdbereik van de stroomkromme: de vertrekdag (00–24) als de tocht daarbinnen valt;
+// anders schuift het mee met de tocht: vanaf 3 uur voor vertrek, minstens 24 uur en tot
+// een uur na aankomst.
+export function krommeBereik(depMs: number, arrMs: number | null): { van: number; tot: number; dagweergave: boolean } {
+  const dag = localDateISO(depMs);
+  const van = localMidnight(noon(dag)), tot = localMidnight(noon(addDays(dag, 1)));
+  if (arrMs == null || arrMs <= tot) return { van, tot, dagweergave: true };
+  const start = Math.floor((depMs - 3 * H) / H) * H;
+  return { van: start, tot: Math.max(start + 24 * H, Math.ceil((arrMs + H) / H) * H), dagweergave: false };
+}
+

@@ -57,16 +57,27 @@
 .kromme { width: 100%; height: auto; display: block; overflow: visible; }
 .nullijn { stroke: var(--hairline-soft); stroke-width: var(--line); }
 .lijn { fill: none; stroke: var(--sea-green); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
-.vertrek { stroke: var(--parchment); stroke-width: var(--kromme-markering); }
+/* haarlijnen (vertrek, aankomst, nu): altijd 1 schermpixel, ongeacht de schaal van de viewBox */
+.vaartijd { stroke: var(--hairline-hover); stroke-width: var(--line); vector-effect: non-scaling-stroke; }
+.nuLijn { stroke: var(--parchment); stroke-width: var(--line); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.buiten { opacity: var(--kromme-buiten); }   /* buiten de vaartijd */
 .piekMee { fill: var(--sea-green); }
+/* labels in de kromme: SVG-eenheden (schalen mee met de viewBox) */
+.krommeLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); text-anchor: middle; }
+.labelMee { fill: var(--sea-green-text); }
+.labelTegen { fill: var(--ochre-text); }
+.kentering { fill: var(--ink); stroke: var(--parchment); stroke-width: var(--kromme-markering); }
+.kenteringLabel { font-family: var(--font-num); font-size: 8px; fill: var(--slate); }
 .piekTegen { fill: var(--ochre); }
 .lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
-.legenda { flex-wrap: wrap; gap: var(--sp-3) var(--sp-7); }
+.legenda { flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); font-size: var(--fs-caption); }
 .legenda > span { display: inline-flex; align-items: center; gap: var(--sp-3); }
 .stip { display: inline-block; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
 .stip.piekMee { background: var(--sea-green); }
 .stip.piekTegen { background: var(--ochre); }
-.stip.stipVertrek { width: var(--kromme-markering); border-radius: 0; background: var(--parchment); }
+.stip.stipKentering { background: var(--ink); border: var(--kromme-markering) solid var(--parchment); }
+.stip.stipVertrek { width: var(--line); border-radius: 0; background: var(--hairline-hover); }
+.stip.stipNu { width: 0; border-radius: 0; border-left: var(--line) dashed var(--parchment); }
 
