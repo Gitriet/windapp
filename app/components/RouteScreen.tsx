@@ -67,7 +67,7 @@ export interface RouteScreenProps {
 export default function RouteScreen(p: RouteScreenProps) {
   if (!p.ready) return (
     <>
-      <Skeleton rows={1} height={300} label="advies laden" />
+      <Skeleton rows={1} height={300} label="advies laden" tekst="Berekening wordt gemaakt…" />
       <Skeleton rows={3} height={52} label="vertrekken laden" />
     </>
   );

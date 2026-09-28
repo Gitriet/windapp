@@ -80,6 +80,7 @@
   --label-col: 62px;     /* labelkolom in detailrijen */
   --chip-pad-sm: 5px 9px;
   --kompas: 96px;
+  --windroos: 48px;   /* draaiende roos in de laadmelding */
   --fs-vlaag-nu: 28px;   /* vlaag naast de windsnelheid in de herokaart */
   --ring-2: rgba(243, 233, 210, 0.12);
   --ls-kern: -1px;
@@ -147,7 +148,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   background: var(--fill-faint);
   border: var(--line) solid var(--hairline-soft);
   border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
 }
+.skeleton-tekst {
+  font-family: var(--font-num); font-size: var(--fs-label); letter-spacing: var(--ls-label);
+  text-transform: uppercase; color: var(--slate);
+  animation: skeleton-puls 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-puls { 50% { opacity: 0.4; } }
+.skeleton-melding { display: flex; flex-direction: column; align-items: center; gap: var(--sp-5); }
+.windroos { width: var(--windroos); height: var(--windroos); animation: windroos-draai 6s linear infinite; }
+.windroos-ring { fill: none; stroke: var(--hairline-soft); stroke-width: var(--line); }
+.windroos-kort { fill: var(--ring-2); }
+.windroos-lang { fill: var(--slate); opacity: 0.5; }
+.windroos-noord { fill: var(--ochre); }
+.windroos-naaf { fill: var(--parchment); }
+@keyframes windroos-draai { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .skeleton-tekst, .windroos { animation: none; } }
 
 /* ══ Schil ═══════════════════════════════════════════════════════════
    < 768px: één scherm per tab + vaste tabbar · 768–1400px: 2 kolommen ·

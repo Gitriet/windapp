@@ -109,13 +109,34 @@ export function RouteKiezer({ van, naar, className, children }: {
 }
 
 // Laadstatus: hairline-rijen in --fill-faint met vaste hoogte (geen spinner, geen
-// layout-shift — de hoogte hoort bij de rij die straks verschijnt).
-export function Skeleton({ rows, height, label }: { rows: number; height: number; label: string }) {
+// layout-shift — de hoogte hoort bij de rij die straks verschijnt). tekst = melding in de eerste rij.
+export function Skeleton({ rows, height, label, tekst }: { rows: number; height: number; label: string; tekst?: string }) {
   return (
     <div className="skeleton" aria-busy="true" aria-label={label}>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="skeleton-row" style={{ "--row-h": `${height}px` } as React.CSSProperties} />
+        <div key={i} className="skeleton-row" style={{ "--row-h": `${height}px` } as React.CSSProperties}>
+          {i === 0 && tekst && (
+            <div className="skeleton-melding" role="status">
+              <Windroos />
+              <span className="skeleton-tekst">{tekst}</span>
+            </div>
+          )}
+        </div>
       ))}
     </div>
+  );
+}
+
+// Draaiende windroos voor de laadmelding: 4 lange punten (noord oker), 4 korte diagonalen.
+const STER = "M50 8 L56.4 43.6 L92 50 L56.4 56.4 L50 92 L43.6 56.4 L8 50 L43.6 43.6 Z";
+function Windroos() {
+  return (
+    <svg className="windroos" viewBox="0 0 100 100" aria-hidden>
+      <circle cx={50} cy={50} r={47} className="windroos-ring" />
+      <path d={STER} transform="rotate(45 50 50) translate(20 20) scale(0.6)" className="windroos-kort" />
+      <path d={STER} className="windroos-lang" />
+      <path d="M50 8 L56.4 43.6 L43.6 43.6 Z" className="windroos-noord" />
+      <circle cx={50} cy={50} r={4} className="windroos-naaf" />
+    </svg>
   );
 }

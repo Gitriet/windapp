@@ -54,7 +54,7 @@ export interface VaarplanScreenProps {
 }
 
 export default function VaarplanScreen(p: VaarplanScreenProps) {
-  if (!p.ready) return <Skeleton rows={3} height={72} label="vaarplan laden" />;
+  if (!p.ready) return <Skeleton rows={3} height={72} label="vaarplan laden" tekst="Berekening wordt gemaakt…" />;
   const { trip, depMs, from, to } = p;
   if (!trip || depMs == null || !from || !to) return (
     <div className={s.leeg}>—<div className={s.noot}>kies een vertrek op ROUTE</div></div>
