@@ -129,7 +129,7 @@ body {
 .is-filled { background: var(--parchment); color: var(--ink); border-color: var(--parchment); }
 @media (hover: hover) {
   .card:not(.is-filled):hover, .row:not(.is-filled):hover { border-color: var(--hairline-hover); }
-  .schakelaar-stand:not(.is-filled):hover { background: var(--fill-faint); }
+  .schakelaar-stand:not(.is-filled):hover { box-shadow: inset 0 0 0 var(--line) var(--hairline-hover); }
 }
 :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 /* de pagina zelf scrollt nooit horizontaal; scrollbars zijn nergens zichtbaar (scrollen
@@ -208,11 +208,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .schakelaar-stand {
   min-width: 0; min-height: var(--tap); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
   padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-xs); font-family: var(--font-num); color: var(--slate);
-  transition: background var(--dur-hover);
+  transition: background var(--dur-hover), box-shadow var(--dur-hover);
 }
 .schakelaar-rol { font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); }
 .schakelaar-naam { max-width: 100%; font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .schakelaar-stand.is-filled, .schakelaar-stand.is-filled .schakelaar-naam { color: var(--ink); }
+/* niet-gekozen stand: eigen vlak + rand, zodat hij als knop leest */
+.schakelaar-stand:not(.is-filled) { background: var(--fill-faint); box-shadow: inset 0 0 0 var(--line) var(--hairline); }
 .chip-panel {
   position: absolute; left: 0; right: 0; top: calc(100% + var(--sp-3)); z-index: 30;
   display: flex; flex-direction: column; gap: var(--sp-7);

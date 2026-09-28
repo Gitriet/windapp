@@ -74,7 +74,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
   const dag = best ? dagLabel(best.depMs, nowMs) : "";
-  const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)}` : "ETA —";
+  const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)} · ${fmtDuurKort(r.tripMin)}` : "ETA —";
   const sub = !best || !r ? "Geen haalbaar vertrek binnen 48 uur."
     : kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · ${eta} · stroomdata deels onzeker`
     : kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · ${eta} · rekent zonder getijstroom`

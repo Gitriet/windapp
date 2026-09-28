@@ -82,7 +82,7 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
 // WEER & GETIJ); een vlak aantikken opent de havenkiezer van die kant eronder (klik buiten sluit).
 export type Kant = "van" | "naar";
 export function RouteKiezer({ van, naar, className, children }: {
-  van: string; naar: string; className?: string; children: (kant: Kant) => React.ReactNode;
+  van: string; naar: string; className?: string; children: (kant: Kant, sluit: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState<Kant | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -103,7 +103,7 @@ export function RouteKiezer({ van, naar, className, children }: {
           </button>
         ))}
       </div>
-      {open && <div className="chip-panel">{children(open)}</div>}
+      {open && <div className="chip-panel">{children(open, () => setOpen(null))}</div>}
     </div>
   );
 }

@@ -34,12 +34,12 @@ export default function Page() {
   // elk vlak opent de havenkiezer van die kant
   const maakRouteChip = (className?: string) => (
     <RouteKiezer className={className} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}>
-      {(kant) => kant === "van" ? (
-        <HavenSelector label="Vertrek" value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={chooseFrom}
-          havenInfo={endpoints?.van.havenInfo ?? null} stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
+      {(kant, sluit) => kant === "van" ? (
+        <HavenSelector value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={(h) => { chooseFrom(h); sluit(); }}
+          stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
       ) : (
-        <HavenSelector label="Aankomst" value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
-          havenInfo={endpoints?.naar.havenInfo ?? null} stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
+        <HavenSelector value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={(h) => { chooseTo(h); sluit(); }}
+          stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
       )}
     </RouteKiezer>
   );

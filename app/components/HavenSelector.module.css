@@ -1,29 +1,34 @@
-/* Havenkiezer in het routechip-paneel: native select + toegangsstatus + detail. */
-.wrap { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
-.veld { display: flex; flex-direction: column; gap: var(--sp-2); }
-.label {
-  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
-  letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);
+/* Havenkiezer in het routechip-paneel: lijst (tik = kiezen), stip = vrij toegankelijk, ⓘ = info. */
+.lijst { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.item + .item { border-top: var(--line) solid var(--hairline-soft); }
+.rij { display: flex; align-items: center; gap: var(--sp-3); }
+.kies {
+  flex: 1; min-width: 0; min-height: var(--tap); display: flex; align-items: center; gap: var(--sp-4);
+  padding: 0 var(--sp-3); border-radius: var(--radius-xs); text-align: left;
+  font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--body);
+  transition: background var(--dur-hover);
 }
-.select {
-  min-height: var(--tap); width: 100%; padding: 0 var(--sp-6);
-  font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment);
-  background: var(--fill-faint); border: var(--line) solid var(--hairline); border-radius: var(--radius-sm);
-  transition: border-color var(--dur-hover);
+.kies[aria-current] { color: var(--parchment); background: var(--fill-faint); }
+@media (hover: hover) { .kies:hover { background: var(--fill-faint); } }
+.stip { flex-shrink: 0; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
+.stip[data-vrij] { background: var(--sea-green); }
+.info { flex-shrink: 0; width: var(--tap); height: var(--tap); display: grid; place-items: center; color: var(--slate); }
+.iCirkel {
+  width: var(--sp-9); height: var(--sp-9); display: grid; place-items: center; border-radius: 50%;
+  border: var(--line) solid currentColor; font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); line-height: 1;
 }
-.select option { background: var(--ink); color: var(--parchment); }
-@media (hover: hover) { .select:hover { border-color: var(--hairline-hover); } }
+.info[aria-expanded="true"] { color: var(--parchment); }
+@media (hover: hover) { .info:hover { color: var(--parchment); } }
 
-.statusRij { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
 .badge {
   padding: var(--sp-1) var(--sp-4); border-radius: var(--radius-sm); border: var(--line) solid var(--hairline);
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap;
 }
 .badge[data-tone="goed"] { background: var(--sea-green-fill); color: var(--sea-green-text); border-color: var(--sea-green-line); }
 .badge[data-tone="let-op"] { background: var(--ochre-fill); color: var(--ochre); border-color: var(--ochre-line); }
-.info { min-height: var(--tap); padding: 0 var(--sp-4); font-size: var(--fs-caption); color: var(--slate); }
 
-.detail { border-top: var(--line) solid var(--hairline-soft); padding-top: var(--sp-4); }
+.detail { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); padding: var(--sp-2) var(--sp-3) var(--sp-5); }
+.detail > :not(.badge) { align-self: stretch; }
 .balkWrap { margin-bottom: var(--sp-6); }
 .balk { position: relative; height: var(--sp-5); border-radius: var(--radius-xs); overflow: hidden; background: var(--ochre-line); }
 .balkOpen { position: absolute; top: 0; bottom: 0; background: var(--sea-green); }

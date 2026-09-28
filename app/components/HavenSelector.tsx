@@ -1,14 +1,13 @@
 "use client";
-// Havenselector met dynamische toegangsstatus. Vervangt de losse RouteHavenPicker +
-// HavenInfoCard: de haveninfo woont nu ín de selector. Dichtgeklapt toont hij een
-// statusbadge onder de havennaam; "info ▾" klapt het detail (tijdbalk + gegevens) open.
+// Havenkiezer in het routechip-paneel: lijst van havens met toegankelijkheidsstip en
+// per haven een ⓘ die de haveninfo openklapt (bij de gekozen haven met toegangsstatus).
 //
 // Toegangsvensters: voor een drempelhaven met getijstation halen we de getijcurve op
 // (via de dichtstbijzijnde stationkey — dat is wat /api/tide accepteert) en draaien we
 // gateWindows() uit lib/gates.ts met de eigen diepgang. Geen drempel → geen fetch.
 import { useEffect, useMemo, useState } from "react";
 import { localHM } from "@/lib/tz";
-import type { HavenInfo } from "@/lib/haven-info";
+import { havenInfoByKey, type HavenInfo } from "@/lib/haven-info";
 import type { TideData } from "@/lib/types";
 import { fetchTide } from "@/lib/planner-data";
 import { gateWindows, gateDatumFor, windowContains, type GateWindow } from "@/lib/gates";
@@ -34,24 +33,28 @@ type Status =
   | { kind: "dicht"; ms: number | null; windows: GateWindow[] }; // dicht; opent over ms (null = niet binnen 24u)
 
 interface HavenSelectorProps {
-  label: string;
   value: string;                    // haven-key
-  options: string[];
+  options: string[];                // in weergavevolgorde, inclusief value
   naamOf: (h: string) => string;
   onSelect: (h: string) => void;
-  havenInfo: HavenInfo | null;
-  stationKey: string | null;        // dichtstbijzijnd station (voor /api/tide)
+  stationKey: string | null;        // dichtstbijzijnd station van de gekozen haven (voor /api/tide)
   bootDiepgang: number;             // uit BoatProfile, in meters
 }
 
+const INFO = havenInfoByKey();
+
+// Havenlijst: tik op een naam = kiezen (geen tussenstap). Groene stip = vrij toegankelijk
+// (niet getijgebonden). ⓘ klapt de haveninfo onder de rij open; bij de gekozen haven ook
+// de actuele toegangsstatus en de 24u-balk.
 export default function HavenSelector({
-  label, value, options, naamOf, onSelect, havenInfo, stationKey, bootDiepgang,
+  value, options, naamOf, onSelect, stationKey, bootDiepgang,
 }: HavenSelectorProps) {
-  const [detail, setDetail] = useState(false);     // detail-paneel
+  const [info, setInfo] = useState<string | null>(null);   // haven waarvan de info open is
 
   const [tide, setTide] = useState<TideData | null>(null);
   const [tideLoading, setTideLoading] = useState(false);
 
+  const havenInfo = INFO[value] ?? null;
   const hasDrempel = !!havenInfo?.drempel;
   const datum = useMemo(() => gateDatumFor(value), [value]);
   const canGate = hasDrempel && !!datum && !!stationKey;
@@ -83,36 +86,36 @@ export default function HavenSelector({
     return { kind: "dicht", ms: next ? next.fromMs - now : null, windows };
   }, [hasDrempel, canGate, tideLoading, tide, datum, bootDiepgang]);
 
-  const badge = badgeFor(status);
-
   return (
-    <div className={st.wrap}>
-      <label className={st.veld}>
-        <span className={st.label}>{label}</span>
-        <select className={st.select} value={value} onChange={(e) => onSelect(e.target.value)}>
-          {[value, ...options.filter((h) => h !== value)].sort((a, b) => naamOf(a).localeCompare(naamOf(b), "nl")).map((h) => (
-            <option key={h} value={h}>{naamOf(h)}</option>
-          ))}
-        </select>
-      </label>
-
-      {/* statusbadge + info-toggle, direct onder de havennaam */}
-      {havenInfo && (
-        <div className={st.statusRij}>
-          <span className={st.badge} data-tone={badge.tone}>{badge.text}</span>
-          <button type="button" className={st.info} aria-expanded={detail} onClick={() => setDetail((d) => !d)}>
-            info {detail ? "▴" : "▾"}
-          </button>
-        </div>
-      )}
-
-      {havenInfo && detail && (
-        <div className={st.detail}>
-          {(status.kind === "open" || status.kind === "dicht") && <TijdBalk windows={status.windows} />}
-          <HavenDetail havenInfo={havenInfo} bootDiepgang={bootDiepgang} />
-        </div>
-      )}
-    </div>
+    <ul className={st.lijst}>
+      {options.map((h) => {
+        const hi = INFO[h];
+        const gekozen = h === value;
+        const badge = gekozen && hi?.drempel ? badgeFor(status) : null;
+        return (
+          <li key={h} className={st.item}>
+            <div className={st.rij}>
+              <button type="button" className={st.kies} aria-current={gekozen || undefined} onClick={() => onSelect(h)}>
+                <span className={st.stip} role="img" data-vrij={hi && !hi.getijgebonden ? "" : undefined}
+                  aria-label={hi && !hi.getijgebonden ? "vrij toegankelijk" : undefined} />
+                {naamOf(h)}
+              </button>
+              {hi && (
+                <button type="button" className={st.info} aria-expanded={info === h} aria-label={`info ${naamOf(h)}`}
+                  onClick={() => setInfo((i) => (i === h ? null : h))}><span className={st.iCirkel}>i</span></button>
+              )}
+            </div>
+            {hi && info === h && (
+              <div className={st.detail}>
+                {badge && <span className={st.badge} data-tone={badge.tone}>{badge.text}</span>}
+                {gekozen && (status.kind === "open" || status.kind === "dicht") && <TijdBalk windows={status.windows} />}
+                <HavenDetail havenInfo={hi} bootDiepgang={bootDiepgang} />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

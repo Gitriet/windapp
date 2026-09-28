@@ -20,6 +20,13 @@ const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 export const isTide = (t: TideData | { tide: null } | null): t is TideData => !!t && "extremes" in t;
 
+// Havenkiezer: havens in vaarvolgorde langs de kust, van Delfzijl tot Terneuzen.
+const HAVEN_VOLGORDE = [
+  "delfzijl", "eemshaven", "schiermonnikoog", "lauwersoog", "nes-ameland", "harlingen", "kornwerderzand",
+  "west-terschelling", "vlieland", "den-oever", "oudeschild", "den-helder", "ijmuiden", "scheveningen",
+  "stellendam", "roompotsluis", "cadzand-bad", "breskens", "vlissingen", "terneuzen",
+];
+
 export function useTocht(boat: BoatProfile) {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [fromHaven, setFromHaven] = useState<string>("");
@@ -52,10 +59,13 @@ export function useTocht(boat: BoatProfile) {
     for (const r of routes) { m.set(r.van.haven, r.van); m.set(r.naar.haven, r.naar); }
     return m;
   }, [routes]);
-  const allHavens = useMemo(
-    () => [...havenMap.values()].sort((a, b) => a.naam.localeCompare(b.naam, "nl")).map((h) => h.haven),
-    [havenMap],
-  );
+  // volgorde langs de kust (HAVEN_VOLGORDE); onbekende havens alfabetisch achteraan
+  const allHavens = useMemo(() => {
+    const rang = (h: string) => { const i = HAVEN_VOLGORDE.indexOf(h); return i < 0 ? Infinity : i; };
+    return [...havenMap.values()]
+      .sort((a, b) => rang(a.haven) - rang(b.haven) || a.naam.localeCompare(b.naam, "nl"))
+      .map((h) => h.haven);
+  }, [havenMap]);
   const naamOf = useMemo(() => (h: string) => havenMap.get(h)?.naam ?? h, [havenMap]);
   // elke kiezer laat alleen de haven weg die in het andere veld staat (Van ≠ Naar)
   const vanOptions = useMemo(() => allHavens.filter((h) => h !== toHaven), [allHavens, toHaven]);
