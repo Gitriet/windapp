@@ -53,7 +53,7 @@ export interface VaarplanScreenProps {
   via: ViaHaven[];
   boat: BoatProfile;
   anyStroom: boolean;
-  legTimelines: LegTimeline[];            // stroom per etappe (zelfde volgorde als legs)
+  etappeTimelines: LegTimeline[][];       // stroom per etappe: de legs van die etappe (zelfde volgorde als legs)
 }
 
 export default function VaarplanScreen(p: VaarplanScreenProps) {
@@ -135,7 +135,7 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         </div>
       </div>
 
-      {et[sel] && <StroomKromme etappe={et[sel]} timeline={p.legTimelines[sel]} depMs={depMs} />}
+      {et[sel] && <StroomKromme etappe={et[sel]} timelines={p.etappeTimelines[sel] ?? []} depMs={depMs} />}
 
       <div>
         <div className={s.sectie}>HAVENINFO</div>
@@ -196,12 +196,13 @@ function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepg
 }
 
 // 24-uurs stroomkromme van de gekozen etappe, op de dag waarop de boot die etappe begint;
-// de dunne lijn markeert het vertrek op de etappe. Gaten blijven gaten.
+// de dunne lijn markeert het vertrek op de etappe. Gaten blijven gaten. Een etappe via
+// knooppunten bestaat uit meerdere legs: hun stroom telt naar lengte gewogen mee.
 const W = 300, HG = 90, PAD = 6;
-function StroomKromme({ etappe, timeline, depMs }: { etappe: Etappe; timeline?: LegTimeline; depMs: number }) {
+function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines: LegTimeline[]; depMs: number }) {
   const dag = localDateISO(etappe.vanMs ?? depMs);
   const van = localMidnight(noon(dag)), tot = localMidnight(noon(addDays(dag, 1)));
-  const { series } = combineLegTimelines(timeline ? [timeline] : []);
+  const { series } = combineLegTimelines(timelines);
   const segs = krommeSegmenten(series, van, tot);
   const maxAbs = Math.max(0.5, ...segs.flat().map((q) => Math.abs(q.v)));
   const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;

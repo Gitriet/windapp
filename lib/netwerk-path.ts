@@ -18,9 +18,9 @@ export type RouteLeg = {
 
 export type ChainedRoute = {
   legs: RouteLeg[];
-  havens: RouteHaven[];  // N+1 havens in vaarvolgorde (van leg0 … naar laatste leg)
-  namen: string[];       // havennamen in volgorde
-  viaNamen: string[];    // tussenliggende havennamen (zonder begin/eind)
+  havens: RouteHaven[];  // N+1 punten in vaarvolgorde (havens én knooppunten)
+  namen: string[];       // havennamen in volgorde (zonder knooppunten)
+  viaNamen: string[];    // tussenliggende havennamen (zonder begin/eind, zonder knooppunten)
   totalNm: number;       // som van lengte_nm per been
 };
 
@@ -77,8 +77,22 @@ export function shortestPath(routes: RouteInfo[], fromHaven: string, toHaven: st
   }
   return {
     legs, havens,
-    namen: havens.map((h) => h.naam),
-    viaNamen: havens.slice(1, -1).map((h) => h.naam),
+    namen: havens.filter((h) => h.soort !== "knoop").map((h) => h.naam),
+    viaNamen: havens.slice(1, -1).filter((h) => h.soort !== "knoop").map((h) => h.naam),
     totalNm: legs.reduce((s, l) => s + l.route.lengte_nm, 0),
   };
+}
+
+// Etappes voor de weergave: aaneengesloten legs tussen twee echte havens. Een knooppunt
+// (zeegat) is alleen een knip in het netwerk, geen etappegrens. Levert per etappe de
+// leg-indices; zonder knooppunten is elke leg een eigen etappe.
+export function etappeGroepen(havens: RouteHaven[]): number[][] {
+  const groepen: number[][] = [];
+  let cur: number[] = [];
+  for (let i = 0; i < havens.length - 1; i++) {
+    cur.push(i);
+    if (havens[i + 1].soort !== "knoop") { groepen.push(cur); cur = []; }
+  }
+  if (cur.length) groepen.push(cur);
+  return groepen;
 }

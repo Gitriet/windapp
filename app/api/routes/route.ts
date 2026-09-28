@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 // het DICHTSTBIJZIJNDE weerstation (voor de wind-forecast), plus de afstand tot dat
 // station — geen filter meer op station-beschikbaarheid, dus alle 19 havens komen mee.
 // Per ongeordend haven-paar blijft de kortste route over. De stroom-flag is
-// onafhankelijk van het weer en blijft per route staan.
+// onafhankelijk van het weer en blijft per route staan. Knooppunten (zeegaten,
+// soort = 'knoop') zijn gewone uiteinden met soort "knoop"; dubbele stukken
+// (actief = false) vallen weg. to_jsonb(...)->> leest die kolommen ook als ze (nog)
+// niet bestaan: dan gelden haven resp. actief.
 export async function GET() {
   try {
     const [rowsRaw, stations] = await Promise.all([
@@ -18,10 +21,13 @@ export async function GET() {
         SELECT r.id, r.van_haven, r.naar_haven, r.via, r.lengte_nm,
                hv.naam AS van_naam, hv.lat AS van_lat, hv.lon AS van_lon,
                hn.naam AS naar_naam, hn.lat AS naar_lat, hn.lon AS naar_lon,
+               coalesce(to_jsonb(hv)->>'soort', 'haven') AS van_soort,
+               coalesce(to_jsonb(hn)->>'soort', 'haven') AS naar_soort,
                EXISTS (SELECT 1 FROM stroom_punt_forecast s WHERE s.route_id = r.id) AS stroom
         FROM netwerk_routes r
         JOIN netwerk_havens hv ON hv.id = r.van_haven
         JOIN netwerk_havens hn ON hn.id = r.naar_haven
+        WHERE coalesce((to_jsonb(r)->>'actief')::boolean, true)
         ORDER BY r.lengte_nm`,
       getLocations(),
     ]);
@@ -29,6 +35,7 @@ export async function GET() {
       id: string; van_haven: string; naar_haven: string; via: string | null; lengte_nm: number;
       van_naam: string; van_lat: number; van_lon: number;
       naar_naam: string; naar_lat: number; naar_lon: number; stroom: boolean;
+      van_soort: "haven" | "knoop"; naar_soort: "haven" | "knoop";
     }[];
 
     // dichtstbijzijnde weerstation bij een haven-coördinaat (km, 1 decimaal)
@@ -42,8 +49,8 @@ export async function GET() {
     };
     // statische haveninfo per haven-key; havens zonder match krijgen havenInfo: null
     const infoByKey = havenInfoByKey();
-    const havenEnd = (haven: string, naam: string, lat: number, lon: number) =>
-      ({ haven, naam, lat, lon, ...nearest(lat, lon), havenInfo: infoByKey[haven] ?? null });
+    const havenEnd = (haven: string, naam: string, lat: number, lon: number, soort: "haven" | "knoop") =>
+      ({ haven, naam, lat, lon, soort, ...nearest(lat, lon), havenInfo: infoByKey[haven] ?? null });
 
     // per ongeordend haven-paar de kortste route (rows zijn al op lengte gesorteerd)
     const seen = new Set<string>();
@@ -54,8 +61,8 @@ export async function GET() {
       return true;
     }).map((r) => ({
       id: r.id, via: r.via, lengte_nm: r.lengte_nm, stroom: r.stroom,
-      van: havenEnd(r.van_haven, r.van_naam, r.van_lat, r.van_lon),
-      naar: havenEnd(r.naar_haven, r.naar_naam, r.naar_lat, r.naar_lon),
+      van: havenEnd(r.van_haven, r.van_naam, r.van_lat, r.van_lon, r.van_soort),
+      naar: havenEnd(r.naar_haven, r.naar_naam, r.naar_lat, r.naar_lon, r.naar_soort),
     }));
 
     return NextResponse.json({ routes });

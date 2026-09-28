@@ -16,8 +16,8 @@ const steps: SimStep[] = Array.from({ length: 13 }, (_, i) => ({
 }));
 const trip = { steps: [...steps, { ...steps[12], prog: 6 }], departMs: T0, arrMs: T0 + 80 * 60000 } as SimResult;
 const legs: EtappeLeg[] = [
-  { label: "A → B", distNm: 4, vanKey: "a", naarKey: "b", stroom: true },
-  { label: "B → C", distNm: 2, vanKey: "b", naarKey: "c", stroom: false },
+  { label: "A → B", distNm: 4, keys: ["a", "b"], stroom: true },
+  { label: "B → C", distNm: 2, keys: ["b", "c"], stroom: false },
 ];
 const [l1, l2] = etappes(trip, legs, [
   { ms: T0, gustKn: 19, key: "a" }, { ms: T0 + H, gustKn: 25, key: "c" }, { ms: T0, gustKn: 40, key: "x" },

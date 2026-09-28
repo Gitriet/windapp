@@ -156,6 +156,18 @@ langs de routekoers → `alongKn` (>0 mee, <0 tegen). Alle 26 routes hebben
 punt-stroomforecast (gecontroleerd 2026-09-18); `DEFAULT_ROUTE_ID = "R09"` (Den Helder →
 Oudeschild) is alleen de standaardkeuze bij openen.
 
+**Knooppunten (zeegaten/kruispunten).** Doorgaand verkeer moest een tussenhaven in en
+uit (Den Helder → Lauwersoog via Vlieland). `data/routes/knooppunten.json` legt 9 punten
+vast (Marsdiep, Molengat noord, Stortemelk, Vliestroom, Amelander Gat, Friesche Zeegat,
+Vlissingen rede, Roompot buiten, Slijkgat buiten). `ingest/netwerk_knopen.py` knipt de
+routes daar op → `routes-knopen.geojson`: originelen blijven (zelfde id, stroomhistorie),
+stukken `R17a…` erbij, dubbele stukken `actief = false`; het keurt af bij een langere
+tocht, een losse graaf of een mislukt ijkgeval. `python -m ingest.netwerk --knopen
+[--droog]` schrijft dat weg (`netwerk_havens.soort = 'knoop'`, `netwerk_routes.actief`).
+In de app: `/api/routes` levert alleen actieve routes met `soort` per uiteinde; knooppunten
+zijn routeerbaar maar niet kiesbaar, tellen niet als tussenhaven, en `etappeGroepen()`
+voegt legs via knooppunten samen tot één etappe (stroomcurve = lengtegewogen over die legs).
+
 ## Polaire ETA
 
 `lib/polar.ts`: `BoatProfile` (archetype, diepgang, kielspeling, performance 0–1,

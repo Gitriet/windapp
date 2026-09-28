@@ -17,6 +17,7 @@ export type WeekResponse = { location: Location; days: WeekDay[] };
 // vertellen eerlijk welk station en hoe ver.
 export type RouteHaven = {
   haven: string; naam: string; lat: number; lon: number;
+  soort: "haven" | "knoop";           // knoop = zeegat/kruispunt: routeerbaar, niet kiesbaar
   key: string; stationNaam: string; stationKm: number;
   havenInfo: HavenInfo | null;
 };

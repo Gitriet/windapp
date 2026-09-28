@@ -10,7 +10,7 @@ import {
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
-import { shortestPath } from "@/lib/netwerk-path";
+import { etappeGroepen, shortestPath } from "@/lib/netwerk-path";
 import {
   pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
@@ -59,10 +59,12 @@ export function useTocht(boat: BoatProfile) {
     for (const r of routes) { m.set(r.van.haven, r.van); m.set(r.naar.haven, r.naar); }
     return m;
   }, [routes]);
-  // volgorde langs de kust (HAVEN_VOLGORDE); onbekende havens alfabetisch achteraan
+  // kiesbare havens (geen knooppunten) in volgorde langs de kust (HAVEN_VOLGORDE);
+  // onbekende havens alfabetisch achteraan
   const allHavens = useMemo(() => {
     const rang = (h: string) => { const i = HAVEN_VOLGORDE.indexOf(h); return i < 0 ? Infinity : i; };
     return [...havenMap.values()]
+      .filter((h) => h.soort !== "knoop")
       .sort((a, b) => rang(a.haven) - rang(b.haven) || a.naam.localeCompare(b.naam, "nl"))
       .map((h) => h.haven);
   }, [havenMap]);
@@ -172,14 +174,15 @@ export function useTocht(boat: BoatProfile) {
   const selTrip = useMemo(() => (depMs != null ? runSim(depMs) : null), [depMs, runSim]);
 
 
-  // tussenliggende havens (uitwijk) + cumulatieve nm-vanaf-vertrek, voor het vaarplan.
+  // tussenliggende havens (uitwijk, geen knooppunten) + cumulatieve nm-vanaf-vertrek.
   const viaHavens = useMemo<ViaHaven[]>(() => {
     if (!chain) return [];
     const out: ViaHaven[] = [];
     let acc = 0;
     for (let i = 0; i < chain.legs.length; i++) {
       acc += chain.legs[i].route.lengte_nm;
-      if (i < chain.legs.length - 1) out.push({ haven: chain.havens[i + 1], nmFromStart: acc });
+      const h = chain.havens[i + 1];
+      if (i < chain.legs.length - 1 && h.soort !== "knoop") out.push({ haven: h, nmFromStart: acc });
     }
     return out;
   }, [chain]);
@@ -191,14 +194,22 @@ export function useTocht(boat: BoatProfile) {
     legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
   };
 
-  // legs voor de etappe-weergave (VAARPLAN): label, lengte, stations aan beide kanten
+  // etappes voor VAARPLAN: legs tussen twee echte havens samengevoegd (knooppunten zijn
+  // geen etappegrens); per etappe de stations langs de weg en de stroom per leg.
+  const groepen = useMemo(() => (chain ? etappeGroepen(chain.havens) : []), [chain]);
   const etappeLegs = useMemo<EtappeLeg[]>(
-    () => (chain?.legs ?? []).map((l, i) => ({
-      label: l.label, distNm: l.route.lengte_nm, stroom: l.route.stroom,
-      vanKey: chain!.havens[i].key, naarKey: chain!.havens[i + 1].key,
-    })),
-    [chain],
+    () => groepen.map((g) => {
+      const hs = [chain!.havens[g[0]], ...g.map((i) => chain!.havens[i + 1])];
+      return {
+        label: `${hs[0].naam} → ${hs[hs.length - 1].naam}`,
+        distNm: g.reduce((s, i) => s + chain!.legs[i].route.lengte_nm, 0),
+        stroom: g.every((i) => chain!.legs[i].route.stroom),
+        keys: [...new Set(hs.map((h) => h.key))],
+      };
+    }),
+    [chain, groepen],
   );
+  const etappeTimelines = groepen.map((g) => g.map((i) => routeMeta.legTimelines[i]));
 
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
   const routeGusts = useMemo<GustSample[]>(
@@ -220,7 +231,7 @@ export function useTocht(boat: BoatProfile) {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, routeWaves, vanWeather, etappeLegs,
+    routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines,
     routeTide, ready: !!routeWind, nowMs, err,
   };
 }

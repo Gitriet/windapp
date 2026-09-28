@@ -221,13 +221,13 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): 
 // Per leg: de stroom langs de koers in K segmenten (gemiddelde sim-cur per segment),
 // de positie van de eerste kentering binnen de leg (0–1), en de wind/vlaag onderweg.
 // Alles uit de al berekende SimResult + vlaag-samples; geen nieuwe fysica.
-export type EtappeLeg = { label: string; distNm: number; vanKey: string; naarKey: string; stroom: boolean };
+export type EtappeLeg = { label: string; distNm: number; keys: string[]; stroom: boolean };   // keys = weerstations langs de etappe
 export type Etappe = {
   label: string; distNm: number; stroom: boolean;
   segmenten: number[];            // kn langs de koers per segment (>0 mee)
   kenteringFrac: number | null;   // 0–1 langs de leg, of null
   windDir: number | null; windKn: number | null; vlaagKn: number | null;
-  golfM: number | null;          // hoogste golf onderweg (stations aan beide kanten), null = geen golfdata
+  golfM: number | null;          // hoogste golf onderweg (stations langs de etappe), null = geen golfdata
   vanMs: number | null;          // wanneer de boot aan deze leg begint
 };
 export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[], waves: WaveSample[] = []): Etappe[] {
@@ -256,8 +256,8 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[],
     const windDir = st.length ? ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360 : null;
     const windKn = st.length ? spd / st.length : null;
     const t0 = st.length ? Math.floor(st[0].tMs / H) * H : 0, t1 = st.length ? st[st.length - 1].tMs : 0;
-    const vl = gusts.filter((g) => (g.key === leg.vanKey || g.key === leg.naarKey) && g.ms >= t0 && g.ms <= t1).map((g) => g.gustKn);
-    const gf = waves.filter((w) => (w.key === leg.vanKey || w.key === leg.naarKey) && w.ms >= t0 && w.ms <= t1).map((w) => w.m);
+    const vl = gusts.filter((g) => g.key != null && leg.keys.includes(g.key) && g.ms >= t0 && g.ms <= t1).map((g) => g.gustKn);
+    const gf = waves.filter((w) => leg.keys.includes(w.key) && w.ms >= t0 && w.ms <= t1).map((w) => w.m);
     return {
       label: leg.label, distNm: leg.distNm, stroom: leg.stroom, segmenten: leg.stroom ? segmenten : [],
       kenteringFrac, windDir, windKn, vlaagKn: vl.length ? Math.max(...vl) : null, golfM: gf.length ? Math.max(...gf) : null,
