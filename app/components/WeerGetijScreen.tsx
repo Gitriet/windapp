@@ -96,7 +96,7 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
       {!haven || !hd.fc || !hd.week ? <Skeleton rows={3} height={120} label="weer en getij laden" /> : (
         <>
           <div className={s.nu}>
-            <NuScreen fc={hd.fc} naam={haven.naam} dag={{ date: gekozen, day: hd.week.days.find((w) => w.date === gekozen) }} />
+            <NuScreen fc={hd.fc} naam={haven.naam} dag={{ date: gekozen, day: hd.week.days.find((w) => w.date === gekozen) }} vandaag={vandaag} />
           </div>
           <div>
             <div className={`${s.sectie} ${s.kop}`}>GETIJ · {haven.naam}</div>
