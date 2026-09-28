@@ -11,7 +11,7 @@
   font-size: var(--fs-label); font-weight: 700; color: var(--ink); background: var(--slate);
 }
 .disc[data-kind="ga-nu"], .disc[data-kind="vertrek"] { background: var(--sea-green-deep); }
-.disc[data-kind="onzeker"] { background: var(--ochre); }
+.disc[data-kind="onzeker"], .disc[data-kind="minst-slecht"] { background: var(--ochre); }
 .label, .sectie {
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);
@@ -36,6 +36,15 @@
 .chipTegen { background: var(--fill-faint); color: var(--slate); border-color: var(--hairline); }
 .chipLetOp { background: var(--ochre-fill); color: var(--ochre); border-color: var(--ochre-line); }
 
+/* "nu vertrekken": het eerstvolgende vertrek naast een later beste vertrek; tik = kiezen */
+.nu {
+  margin-bottom: var(--sp-7);
+  display: flex; flex-direction: column; gap: var(--sp-1); width: 100%; text-align: left;
+  padding: var(--sp-4) var(--sp-6); border: var(--line) solid var(--hairline-soft); border-radius: var(--radius-sm);
+  background: var(--fill-faint); font-size: var(--fs-label); color: var(--body); transition: border-color var(--dur-hover);
+}
+@media (hover: hover) { .nu:hover { border-color: var(--hairline-hover); } }
+.nuLabel { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); }
 .uitleg { font-size: var(--fs-label); line-height: var(--lh-text); color: var(--body); }
 .weer { display: flex; align-items: center; gap: var(--sp-4); padding-top: var(--sp-1); color: var(--slate); }
 .weerTemp { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }

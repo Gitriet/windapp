@@ -29,12 +29,19 @@ function dagLabel(ms: number, nowMs: number): string {
   return [dag, nacht ? "nacht" : ""].filter(Boolean).join(" · ");
 }
 
-const DISC: Record<AdviesKind, string> = { "ga-nu": "✓", vertrek: "✓", onzeker: "?", "geen-venster": "–", "zonder-stroom": "~" };
+const DISC: Record<AdviesKind, string> = { "ga-nu": "✓", vertrek: "✓", onzeker: "?", "geen-venster": "–", "zonder-stroom": "~", "minst-slecht": "!" };
 
 function stroomNotitie(v: StroomVerloop): string {
   if (!("totMs" in v)) return v.kind === "geen" ? "zonder stroomdata" : "stroomdata onzeker";
   const tot = v.totMs != null ? ` tot ${localHM(v.totMs)}` : "";
   return v.kind === "mee" ? (tot ? `mee${tot}` : "mee-stroom") : (tot ? `tegen${tot}` : "tegenstroom");
+}
+
+// stroom bij "nu vertrekken": tegen/mee tot de kentering, of de hele tocht
+function nuStroom(v: StroomVerloop): string {
+  if (!("totMs" in v)) return stroomNotitie(v);
+  const wat = v.kind === "mee" ? "stroom mee" : "stroom tegen";
+  return v.totMs != null ? `${wat} tot ${localHM(v.totMs)}` : `${wat}, hele tocht`;
 }
 
 export interface RouteScreenProps {
@@ -43,6 +50,8 @@ export interface RouteScreenProps {
   best: DepOption | null;
   vensters: DepOption[];
   firstDepMs: number | null;
+  horizonUur: number;                 // betrouwbare vertrekken reiken zo ver vooruit
+  nuOptie: DepOption | null;          // het eerstvolgende vertrek (voor "nu vertrekken")
   anyStroom: boolean;
   depMs: number | null;
   selTrip: SimResult | null;          // het gekozen vertrek (voor de uitlegzin)
@@ -69,7 +78,7 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
+function AdviesKaart({ best, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
@@ -86,14 +95,14 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
   const warn = r ? letOp(r, routeBearing ?? 0, routeGusts) : null;
   // uitlegzin volgt het gekozen vertrek; zonder (afwijkende) keuze die van het beste
   const gekozen = selTrip && best && selTrip.departMs !== best.depMs ? selTrip : null;
-  const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom) : null;
+  const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom, true, horizonUur) : null;
   const wx = best ? weatherAt(vanWeather, best.depMs) : null;
 
   return (
     <div className={`card ${s.advies}`}>
       <div className={s.head}>
         <span className={s.disc} data-kind={kind} aria-hidden>{DISC[kind]}</span>
-        <span className={s.label}>Huidig advies</span>
+        <span className={s.label}>{kind === "minst-slecht" ? `Minst slecht · komende ${horizonUur}\u00A0u` : "Huidig advies"}</span>
       </div>
       <div>
         <div className={s.titel}>{adviesTitel(kind, best?.depMs ?? null, !!(warn?.hardWind || warn?.windTegenStroom))}</div>
@@ -130,12 +139,23 @@ function AdviesKaart({ best, selTrip, firstDepMs, anyStroom, nowMs, routeBearing
   );
 }
 
-function VertrekLijst({ best, vensters, anyStroom, depMs, nowMs, onSelect }: RouteScreenProps) {
+function VertrekLijst({ best, vensters, nuOptie, anyStroom, depMs, nowMs, onSelect }: RouteScreenProps) {
   const rows = [...(best ? [best] : []), ...vensters].sort((a, b) => a.depMs - b.depMs);
   if (!rows.length) return null;
   const snelste = pickSnelste(rows);
+  // ligt het beste vertrek later: wat kost nu vertrekken, en waarom (stroom tegen tot …)
+  const nu = nuOptie && best && nuOptie.depMs !== best.depMs && nuOptie.result.arrMs ? nuOptie.result : null;
   return (
     <div>
+      {nu && best && (
+        <button type="button" className={s.nu} onClick={() => onSelect(nu.departMs)}>
+          <span className={s.nuLabel}>NU VERTREKKEN · {localHM(nu.departMs)}</span>
+          <span>
+            {fmtDuurKort(nu.tripMin)} · {nuStroom(stroomVerloop(nu, anyStroom))}
+            {nu.tripMin > best.result.tripMin ? ` · ${fmtDuurKort(nu.tripMin - best.result.tripMin)} langer dan om ${localHM(best.depMs)}` : ""}
+          </span>
+        </button>
+      )}
       <div className={s.sectie}>ALLE VERTREKKEN · 48 UUR</div>
       <div className={s.lijst}>
         {rows.map((o) => {

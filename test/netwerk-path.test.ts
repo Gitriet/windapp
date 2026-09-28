@@ -1,6 +1,6 @@
-// shortestPath + etappeGroepen (lib/netwerk-path.ts): routeren via knooppunten (zeegaten)
-// zonder dat die als haven of etappegrens meetellen.
-import { etappeGroepen, shortestPath } from "../lib/netwerk-path";
+// shortestPath (lib/netwerk-path.ts): routeren via knooppunten (zeegaten) zonder dat die
+// als haven meetellen.
+import { shortestPath } from "../lib/netwerk-path";
 import type { RouteHaven, RouteInfo } from "../lib/planner-data";
 
 let fail = 0;
@@ -22,12 +22,9 @@ ok("kortste pad loopt via het knooppunt", pad.totalNm === 20 && pad.havens.map((
 ok("knooppunt telt niet als haven in namen/viaNamen", pad.namen.join() === "A,C" && pad.viaNamen.length === 0,
   `${pad.namen} | ${pad.viaNamen}`);
 ok("tweede been omgekeerd gevaren (opgeslagen als C→K)", pad.legs[1].reversed);
-ok("legs via knooppunt vormen één etappe", JSON.stringify(etappeGroepen(pad.havens)) === "[[0,1]]",
-  JSON.stringify(etappeGroepen(pad.havens)));
 
-// zonder knooppunt: via haven B, twee etappes
+// zonder knooppunt: via haven B
 const zonder = shortestPath(net.slice(0, 2), "a", "c")!;
 ok("via haven: tussenhaven in viaNamen", zonder.viaNamen.join() === "B");
-ok("via haven: elke leg een eigen etappe", JSON.stringify(etappeGroepen(zonder.havens)) === "[[0],[1]]");
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

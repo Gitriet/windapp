@@ -23,7 +23,7 @@ export default function Page() {
     fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, vensters, firstDepMs, selTrip,
-    routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, ready, nowMs,
+    routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur, ready, nowMs,
   } = tocht;
   const vanData = useHaven(endpoints?.van ?? null);
   const naarData = useHaven(endpoints?.naar ?? null);
@@ -48,7 +48,8 @@ export default function Page() {
       <>
         {maakRouteChip("chip-route")}
         <RouteScreen
-          ready={ready} nowMs={nowMs} best={bestOption} vensters={vensters} firstDepMs={firstDepMs}
+          ready={ready} nowMs={nowMs} best={bestOption} vensters={vensters} firstDepMs={firstDepMs} horizonUur={horizonUur}
+          nuOptie={depOptions[0]?.depMs === firstDepMs ? depOptions[0] : null}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs} selTrip={selTrip}
           routeBearing={routeBearing} routeTide={routeTide} routeGusts={routeGusts} vanWeather={vanWeather}
           onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />

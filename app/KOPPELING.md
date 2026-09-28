@@ -26,7 +26,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 ### ROUTE
 | Blok | Bron | Afleiding |
 |---|---|---|
-| GA NU / VERTREK / ONZEKER / GEEN VENSTER / ZONDER STROOM | `useTocht.bestOption` (sweep van `simulateTrip` elk half uur, 48 u) | `adviesState()`: eerste slot = GA NU; `voorbijHorizon` = ONZEKER; geen stroomdata = ZONDER STROOM |
+| GA NU / VERTREK / ONZEKER / GEEN VENSTER / ZONDER STROOM / MINST SLECHT | `useTocht.bestOption` (sweep van `simulateTrip` elk half uur, 48 u) | `pickBest()`: vroegste lokale duur-minimum waar de stroom netto tijd wint (`effectMin < 0`), anders het snelste vertrek. `adviesState()`: eerste slot = GA NU; `voorbijHorizon` = ONZEKER; geen stroomdata = ZONDER STROOM; beste met stroom tegen = MINST SLECHT (label "Minst slecht · komende N u", N = `useTocht.horizonUur`) |
 | "ETA · N min sneller/langer" | `SimResult.effectMin` (= tocht mét − zónder stroom, zelfde wind) | `effectLabel()` |
 | Chip wind | eerste sim-stap `wDir`/`wSpd` | `dirLabel16` |
 | Chip MEE/TEGEN TOT | eerste stap `cur` + `kentMs` | `stroomVerloop()`; MEE-chip alleen als `effectMin ≤ 0` |

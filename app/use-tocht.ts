@@ -10,7 +10,7 @@ import {
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
-import { etappeGroepen, shortestPath } from "@/lib/netwerk-path";
+import { shortestPath } from "@/lib/netwerk-path";
 import {
   pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
@@ -164,6 +164,11 @@ export function useTocht(boat: BoatProfile) {
     [candidates, runSim],
   );
   const bestOption = useMemo(() => pickBest(depOptions), [depOptions]);
+  // uren vooruit waarbinnen de vertrekken betrouwbaar zijn (voor "minst slecht binnen N uur")
+  const horizonUur = useMemo(() => {
+    const zeker = depOptions.filter((o) => !o.result.voorbijHorizon);
+    return zeker.length && nowMs ? Math.round((zeker[zeker.length - 1].depMs - nowMs) / H) : 48;
+  }, [depOptions, nowMs]);
   const vensters = useMemo(() => pickVensters(depOptions, bestOption), [depOptions, bestOption]);
 
   // Zolang de gebruiker niets koos (depMs == null) volgt de selectie het beste vertrek.
@@ -194,9 +199,9 @@ export function useTocht(boat: BoatProfile) {
     legTimelines: (chain?.legs ?? []).map((l, i) => ({ label: l.label, cur: legCurrents[i] ?? null, distNm: l.route.lengte_nm })),
   };
 
-  // etappes voor VAARPLAN: legs tussen twee echte havens samengevoegd (knooppunten zijn
-  // geen etappegrens); per etappe de stations langs de weg en de stroom per leg.
-  const groepen = useMemo(() => (chain ? etappeGroepen(chain.havens) : []), [chain]);
+  // VAARPLAN toont de hele tocht als één etappe (tussenhavens en knooppunten staan onder
+  // UITWIJK); de stroom blijft per leg en telt naar lengte gewogen mee.
+  const groepen = useMemo(() => (chain ? [chain.legs.map((_, i) => i)] : []), [chain]);
   const etappeLegs = useMemo<EtappeLeg[]>(
     () => groepen.map((g) => {
       const hs = [chain!.havens[g[0]], ...g.map((i) => chain!.havens[i + 1])];
@@ -231,7 +236,7 @@ export function useTocht(boat: BoatProfile) {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines,
+    routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur,
     routeTide, ready: !!routeWind, nowMs, err,
   };
 }

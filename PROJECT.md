@@ -165,8 +165,8 @@ stukken `R17a…` erbij, dubbele stukken `actief = false`; het keurt af bij een 
 tocht, een losse graaf of een mislukt ijkgeval. `python -m ingest.netwerk --knopen
 [--droog]` schrijft dat weg (`netwerk_havens.soort = 'knoop'`, `netwerk_routes.actief`).
 In de app: `/api/routes` levert alleen actieve routes met `soort` per uiteinde; knooppunten
-zijn routeerbaar maar niet kiesbaar, tellen niet als tussenhaven, en `etappeGroepen()`
-voegt legs via knooppunten samen tot één etappe (stroomcurve = lengtegewogen over die legs).
+zijn routeerbaar maar niet kiesbaar en tellen niet als tussenhaven. VAARPLAN toont de hele
+tocht als één etappe (tussenhavens onder UITWIJK); de stroomcurve is lengtegewogen over de legs.
 
 ## Polaire ETA
 

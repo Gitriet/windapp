@@ -203,7 +203,8 @@ function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines:
   const dag = localDateISO(etappe.vanMs ?? depMs);
   const van = localMidnight(noon(dag)), tot = localMidnight(noon(addDays(dag, 1)));
   const { series } = combineLegTimelines(timelines);
-  const segs = krommeSegmenten(series, van, tot);
+  // alleen als élk stuk van de etappe stroomdata heeft; anders zou de curve een deel voor het geheel tonen
+  const segs = etappe.stroom ? krommeSegmenten(series, van, tot) : [];
   const maxAbs = Math.max(0.5, ...segs.flat().map((q) => Math.abs(q.v)));
   const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;
   const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD);
@@ -214,7 +215,7 @@ function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines:
         <div className={s.noot}>{etappe.label} · {fmt(dag, { weekday: "short", day: "numeric", month: "short" }).toLowerCase()}</div>
       </div>
       {!segs.length ? (
-        <div className={s.leeg}>—<div className={s.noot}>geen stroomdata voor deze etappe op deze dag</div></div>
+        <div className={s.leeg}>—<div className={s.noot}>{etappe.stroom ? "geen stroomdata voor deze etappe op deze dag" : "stroomdata ontbreekt voor een deel van de tocht"}</div></div>
       ) : (
         <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`stroom langs ${etappe.label} over 24 uur`}>
           {etappe.vanMs != null && (

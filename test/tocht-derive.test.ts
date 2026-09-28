@@ -1,6 +1,6 @@
 // Afleidingen uit lib/tocht.ts + lib/verdict.ts: beste vertrek = vroegste zekere lokale
 // duur-minimum, stroomgaten blijven null, en de verdict-grenzen.
-import { pickBest, pickSnelste, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
+import { adviesState, pickBest, pickSnelste, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
 import { verdict } from "../lib/verdict";
 import type { SimResult } from "../lib/tripsim";
 import type { RouteCurrent } from "../lib/planner-data";
@@ -28,6 +28,16 @@ const sweep = [opt(0, 60), opt(1, 55), opt(2, 70), opt(3, 50), opt(4, 65), opt(5
 ok("vroegste zekere lokale minimum", pickBest(sweep)?.depMs === 1 * H, String(pickBest(sweep)?.depMs));
 ok("onzeker alleen als niets zeker is", pickBest([opt(0, 60, true), opt(1, 50, true)])?.depMs === 1 * H);
 ok("niets bereikbaar → null", pickBest([opt(0, 60, false, false)]) === null);
+// met stroom: alleen vertrekken waar de stroom netto tijd wint tellen als venster
+const st = (i: number, tripMin: number, effectMin: number): DepOption =>
+  ({ depMs: i * H, result: { tripMin, effectMin, arrMs: i * H + tripMin * 60000, voorbijHorizon: false } as SimResult });
+const metGunstig = [st(0, 70, 10), st(1, 65, 8), st(2, 72, 12), st(3, 60, -5), st(4, 62, -3)];
+ok("lokaal minimum met stroom tegen telt niet; eerste met meestroom wel", pickBest(metGunstig)?.depMs === 3 * H,
+  String(pickBest(metGunstig)!.depMs / H));
+const alleTegen = [st(0, 70, 10), st(1, 65, 8), st(2, 72, 12), st(3, 62, 4)];
+ok("overal stroom tegen → snelste (minst slecht)", pickBest(alleTegen)?.depMs === 3 * H, String(pickBest(alleTegen)!.depMs / H));
+ok("adviesState: minst slecht", adviesState(pickBest(alleTegen), 0, true) === "minst-slecht");
+ok("adviesState: meestroom op eerste slot = ga nu", adviesState(st(0, 60, -5), 0, true) === "ga-nu");
 const v = pickVensters(sweep, pickBest(sweep));
 ok("vensters sluiten beste uit", !v.some((o) => o.depMs === 1 * H), v.map((o) => o.depMs / H).join(","));
 

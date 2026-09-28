@@ -63,8 +63,8 @@ console.log("— adviesUitleg —");
 const tr = { ...trip([12, 12, 12], 1, 270), kentMs: null, effectMin: -8 } as SimResult;
 const beste = adviesUitleg(tr, true)!, gekozen = adviesUitleg(tr, true, false)!;
 ok("beste: met slotzin", beste.endsWith(". Eerstvolgende vertrek met gunstige stroom en zeilhoek.") && !/[—–]/.test(beste), beste);
-const tegen = adviesUitleg({ ...trip([12, 12, 12], -1, 270), kentMs: null, effectMin: 10 } as SimResult, true)!;
-ok("beste bij tegenstroom: geen 'gunstige stroom'", tegen.endsWith(". Eerstvolgend gunstig vertrekmoment.") && !tegen.includes("gunstige stroom"), tegen);
+const tegen = adviesUitleg({ ...trip([12, 12, 12], -1, 270), kentMs: null, effectMin: 10 } as SimResult, true, true, 36)!;
+ok("beste bij tegenstroom (minst slecht): geen meestroom binnen de horizon", tegen.endsWith(". Geen vertrek met meestroom binnen 36 uur.") && !tegen.includes("gunstige stroom"), tegen);
 ok("gekozen: 'Bij vertrek HH:MM:' en geen beste-claim", /^Bij vertrek \d\d:\d\d: stroom mee/.test(gekozen) && !gekozen.includes("Eerstvolgende"), gekozen);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

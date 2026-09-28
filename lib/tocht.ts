@@ -56,20 +56,26 @@ export function combineLegTimelines(
 // horizon) lokale duur-minimum. Een lokaal minimum = een echt gunstig vertrekvenster;
 // het vroegste = eerstvolgende. Snellere-maar-latere en onzekere vensters blijven in de
 // "andere vensters"-lijst zichtbaar.
+// Met stroomdata telt alleen een vertrek waar de stroom netto tijd wint (effectMin < 0)
+// als venster; is er binnen de horizon geen, dan het snelste vertrek (minst slecht, zie
+// adviesState "minst-slecht").
 export function pickBest(depOptions: DepOption[]): DepOption | null {
   const reach = depOptions.filter((o) => o.result?.arrMs != null);
   if (!reach.length) return null;
   // alleen op onzekere (voorbij-horizon) vertrekken terugvallen als er niets zekers is
   const certain = reach.filter((o) => !o.result.voorbijHorizon);
   const base = certain.length ? certain : reach;
+  const metStroom = base.some((o) => (o.result.effectMin ?? 0) !== 0);
+  const gunstig = (o: DepOption) => !metStroom || o.result.effectMin < 0;
+  if (!base.some(gunstig)) return base.reduce((b, o) => (o.result.tripMin < b.result.tripMin ? o : b));
   // lokale duur-minima = de echte vensters (plateau-tolerant, zoals de venster-lijst)
   const windows = base.filter((o, i, a) => {
     const L = a[i - 1], R = a[i + 1];
     const lok = !L || o.result.tripMin <= L.result.tripMin;
     const rok = !R || o.result.tripMin <= R.result.tripMin;
-    return lok && rok;
+    return lok && rok && gunstig(o);
   });
-  const pool = windows.length ? windows : base;
+  const pool = windows.length ? windows : base.filter(gunstig);
   return pool.reduce((b, o) => (o.depMs < b.depMs ? o : b));   // vroegste = dichtstbij
 }
 
@@ -122,14 +128,17 @@ export function windAgainstCurrent(steps: SimStep[], courseDeg: number): boolean
 }
 
 // ── advies (ROUTE) ─────────────────────────────────────────────────────
-// Vijf toestanden, puur afgeleid van het beste vertrek — geen gaan/niet-gaan-oordeel.
-// Volgorde: geen venster > zonder stroom > onzeker > ga nu > vertrek later.
+// Zes toestanden, puur afgeleid van het beste vertrek — geen gaan/niet-gaan-oordeel.
+// Volgorde: geen venster > zonder stroom > onzeker > minst slecht > ga nu > vertrek later.
 // "Ga nu" = het beste vertrek is het eerste kandidaat-tijdstip (≤ 30 min vanaf nu).
-export type AdviesKind = "ga-nu" | "vertrek" | "onzeker" | "geen-venster" | "zonder-stroom";
+// "Minst slecht" = ook het beste vertrek heeft de stroom per saldo tegen (pickBest viel
+// terug op het snelste vertrek).
+export type AdviesKind = "ga-nu" | "vertrek" | "onzeker" | "geen-venster" | "zonder-stroom" | "minst-slecht";
 export function adviesState(best: DepOption | null, firstDepMs: number | null, anyStroom: boolean): AdviesKind {
   if (!best) return "geen-venster";
   if (!anyStroom) return "zonder-stroom";
   if (best.result.voorbijHorizon) return "onzeker";
+  if (best.result.effectMin > 0) return "minst-slecht";
   if (firstDepMs != null && best.depMs === firstDepMs) return "ga-nu";
   return "vertrek";
 }
@@ -184,7 +193,7 @@ export function stroomVerloop(r: SimResult, anyStroom: boolean): StroomVerloop {
 // Uitlegzin: stroom + wind uit de sim-stappen van een vertrek. Voor het beste vertrek met
 // de slotzin waarom het het beste is; voor een ander gekozen vertrek zonder die claim en
 // met "Bij vertrek HH:MM:" ervoor.
-export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): string | null {
+export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true, horizonUur?: number): string | null {
   if (!b.arrMs || !b.steps.length) return null;
   const s0 = b.steps[0];
   const body = b.steps.length > 1 ? b.steps.slice(0, -1) : b.steps;
@@ -213,6 +222,7 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true): 
   // alleen "gunstige stroom" claimen als de stroom netto tijd wint
   const tail = !anyStroom ? "Eerstvolgende vertrek met gunstige zeilhoek"
     : b.effectMin < 0 ? "Eerstvolgende vertrek met gunstige stroom en zeilhoek"
+    : b.effectMin > 0 ? `Geen vertrek met meestroom binnen ${horizonUur ?? 48} uur`
     : "Eerstvolgend gunstig vertrekmoment";
   return `${zin}. ${tail}.`;
 }
@@ -272,7 +282,7 @@ export function adviesTitel(kind: AdviesKind, depMs: number | null, letOpActief:
   const hm = depMs != null ? localHM(depMs) : "";
   switch (kind) {
     case "ga-nu": return letOpActief ? `BESTE VERTREK ${hm}` : "GA NU";
-    case "vertrek": return `VERTREK ${hm}`;
+    case "vertrek": case "minst-slecht": return `VERTREK ${hm}`;
     case "onzeker": return "ONZEKER";
     case "geen-venster": return "GEEN VENSTER";
     case "zonder-stroom": return "ZONDER STROOM";
