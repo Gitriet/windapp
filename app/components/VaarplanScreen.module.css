@@ -59,13 +59,14 @@
 .lijn { fill: none; stroke: var(--sea-green); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
 .vertrek { stroke: var(--parchment); stroke-width: var(--kromme-markering); }
 .piekMee { fill: var(--sea-green); }
-.piekTegen { fill: var(--slate); }
+.piekTegen { fill: var(--ochre); }
+.lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
 .legenda { flex-wrap: wrap; gap: var(--sp-3) var(--sp-7); }
 .legenda > span { display: inline-flex; align-items: center; gap: var(--sp-3); }
 .stip { display: inline-block; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
 .stip.piekMee { background: var(--sea-green); }
-.stip.piekTegen { background: var(--slate); }
+.stip.piekTegen { background: var(--ochre); }
 .stip.stipVertrek { width: var(--kromme-markering); border-radius: 0; background: var(--parchment); }
 

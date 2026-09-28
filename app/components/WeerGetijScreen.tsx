@@ -108,28 +108,21 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
   );
 }
 
-// Getij van de gekozen dag: HW/LW en de getijcurve.
+// Getij van de gekozen dag: de getijcurve met HW/LW (tijd + hoogte) in de grafiek.
 function GetijDag({ dag, tide }: { dag: string; tide: TideData | null }) {
   const ext = (tide?.extremes ?? []).filter((e) => localDateISO(tms(e.t)) === dag);
   return (
     <div className={`card ${s.blok}`}>
       {!tide ? <div className={s.noot}>geen getijstation voor deze haven</div>
-        : ext.length ? (
-          <div className={s.extremen}>
-            {ext.map((e) => (
-              <span key={e.t} className={s.extreem}>
-                {e.kind}&nbsp;{localHM(tms(e.t))}<span className={s.extreemCm}>{e.v > 0 ? "+" : ""}{Math.round(e.v)}</span>
-              </span>
-            ))}
-          </div>
-        ) : <div className={s.noot}>geen getijdata voor deze dag</div>}
+        : !ext.length && <div className={s.noot}>geen getijdata voor deze dag</div>}
       {tide && <GetijKromme tide={tide} dag={dag} />}
     </div>
   );
 }
 
-// 24-uurs waterstand (cm NAP) van de lokale dag; HW/LW als stip, NAP als nullijn.
-const W = 300, HG = 80, PAD = 6;
+// 24-uurs waterstand (cm NAP) van de lokale dag; HW/LW als stip met tijd en hoogte erbij
+// (HW erboven, LW eronder), NAP als nullijn. LBL = ruimte voor die labels boven en onder.
+const W = 300, HG = 96, PAD = 6, LBL = 11;
 function GetijKromme({ tide, dag }: { tide: TideData; dag: string }) {
   const van = localMidnight(noon(dag)), tot = localMidnight(noon(addDays(dag, 1)));
   const { pts: reeks, expEnd } = getijReeks(tide);
@@ -137,14 +130,21 @@ function GetijKromme({ tide, dag }: { tide: TideData; dag: string }) {
   if (pts.length < 2) return null;
   const lo = Math.min(0, ...pts.map((p) => p.v)), hi = Math.max(0, ...pts.map((p) => p.v));
   const x = (ms: number) => ((ms - van) / (tot - van)) * W;
-  const y = (v: number) => PAD + ((hi - v) / (hi - lo || 1)) * (HG - 2 * PAD);
-  const ext = tide.extremes.map((e) => ({ ms: tms(e.t), v: e.v })).filter((e) => e.ms >= van && e.ms <= tot);
+  const y = (v: number) => PAD + LBL + ((hi - v) / (hi - lo || 1)) * (HG - 2 * (PAD + LBL));
+  const ext = tide.extremes.map((e) => ({ ms: tms(e.t), v: e.v, hw: e.kind === "HW" })).filter((e) => e.ms >= van && e.ms <= tot);
   return (
     <div className={s.krommeWrap}>
       <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label="waterstand over 24 uur">
         <line x1={0} x2={W} y1={y(0)} y2={y(0)} className={s.nullijn} />
         <polyline className={s.lijn} points={pts.map((p) => `${x(p.ms).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ")} />
-        {ext.map((e) => <circle key={e.ms} cx={x(e.ms)} cy={y(e.v)} r={3.5} className={s.stipExt} />)}
+        {ext.map((e) => (
+          <g key={e.ms}>
+            <circle cx={x(e.ms)} cy={y(e.v)} r={3.5} className={s.stipExt} />
+            <text x={Math.min(W - 26, Math.max(26, x(e.ms)))} y={e.hw ? y(e.v) - 7 : y(e.v) + 14} className={s.extTijd}>
+              {localHM(e.ms)} <tspan className={s.extCm}>{e.v > 0 ? "+" : ""}{Math.round(e.v)}</tspan>
+            </text>
+          </g>
+        ))}
       </svg>
       <div className={s.as}><span>00:00</span><span>12:00</span><span>24:00</span></div>
       <div className={s.noot}>cm t.o.v. NAP · {tide.name}{pts[0].ms > expEnd ? " · astronomisch (zonder windopzet)" : ""}</div>

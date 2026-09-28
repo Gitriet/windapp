@@ -3,7 +3,7 @@
 // segment, kentering, wind), haveninfo met VHF uit de data, getijpoort, VHF-posten en
 // uitwijkhavens. De gekozen etappe toont zijn eigen 24-uurs stroomkromme (bij een route
 // zonder tussenstops = de hele tocht). Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { localDateISO, localMidnight } from "@/lib/tz";
 import { dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
 import {
@@ -208,6 +208,8 @@ function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines:
   const maxAbs = Math.max(0.5, ...segs.flat().map((q) => Math.abs(q.v)));
   const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;
   const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD);
+  // lijn boven de nullijn = mee (groen), eronder = tegen (oker): dezelfde lijn twee keer, geknipt
+  const clip = useId().replace(/:/g, "");
   return (
     <div className={`card ${s.krommeKaart}`}>
       <div>
@@ -222,9 +224,17 @@ function StroomKromme({ etappe, timelines, depMs }: { etappe: Etappe; timelines:
             <line x1={x(etappe.vanMs)} x2={x(etappe.vanMs)} y1={0} y2={HG} className={s.vertrek} />
           )}
           <line x1={0} x2={W} y1={HG / 2} y2={HG / 2} className={s.nullijn} />
-          {segs.map((seg, i) => (
-            <polyline key={i} className={s.lijn} points={seg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ")} />
-          ))}
+          <clipPath id={`${clip}m`}><rect x={0} y={0} width={W} height={HG / 2} /></clipPath>
+          <clipPath id={`${clip}t`}><rect x={0} y={HG / 2} width={W} height={HG / 2} /></clipPath>
+          {segs.map((seg, i) => {
+            const pts = seg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+            return (
+              <g key={i}>
+                <polyline className={s.lijn} points={pts} clipPath={`url(#${clip}m)`} />
+                <polyline className={`${s.lijn} ${s.lijnTegen}`} points={pts} clipPath={`url(#${clip}t)`} />
+              </g>
+            );
+          })}
           {segs.flatMap(krommePieken).map((q) => (
             <circle key={q.ms} cx={x(q.ms)} cy={y(q.v)} r={4} className={q.soort === "mee" ? s.piekMee : s.piekTegen} />
           ))}

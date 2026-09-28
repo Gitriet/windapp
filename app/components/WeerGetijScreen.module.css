@@ -41,20 +41,14 @@
 /* gekozen dag: weerregel, live wind, en onderaan het getij (HW/LW + curve) */
 .blok { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-5) var(--sp-4); }
 .nu { display: flex; flex-direction: column; gap: var(--sp-7); }
-.extremen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
-.extreem {
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); white-space: nowrap;
-  padding: var(--sp-2) var(--sp-1); border-radius: var(--radius-sm);
-  background: var(--ochre-chip-hw); border: var(--line) solid var(--ochre-line); color: var(--ochre-text);
-  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num);
-}
-.extreemCm { font-size: var(--fs-caption); font-weight: var(--fw-label); }
 
 .krommeWrap { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
 .kromme { width: 100%; height: auto; display: block; overflow: visible; }
 .nullijn { stroke: var(--hairline-soft); stroke-width: var(--line); }
 .lijn { fill: none; stroke: var(--parchment); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
 .stipExt { fill: var(--ochre); }
+.extTijd { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--ochre-text); text-anchor: middle; }  /* SVG-eenheden, schaalt mee */
+.extCm { font-weight: var(--fw-label); fill: var(--slate); }
 .as { display: flex; justify-content: space-between; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 
 @media (min-width: 768px) {
