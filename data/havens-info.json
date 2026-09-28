@@ -3,6 +3,8 @@
     "key": "breskens",
     "havenNaam": "Jachthaven Breskens",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -19,6 +21,8 @@
     "key": "cadzand-bad",
     "havenNaam": "Jachthaven Cadzand-Bad",
     "getijgebonden": true,
+    "beperkt": true,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -35,6 +39,8 @@
     "key": "delfzijl",
     "havenNaam": "Neptunus Jachthaven Delfzijl",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -51,6 +57,8 @@
     "key": "den-helder",
     "havenNaam": "Jachthaven Willemsoord",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": "Zeer sterke stroom in het Marsdiep (tot 2-3 kn); marine- en veerverkeer",
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -67,6 +75,8 @@
     "key": "den-oever",
     "havenNaam": "Jachthaven Den Oever",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": {
       "naam": "Stevinsluizen",
@@ -89,6 +99,8 @@
     "key": "eemshaven",
     "havenNaam": "Eemshaven",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -105,6 +117,8 @@
     "key": "harlingen",
     "havenNaam": "Jachthaven Harlingen (Noorderhaven)",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -121,6 +135,8 @@
     "key": "ijmuiden",
     "havenNaam": "Seaport Marina IJmuiden",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": "Zeer druk met zeevaart; kruis het vaarwater haaks en snel",
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -137,6 +153,8 @@
     "key": "kornwerderzand",
     "havenNaam": "Kornwerderzand (Lorentzsluizen)",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": {
       "naam": "Lorentzsluizen",
@@ -159,6 +177,8 @@
     "key": "lauwersoog",
     "havenNaam": "Jachthaven Noordergat",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -175,6 +195,8 @@
     "key": "nes-ameland",
     "havenNaam": "Jachthaven Ameland (Nes)",
     "getijgebonden": true,
+    "beperkt": true,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -191,6 +213,8 @@
     "key": "oudeschild",
     "havenNaam": "Waddenhaven Texel (Oudeschild)",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -207,6 +231,8 @@
     "key": "roompotsluis",
     "havenNaam": "Roompotsluis",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": {
       "naam": "Roompotsluis",
@@ -229,6 +255,8 @@
     "key": "scheveningen",
     "havenNaam": "Jachthaven Scheveningen",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -245,6 +273,8 @@
     "key": "schiermonnikoog",
     "havenNaam": "Jachthaven Schiermonnikoog",
     "getijgebonden": true,
+    "beperkt": true,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -261,6 +291,8 @@
     "key": "stellendam",
     "havenNaam": "Marina Stellendam",
     "getijgebonden": true,
+    "beperkt": true,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -277,6 +309,8 @@
     "key": "terneuzen",
     "havenNaam": "Jachthaven Terneuzen (Neuzen)",
     "getijgebonden": false,
+    "beperkt": false,
+    "gevaar": "Zeer druk beroepsvaarwater met grote zeeschepen; sterke dwarsstroom bij de havenmond",
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -293,6 +327,8 @@
     "key": "vlieland",
     "havenNaam": "Jachthaven Vlieland",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [
@@ -309,6 +345,8 @@
     "key": "vlissingen",
     "havenNaam": "Michiel de Ruyterhaven",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": "Twee rode lichten bij de ingang = invaren verboden; grote zeeschepen dicht langs de havenmond",
     "drempel": {
       "diepte_m_nap": -3.30,
       "referentie": "NAP",
@@ -330,6 +368,8 @@
     "key": "west-terschelling",
     "havenNaam": "Passantenhaven West-Terschelling",
     "getijgebonden": true,
+    "beperkt": false,
+    "gevaar": null,
     "drempel": null,
     "sluis": null,
     "vhf": [

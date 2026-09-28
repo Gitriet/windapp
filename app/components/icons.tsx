@@ -8,7 +8,7 @@ export function WindArrow({ dir }: { dir: number }) {
   const size = WIND_ARROW_PX;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ transform: `rotate(${dir}deg)`, flex: "0 0 auto" }}>
-      <path d="M12 3 L16 15 L12 12 L8 15 Z" fill="currentColor" />
+      <path d="M12 2 L18 21 L12 17 L6 21 Z" fill="currentColor" />
     </svg>
   );
 }

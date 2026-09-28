@@ -25,6 +25,8 @@ export type HavenInfo = {
   key: string;                 // = netwerk_havens.id
   havenNaam: string;           // specifieke jachthaven/ligplaats
   getijgebonden: boolean;      // toegang geblokkeerd bij laagwater (drempel/wad)
+  beperkt: boolean;            // alleen rond hoogwater / verzandende aanloop (zwaarste categorie)
+  gevaar: string | null;       // bijzonder gevaar los van de toegang (⚠ + tekst), anders null
   drempel: HavenDrempel | null;
   sluis: HavenSluis | null;
   vhf: HavenVhf[];
@@ -32,6 +34,15 @@ export type HavenInfo = {
   rws_getij_code: string | null;
   opmerkingen: string;
 };
+
+// Toegankelijkheid in drie klassen (stipkleur in havenkiezer en VAARPLAN).
+export type Toegang = "vrij" | "getij" | "beperkt";
+export const TOEGANG_LABEL: Record<Toegang, string> = {
+  vrij: "vrij toegankelijk", getij: "getijgebonden", beperkt: "beperkt toegankelijk, alleen rond hoogwater",
+};
+export function toegangVan(h: HavenInfo): Toegang {
+  return h.beperkt ? "beperkt" : h.getijgebonden ? "getij" : "vrij";
+}
 
 // Alle havens uit data/havens-info.json.
 export function loadHavenInfo(): HavenInfo[] {

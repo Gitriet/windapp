@@ -11,8 +11,8 @@
   flex: 1; text-align: center;
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-kop); color: var(--slate);
 }
-/* 44px tapvlak, 22px zichtbaar vierkant */
-.nav { width: var(--tap); height: var(--tap); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--slate); }
+/* tapvlak --tap breed en --sp-11 hoog (compacte rij), 22px zichtbaar vierkant */
+.nav { width: var(--tap); height: var(--sp-11); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--slate); }
 .navVlak {
   width: var(--nav-knop); height: var(--nav-knop); display: inline-flex; align-items: center; justify-content: center;
   border: var(--line) solid var(--hairline); border-radius: var(--radius-sm); font-size: var(--fs-label);
@@ -24,9 +24,9 @@
 
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); }
 .tegel {
-  min-height: var(--tap); min-width: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
-  padding: var(--sp-4) var(--line); font-family: var(--font-num); color: var(--slate);
+  min-width: 0; min-height: 0;   /* compacter dan de .row-standaard (--tap) */
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--sp-2) var(--line); font-family: var(--font-num); color: var(--slate);
 }
 .tegelDag { font-size: var(--fs-caption); color: var(--slate); }
 .tegelNr { font-size: var(--fs-title); font-weight: 700; }

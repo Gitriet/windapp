@@ -7,7 +7,7 @@
 // gateWindows() uit lib/gates.ts met de eigen diepgang. Geen drempel → geen fetch.
 import { useEffect, useMemo, useState } from "react";
 import { localHM } from "@/lib/tz";
-import { havenInfoByKey, type HavenInfo } from "@/lib/haven-info";
+import { havenInfoByKey, toegangVan, TOEGANG_LABEL, type HavenInfo } from "@/lib/haven-info";
 import type { TideData } from "@/lib/types";
 import { fetchTide } from "@/lib/planner-data";
 import { gateWindows, gateDatumFor, windowContains, type GateWindow } from "@/lib/gates";
@@ -43,8 +43,8 @@ interface HavenSelectorProps {
 
 const INFO = havenInfoByKey();
 
-// Havenlijst: tik op een naam = kiezen (geen tussenstap). Groene stip = vrij toegankelijk
-// (niet getijgebonden). ⓘ klapt de haveninfo onder de rij open; bij de gekozen haven ook
+// Havenlijst: tik op een naam = kiezen (geen tussenstap). Stip = toegankelijkheid
+// (groen vrij, oker getijgebonden, rood beperkt). ⓘ klapt de haveninfo onder de rij open; bij de gekozen haven ook
 // de actuele toegangsstatus en de 24u-balk.
 export default function HavenSelector({
   value, options, naamOf, onSelect, stationKey, bootDiepgang,
@@ -96,8 +96,7 @@ export default function HavenSelector({
           <li key={h} className={st.item}>
             <div className={st.rij}>
               <button type="button" className={st.kies} aria-current={gekozen || undefined} onClick={() => onSelect(h)}>
-                <span className={st.stip} role="img" data-vrij={hi && !hi.getijgebonden ? "" : undefined}
-                  aria-label={hi && !hi.getijgebonden ? "vrij toegankelijk" : undefined} />
+                {hi ? <ToegangMarkering h={hi} /> : <span className="toegang-stip" />}
                 {naamOf(h)}
               </button>
               {hi && (
@@ -150,6 +149,17 @@ function TijdBalk({ windows }: { windows: GateWindow[] }) {
   );
 }
 
+// Toegangsstip (groen/oker/rood) en ⚠ bij een bijzonder gevaar; tekst in tooltip + aria.
+export function ToegangMarkering({ h }: { h: HavenInfo }) {
+  const t = toegangVan(h);
+  return (
+    <span className="toegang">
+      <span className="toegang-stip" role="img" data-toegang={t} aria-label={TOEGANG_LABEL[t]} title={TOEGANG_LABEL[t]} />
+      {h.gevaar && <span className="toegang-gevaar" role="img" aria-label={`let op: ${h.gevaar}`} title={h.gevaar}>⚠</span>}
+    </span>
+  );
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className={st.row}>
@@ -164,6 +174,7 @@ export function HavenDetail({ havenInfo: h, bootDiepgang }: { havenInfo: HavenIn
   const benodigdNap = h.drempel ? h.drempel.diepte_m_nap + bootDiepgang : null;
   return (
     <div>
+      {h.gevaar && <Row label="⚠ Let op"><span className={st.gevaar}>{h.gevaar}</span></Row>}
       {h.drempel && (
         <Row label="Drempel">
           {napSigned(h.drempel.diepte_m_nap)}

@@ -14,10 +14,11 @@ import { addDays, krommePieken, krommeSegmenten } from "@/lib/getij";
 import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
 import type { SimResult } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
+import { toegangVan, TOEGANG_LABEL } from "@/lib/haven-info";
 import type { TideData } from "@/lib/types";
 import type { BoatProfile } from "@/lib/polar";
 import { Skeleton } from "./Shell";
-import { HavenDetail } from "./HavenSelector";
+import { HavenDetail, ToegangMarkering } from "./HavenSelector";
 import { WindArrow } from "./icons";
 import s from "./VaarplanScreen.module.css";
 
@@ -141,9 +142,11 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         <div className={s.lijst}>
           <Haven rol="VERTREK" haven={from} diepgang={boat.draftM} />
           <Haven rol="AANKOMST" haven={to} diepgang={boat.draftM} />
-          <div className={`row ${s.poort}`} data-status={poort ?? "onbekend"}>
-            GETIJPOORT VERTREK · {poort === "open" ? "OPEN BIJ VERTREK" : poort === "dicht" ? "DICHT BIJ VERTREK" : "ONBEKEND"}
-          </div>
+          {poort && (   // alleen bij een drempelhaven met getijcurve; anders geen regel
+            <div className={`row ${s.poort}`} data-status={poort}>
+              GETIJPOORT VERTREK · {poort === "open" ? "OPEN BIJ VERTREK" : "DICHT BIJ VERTREK"}
+            </div>
+          )}
           <div className={`row ${s.compact}`}>
             <span className={s.compactLabel}>VHF</span>
             <span>16 nood &amp; oproep · 70 DSC{posten.map((v) => ` · ${v.kanaal} ${v.naam}`).join("")}</span>
@@ -167,7 +170,7 @@ function Kpi({ label, waarde }: { label: string; waarde: string }) {
   );
 }
 
-// Havenkaart: naam + eerste VHF-kanaal uit de data; subregel = havennaam (+ getijgebonden).
+// Havenkaart: naam + toegangsstip + eerste VHF-kanaal uit de data; subregel = havennaam + toegang.
 // Klik klapt de volledige haveninfo open (zelfde detail als in de routekiezer).
 function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepgang: number }) {
   const [open, setOpen] = useState(false);
@@ -176,12 +179,12 @@ function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepg
   const kop = (
     <>
       <div className={s.etappeKop}>
-        <span className={s.havenNaam}>{rol} · {haven.naam}</span>
+        <span className={s.havenNaam}>{rol} · {haven.naam}{h && <> <ToegangMarkering h={h} /></>}</span>
         <span className={s.havenVhf} title={vhf?.dienst}>
           {vhf && <>VHF&nbsp;{vhf.kanaal}</>}{h && <span className={s.chevron} aria-hidden>{open ? "▴" : "▾"}</span>}
         </span>
       </div>
-      {h && <div className={s.havenSub}>{h.havenNaam}{h.getijgebonden ? " · getijgebonden" : ""}{h.sluis ? ` · ${h.sluis.naam}` : ""}</div>}
+      {h && <div className={s.havenSub}>{h.havenNaam} · {TOEGANG_LABEL[toegangVan(h)]}{h.sluis ? ` · ${h.sluis.naam}` : ""}</div>}
     </>
   );
   return (

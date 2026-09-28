@@ -21,6 +21,7 @@
   --sea-green-text: #6bdead;  /* groene tekst op groene chip */
   --sea-green-fill: rgba(30, 143, 95, 0.22);
   --sea-green-line: rgba(79, 211, 148, 0.4);
+  --rood:           #e5534b;  /* beperkt toegankelijke haven */
   --hairline:       rgba(243, 233, 210, 0.32);  /* standaard rand */
   --hairline-soft:  rgba(243, 233, 210, 0.22);  /* scheiding tabbar/kolom, nullijn */
   --hairline-strong: rgba(243, 233, 210, 0.38); /* routechip */
@@ -73,8 +74,8 @@
   --ls-beslissing: -0.5px;
   --lh-text: 1.4;
   --disc: 18px;          /* advies-schijf */
-  --chip-pad-lg: 7px 11px;
-  --row-pad: 9px var(--sp-6);
+  --chip-pad-lg: 5px 10px;
+  --row-pad: var(--sp-3) var(--sp-6);
   --cta-pad: 11px;
   --label-col: 62px;     /* labelkolom in detailrijen */
   --chip-pad-sm: 5px 9px;
@@ -93,7 +94,7 @@
   --kromme-markering: 1.5px;  /* vertreklijn in de stroomkromme */
   --ls-tijdblok: -0.4px;
   --balk-h: 16px;        /* stroombalkjes per etappe */
-  --etappe-gap: 7px;
+  --etappe-gap: var(--sp-3);
   --compact-label: 56px;
   --fade-h: 40px;        /* fade onderaan een scrollend paneel */
   --scrim: rgba(11, 35, 56, 0.7);   /* --ink achter een open paneel */
@@ -134,7 +135,7 @@ body {
 :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 /* de pagina zelf scrollt nooit horizontaal; scrollbars zijn nergens zichtbaar (scrollen
    met muis, trackpad en touch blijft werken) */
-html, body { overflow-x: hidden; }
+html, body { overflow-x: clip; }   /* clip i.p.v. hidden: geen scrollcontainer, anders werkt sticky niet */
 * { scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -180,6 +181,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* topbalk-chip en "bijgewerkt" bestaan alleen in de chartplotter-lay-out (≥1400px) */
 .shell-top-chip, .shell-top-tijd { display: none; }
 
+/* mobiel (< 768px): merkbalk + routekiezer blijven bovenaan staan bij scrollen. De
+   routekiezer staat dan in de topbalk (niet per scherm); op WEER & GETIJ niet, daar
+   staat de havenschakelaar van het scherm zelf. */
+@media (max-width: 767px) {
+  .shell-top { position: sticky; top: 0; z-index: 20; flex-wrap: wrap; background: var(--ink); padding-bottom: var(--sp-6); }
+  .shell-top-chip { display: block; order: 1; width: 100%; margin-top: var(--sp-5); }
+  .shell[data-tab="weergetij"] .shell-top-chip { display: none; }
+  .chip-route { display: none; }
+}
+
 .shell-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   display: flex; background: var(--ink);
@@ -200,6 +211,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* schakelaar VERTREK / AANKOMST: één omlijnd vlak met twee standen; gevuld = gekozen
    (WEER & GETIJ) of open (routekiezer). Gedeeld door beide. */
+/* toegankelijkheidsstip van een haven (havenkiezer, VAARPLAN) */
+.toegang-stip { display: inline-block; flex-shrink: 0; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
+.toegang-stip[data-toegang="vrij"] { background: var(--sea-green); }
+.toegang-stip[data-toegang="getij"] { background: var(--ochre); }
+.toegang-stip[data-toegang="beperkt"] { background: var(--rood); }
+.toegang { display: inline-flex; align-items: center; gap: var(--sp-3); vertical-align: middle; }
+.toegang-gevaar { font-size: var(--fs-label); line-height: 1; color: var(--ochre); cursor: help; }
 .chip-wrap { position: relative; }
 .schakelaar {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); padding: var(--sp-1);

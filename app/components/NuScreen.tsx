@@ -47,6 +47,10 @@ function drukOpDag(w: ForecastResponse["weather"], date: string): number | null 
   return best;
 }
 
+// "ZONDAG" voor een ISO-datum (lokaal)
+const weekdag = (date: string) =>
+  new Intl.DateTimeFormat("nl-NL", { weekday: "long", timeZone: "Europe/Amsterdam" }).format(Date.parse(`${date}T12:00:00Z`)).toUpperCase();
+
 export default function NuScreen({ fc, naam, dag, vandaag }: NuScreenProps) {
   const isNu = dag.date === vandaag;
   const venster = dagVenster(fc.points, dag.date, vandaag);
@@ -63,11 +67,12 @@ export default function NuScreen({ fc, naam, dag, vandaag }: NuScreenProps) {
   const lucht = d ? wxLabel(d.code) : "";
   const weerZin = d ? `${lucht.charAt(0).toUpperCase()}${lucht.slice(1)}${d.pop != null && d.pop >= 30 ? `, ${Math.round(d.pop)}% kans op neerslag` : ""}` : null;
   const druk = drukOpDag(fc.weather, dag.date);
+  const tGem = d?.tmin != null && d.tmax != null ? (d.tmin + d.tmax) / 2 : null;   // gemiddelde van dagmin en -max
 
   return (
     <>
       <div className={`card ${s.hero}`}>
-        <div className={s.kop}><span>WEER · {naam}</span><span className={s.moment}>{moment}</span></div>
+        <div className={s.kop}><span>WEER · {naam}</span><span className={s.moment}>{p0 && <span className={s.bron}>{p0.model_label} · </span>}{moment}</span></div>
         {w && <div className={s.windRij}>
           <Kompas dir={w.dir} naar={w.naar} />
           <div>
@@ -87,30 +92,25 @@ export default function NuScreen({ fc, naam, dag, vandaag }: NuScreenProps) {
         </div>
         <div className={s.tegels}>
           <div className={s.tegel}>
-            <div className={s.tegelLabel}>WIND</div>
+            <div className={s.tegelLabel}>WIND {isNu ? "VANDAAG" : weekdag(dag.date)}</div>
             <div className={s.tegelWaarde}>{wind}<span className={s.tegelEenheid}>kn</span></div>
             <div className={s.tegelSub}>VLAAG {wVlaag != null ? Math.round(wVlaag) : "—"} KN</div>
             {!dw && <div className={s.tegelSub}>ONGECORRIGEERD</div>}
           </div>
           <div className={s.tegel}>
-            <div className={s.tegelLabel}>TEMP</div>
-            <div className={s.tegelWaarde}>{d?.tmax != null ? `${Math.round(d.tmax)}°` : "—"}</div>
+            <div className={s.tegelLabel}>GEM. TEMP</div>
+            <div className={s.tegelWaarde}>{tGem != null ? `${Math.round(tGem)}°` : "—"}</div>
             <div className={s.tegelSub}>{druk != null ? `${Math.round(druk)} hPa` : "\u00A0"}</div>
           </div>
         </div>
       </div>
-      {p0 ? (
-        <>
-          <Uren pts={venster} isNu={isNu} />
-          <div className={s.model}>Wind: {p0.model_label}{p0.corrected ? " · gekalibreerd" : ""}</div>
-        </>
-      ) : <div className={s.model}>Wind: dagverwachting, ongecorrigeerd (uurverwachting reikt ~3 dagen vooruit)</div>}
+      {p0 ? <Uren pts={venster} isNu={isNu} /> : <div className={s.model}>Wind: dagverwachting, ongecorrigeerd (uurverwachting reikt ~3 dagen vooruit)</div>}
     </>
   );
 }
 
-// Kompas: ring met N/O/Z/W, oker pijl met de punt op de windrichting nu (zoals de
-// uurpijlen; zelfde kleur als de richtingregel), en binnen de ring een gestippelde boog naar de richting over ~6 uur.
+// Kompas: ring met N/O/Z/W, oker vaan in de vorm van de uurpijlen (WindArrow), punt op
+// de windrichting nu (zelfde kleur als de richtingregel), en binnen de ring een gestippelde boog naar de richting over ~6 uur.
 function Kompas({ dir, naar }: { dir: number; naar: number }) {
   const pt = (deg: number, r: number) => {
     const a = (deg * Math.PI) / 180;
@@ -134,8 +134,7 @@ function Kompas({ dir, naar }: { dir: number; naar: number }) {
         </>
       )}
       <g transform={`rotate(${dir} 50 50)`} className={s.naald}>
-        <line x1={50} y1={16} x2={50} y2={46} />
-        <path d="M50 6 L44.5 16 L55.5 16 Z" />
+        <path d="M50 16 L57 58 L50 52 L43 58 Z" />
       </g>
       <circle cx={50} cy={50} r={4} className={s.naaf} />
     </svg>

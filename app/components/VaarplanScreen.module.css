@@ -23,8 +23,8 @@
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); white-space: nowrap;
 }
 
-.lijst { display: flex; flex-direction: column; gap: var(--sp-4); }
-.etappe { width: 100%; text-align: left; padding: var(--sp-5) var(--sp-6); display: flex; flex-direction: column; gap: var(--etappe-gap); }
+.lijst { display: flex; flex-direction: column; gap: var(--sp-3); }
+.etappe { width: 100%; text-align: left; padding: var(--sp-4) var(--sp-6); display: flex; flex-direction: column; gap: var(--etappe-gap); }
 .etappe[aria-pressed="true"] { border-color: var(--parchment); }
 .etappeKop { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); }
 .etappeNaam { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; min-width: 0; }
@@ -46,14 +46,14 @@
 .chevron { margin-left: var(--sp-4); }
 .havenDetail { margin-top: var(--sp-4); }
 
-.poort { display: flex; align-items: center; padding: var(--sp-4) var(--sp-6); font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); }
+.poort { display: flex; align-items: center; padding: var(--sp-3) var(--sp-6); font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); }
 .poort[data-status="open"] { color: var(--sea-green); border-color: var(--sea-green-line); }
 .poort[data-status="dicht"] { color: var(--ochre); border-color: var(--ochre-line); background: var(--ochre-fill); }
-.compact { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4) var(--sp-6); font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--body); }
+.compact { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-6); font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--body); }
 .compactLabel { flex: 0 0 auto; width: var(--compact-label); font-family: var(--font-num); font-weight: var(--fw-num); color: var(--slate); }
 
 /* stroomkromme van de gekozen etappe */
-.krommeKaart { padding: var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-4); }
+.krommeKaart { padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); }
 .kromme { width: 100%; height: auto; display: block; overflow: visible; }
 .nullijn { stroke: var(--hairline-soft); stroke-width: var(--line); }
 .lijn { fill: none; stroke: var(--sea-green); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }

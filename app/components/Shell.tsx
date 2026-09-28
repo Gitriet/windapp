@@ -7,8 +7,8 @@ import { SCREENS, type ScreenId } from "../screens";
 import { localDateLong, localHM } from "@/lib/tz";
 import { MenuIcon } from "./icons";
 
-// Merkbalk. Vanaf 1400px ook de (enige) routechip en "bijgewerkt HH:MM"; daaronder zijn
-// die twee verborgen (CSS) en staat de routechip per scherm.
+// Merkbalk met routechip: op mobiel sticky (chip onder het merk), vanaf 1400px vóór het merk, samen met "bijgewerkt HH:MM".
+// Van 768 tot 1400px verborgen (CSS); dan staat de routechip per scherm.
 // Actuele datum en tijd, tikt per halve minuut. Start leeg (geen hydration-verschil).
 function useKlok(): number | null {
   const [ms, setMs] = useState<number | null>(null);

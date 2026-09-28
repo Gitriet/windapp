@@ -1,4 +1,4 @@
-/* Havenkiezer in het routechip-paneel: lijst (tik = kiezen), stip = vrij toegankelijk, ⓘ = info. */
+/* Havenkiezer in het routechip-paneel: lijst (tik = kiezen), stip = toegankelijkheid, ⓘ = info. */
 .lijst { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .item + .item { border-top: var(--line) solid var(--hairline-soft); }
 .rij { display: flex; align-items: center; gap: var(--sp-3); }
@@ -10,8 +10,6 @@
 }
 .kies[aria-current] { color: var(--parchment); background: var(--fill-faint); }
 @media (hover: hover) { .kies:hover { background: var(--fill-faint); } }
-.stip { flex-shrink: 0; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
-.stip[data-vrij] { background: var(--sea-green); }
 .info { flex-shrink: 0; width: var(--tap); height: var(--tap); display: grid; place-items: center; color: var(--slate); }
 .iCirkel {
   width: var(--sp-9); height: var(--sp-9); display: grid; place-items: center; border-radius: 50%;
@@ -46,3 +44,4 @@
   margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: var(--line) solid var(--hairline-soft);
   font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--slate);
 }
+.gevaar { color: var(--ochre); }
