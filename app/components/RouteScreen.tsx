@@ -48,6 +48,7 @@ export interface RouteScreenProps {
   ready: boolean;
   nowMs: number;
   best: DepOption | null;
+  venster: { vanMs: number; totMs: number } | null;   // vertrekken binnen VENSTER_PCT van de beste
   vensters: DepOption[];
   firstDepMs: number | null;
   horizonUur: number;                 // betrouwbare vertrekken reiken zo ver vooruit
@@ -78,16 +79,19 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
+function AdviesKaart({ best, venster, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
   const hm = best ? localHM(best.depMs) : "";
   const dag = best ? dagLabel(best.depMs, nowMs) : "";
   const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)} · ${fmtDuurKort(r.tripMin)}` : "ETA —";
+  const bereik = venster && venster.totMs > venster.vanMs ? venster : null;
+  const snelst = bereik ? `snelst ${hm} · ` : "";
   const sub = !best || !r ? "Geen haalbaar vertrek binnen 48 uur."
     : kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · ${eta} · stroomdata deels onzeker`
     : kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · ${eta} · rekent zonder getijstroom`
-    : `${dag ? `${dag} · ` : ""}${eta} · ${effectLabel(r.effectMin)}`;
+    : kind === "ga-nu" && bereik ? `vertrek vóór ${localHM(bereik.totMs)} · ${eta} · ${effectLabel(r.effectMin)}`
+    : `${dag ? `${dag} · ` : ""}${snelst}${eta} · ${effectLabel(r.effectMin)}`;
 
   const s0 = r?.steps[0];
   const verloop = r ? stroomVerloop(r, anyStroom) : null;
@@ -105,7 +109,7 @@ function AdviesKaart({ best, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, 
         <span className={s.label}>{kind === "minst-slecht" ? `Minst slecht · komende ${horizonUur}\u00A0u` : "Huidig advies"}</span>
       </div>
       <div>
-        <div className={s.titel}>{adviesTitel(kind, best?.depMs ?? null, !!(warn?.hardWind || warn?.windTegenStroom))}</div>
+        <div className={s.titel}>{adviesTitel(kind, bereik?.vanMs ?? best?.depMs ?? null, !!(warn?.hardWind || warn?.windTegenStroom), bereik?.totMs)}</div>
         <div className={s.sub}>{sub}</div>
       </div>
       {r && s0 && (

@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm } from "@/lib/route";
 import { shortestPath } from "@/lib/netwerk-path";
 import {
-  pickBest, pickVensters, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
+  pickBest, pickVensters, vertrekVenster, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { TideData } from "@/lib/types";
 
@@ -170,6 +170,7 @@ export function useTocht(boat: BoatProfile) {
     return zeker.length && nowMs ? Math.round((zeker[zeker.length - 1].depMs - nowMs) / H) : 48;
   }, [depOptions, nowMs]);
   const vensters = useMemo(() => pickVensters(depOptions, bestOption), [depOptions, bestOption]);
+  const venster = useMemo(() => vertrekVenster(depOptions, bestOption), [depOptions, bestOption]);
 
   // Zolang de gebruiker niets koos (depMs == null) volgt de selectie het beste vertrek.
   useEffect(() => {
@@ -235,7 +236,7 @@ export function useTocht(boat: BoatProfile) {
   return {
     routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
-    depMs, setDepMs, depOptions, bestOption, vensters, selTrip, firstDepMs: candidates[0] ?? null,
+    depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur,
     routeTide, ready: !!routeWind, nowMs, err,
   };

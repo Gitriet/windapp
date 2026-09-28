@@ -1,6 +1,6 @@
 // Afleidingen uit lib/tocht.ts + lib/verdict.ts: beste vertrek = vroegste zekere lokale
 // duur-minimum, stroomgaten blijven null, en de verdict-grenzen.
-import { adviesState, pickBest, pickSnelste, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
+import { adviesState, pickBest, vertrekVenster, pickSnelste, pickVensters, combineLegTimelines, type DepOption } from "../lib/tocht";
 import { verdict } from "../lib/verdict";
 import type { SimResult } from "../lib/tripsim";
 import type { RouteCurrent } from "../lib/planner-data";
@@ -40,6 +40,15 @@ ok("adviesState: minst slecht", adviesState(pickBest(alleTegen), 0, true) === "m
 ok("adviesState: meestroom op eerste slot = ga nu", adviesState(st(0, 60, -5), 0, true) === "ga-nu");
 const v = pickVensters(sweep, pickBest(sweep));
 ok("vensters sluiten beste uit", !v.some((o) => o.depMs === 1 * H), v.map((o) => o.depMs / H).join(","));
+
+console.log("— vertrekVenster —");
+// beste i=3 (60 min, mee); ±5 % = ≤63: i=2 (62, mee) en i=4 (63, mee) wel, i=1 (61, tegen) en i=5 (70) niet
+const vs = [st(0, 60, -9), st(1, 61, 2), st(2, 62, -1), st(3, 60, -5), st(4, 63, -3), st(5, 70, -2)];
+const vv = vertrekVenster(vs, vs[3]);
+ok("venster aaneengesloten, ≤5 %, meestroom", vv?.vanMs === 2 * H && vv?.totMs === 4 * H, `${vv!.vanMs / H}-${vv!.totMs / H}`);
+const vt = vertrekVenster(alleTegen, pickBest(alleTegen));
+ok("minst slecht: tegenstroom telt mee in venster", vt?.vanMs === 3 * H && vt?.totMs === 3 * H);
+ok("zonder beste → null", vertrekVenster(vs, null) === null);
 
 console.log("— combineLegTimelines —");
 const cur = (vals: (number | null)[]): RouteCurrent => ({
