@@ -55,7 +55,7 @@ ok("zonder beste → null", vertrekVenster(vs, null) === null);
 console.log("— combineLegTimelines —");
 const cur = (vals: (number | null)[]): RouteCurrent => ({
   series: vals.map((alongKn, i) => ({ t: `2026-01-01T0${i}:00:00Z`, alongKn })),
-  bearingDeg: 0, analysisTime: null, modelUnvalidated: true, source: "x",
+  bearingDeg: 0, punten: [], analysisTime: null, modelUnvalidated: true, source: "x",
 });
 const c = combineLegTimelines([{ cur: cur([1, null, 2]), distNm: 3 }, { cur: cur([3, null, 0]), distNm: 1 }]);
 ok("gewogen gemiddelde", c.series[0].alongKn === 1.5, String(c.series[0].alongKn));

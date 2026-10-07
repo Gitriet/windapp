@@ -22,7 +22,7 @@ export default function Page() {
   const {
     fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
-    routeMeta, viaHavens, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
+    routeMeta, viaHavens, chainHavens, routeLijn, routeVarianten, routeIdx, chooseRoute, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
     routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur, ready, nowMs,
   } = tocht;
   const vanData = useHaven(endpoints?.van ?? null);
@@ -33,7 +33,8 @@ export default function Page() {
   // routekiezer: schakelaar VERTREK/AANKOMST boven ROUTE en VAARPLAN (en in de topbalk);
   // elk vlak opent de havenkiezer van die kant
   const maakRouteChip = (className?: string) => (
-    <RouteKiezer className={className} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}>
+    <RouteKiezer className={className} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}
+      varianten={routeVarianten} variant={routeIdx} onVariant={chooseRoute}>
       {(kant, sluit) => kant === "van" ? (
         <HavenSelector value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={(h) => { chooseFrom(h); sluit(); }}
           stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
@@ -69,7 +70,8 @@ export default function Page() {
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts} waves={routeWaves}
           fromTide={routeTide} via={viaHavens} boat={boat}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} etappeTimelines={etappeTimelines} />
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} etappeTimelines={etappeTimelines}
+          punten={chainHavens} lijn={routeLijn} />
       </>
     ),
   };

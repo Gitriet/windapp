@@ -10,7 +10,7 @@ import {
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
 import { bearing, routeDistanceNm } from "@/lib/route";
-import { shortestPath } from "@/lib/netwerk-path";
+import { alternatieveKetens, ketenNaam } from "@/lib/netwerk-path";
 import {
   pickBest, pickVensters, vertrekVenster, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
@@ -75,8 +75,16 @@ export function useTocht(boat: BoatProfile) {
   const vanOptions = useMemo(() => allHavens.filter((h) => h !== toHaven), [allHavens, toHaven]);
   const naarOptions = useMemo(() => allHavens.filter((h) => h !== fromHaven), [allHavens, fromHaven]);
 
-  // Kortste pad door het netwerk (Dijkstra op lengte_nm); null = geen pad.
-  const chain = useMemo(() => shortestPath(routes, fromHaven, toHaven), [routes, fromHaven, toHaven]);
+  // Redelijke routes door het netwerk, kortste eerst (standaard de kortste); leeg = geen pad.
+  const ketens = useMemo(() => alternatieveKetens(routes, fromHaven, toHaven), [routes, fromHaven, toHaven]);
+  const [routeKeuze, setRouteIdx] = useState(0);
+  const routeIdx = Math.max(0, Math.min(routeKeuze, ketens.length - 1));
+  const chain = ketens[routeIdx] ?? null;
+  const routeVarianten = useMemo(
+    () => ketens.map((k) => ({ rol: `${k.totalNm.toFixed(1).replace(".", ",")} NM`, naam: ketenNaam(k) })),
+    [ketens],
+  );
+  const chooseRoute = (i: number) => { setRouteIdx(i); setDepMs(null); };
   // uiteinden in vaarrichting; zonder pad de losse havens (rechte-lijn-fallback)
   const endpoints = useMemo(() => {
     if (chain) return { van: chain.havens[0], naar: chain.havens[chain.havens.length - 1] };
@@ -99,11 +107,13 @@ export function useTocht(boat: BoatProfile) {
   const chooseFrom = (h: string) => {
     if (h === toHaven) setToHaven(fromHaven);
     setFromHaven(h);
+    setRouteIdx(0);
     setDepMs(null);
   };
   const chooseTo = (h: string) => {
     if (h === fromHaven) setFromHaven(toHaven);
     setToHaven(h);
+    setRouteIdx(0);
     setDepMs(null);
   };
 
@@ -230,6 +240,14 @@ export function useTocht(boat: BoatProfile) {
     }),
     [chain, groepen],
   );
+  // echte route-geometrie voor het kaartje: de stroompunten per been (in vaarrichting), anders de rechte lijn tussen de havens
+  const routeLijn = useMemo(() => {
+    if (!chain) return [];
+    return chain.legs.flatMap((l, i) => {
+      const pts = legCurrents.length === chain.legs.length ? legCurrents[i]?.punten ?? [] : [];
+      return [{ lat: l.van.lat, lon: l.van.lon }, ...(l.reversed ? [...pts].reverse() : pts), { lat: l.naar.lat, lon: l.naar.lon }];
+    });
+  }, [chain, legCurrents]);
   const etappeTimelines = groepen.map((g) => g.map((i) => routeMeta.legTimelines[i]));
 
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
@@ -249,7 +267,7 @@ export function useTocht(boat: BoatProfile) {
 
 
   return {
-    routes, fromHaven, toHaven, chooseFrom, chooseTo, allHavens, naamOf, vanOptions, naarOptions,
+    chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur,

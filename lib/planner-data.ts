@@ -64,6 +64,7 @@ export type RouteStroomResponse = { model_unvalidated: boolean; units: string; s
 export type RouteCurrent = {
   series: AlongSample[];        // scalaire stroom langs de route (kn; >0 mee)
   bearingDeg: number;           // route-peiling waarop geprojecteerd is
+  punten: { lat: number; lon: number }[];   // route-geometrie in opslagvolgorde (van → naar van de opgeslagen route)
   analysisTime: string | null;
   modelUnvalidated: boolean;
   source: string;
@@ -100,6 +101,7 @@ export async function fetchRouteCurrent(routeId = DEFAULT_ROUTE_ID, desiredBeari
 
   return {
     series, bearingDeg: reversed ? (storeBrg + 180) % 360 : storeBrg,
+    punten: r.points.map((p) => ({ lat: p.lat, lon: p.lon })),
     analysisTime: r.analysis_time, modelUnvalidated: d.model_unvalidated, source: d.source,
   };
 }

@@ -69,6 +69,15 @@
 .kentering { fill: var(--ink); stroke: var(--parchment); stroke-width: var(--kromme-markering); }
 .kenteringLabel { font-family: var(--font-num); font-size: 8px; fill: var(--slate); }
 .piekTegen { fill: var(--ochre); }
+/* wind langs de route */
+.hoekVak { fill: var(--fill-faint); }
+.hoekIcoon { color: var(--ochre-text); }
+.windLijn { fill: none; stroke: var(--ochre); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
+.windVlagen { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--ochre-text); }
+.windVlak { fill: var(--ochre-fill); }
+.windStipRand { fill: var(--ochre); }
+.windLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--ochre-text); text-anchor: middle; }
+.windLabelStart { text-anchor: start; }
 .lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
@@ -81,3 +90,12 @@
 .stip.stipVertrek { width: var(--line); border-radius: 0; background: var(--hairline-hover); }
 .stip.stipNu { width: 0; border-radius: 0; border-left: var(--line) dashed var(--parchment); }
 
+/* routekaartje op echte kaarttegels */
+.kaart { width: 100%; height: auto; display: block; overflow: hidden; border-radius: var(--radius-xs); background: var(--ink); }   /* zee */
+.kaartLand { fill: var(--panel-solid); stroke: var(--hairline-soft); stroke-width: var(--line); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.kaartRouteRand { fill: none; stroke: var(--ink); stroke-width: calc(var(--kromme-lijn) + 3px); stroke-linejoin: round; stroke-linecap: round; opacity: 0.85; }
+.kaartRoute { fill: none; stroke: var(--parchment); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
+.kaartTussen { fill: var(--ink); stroke: var(--parchment); stroke-width: var(--kromme-markering); }
+.kaartVan { fill: var(--sea-green); stroke: var(--ink); stroke-width: var(--kromme-markering); }
+.kaartNaar { fill: var(--parchment); stroke: var(--ink); stroke-width: var(--kromme-markering); }
+.kaartNaam { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--parchment); text-transform: uppercase; paint-order: stroke; stroke: var(--ink); stroke-width: 3px; }

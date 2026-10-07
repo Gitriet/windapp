@@ -90,8 +90,9 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
 // Routekiezer: schakelaar met VERTREK en AANKOMST (zelfde vorm als de havenschakelaar op
 // WEER & GETIJ); een vlak aantikken opent de havenkiezer van die kant eronder (klik buiten sluit).
 export type Kant = "van" | "naar";
-export function RouteKiezer({ van, naar, className, children }: {
+export function RouteKiezer({ van, naar, className, varianten, variant = 0, onVariant, children }: {
   van: string; naar: string; className?: string; children: (kant: Kant, sluit: () => void) => React.ReactNode;
+  varianten?: { rol: string; naam: string }[]; variant?: number; onVariant?: (i: number) => void;   // routekeuze bij meerdere redelijke routes
 }) {
   const [open, setOpen] = useState<Kant | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -112,6 +113,17 @@ export function RouteKiezer({ van, naar, className, children }: {
           </button>
         ))}
       </div>
+      {varianten && varianten.length > 1 && (
+        <div className="schakelaar schakelaar-route" style={{ "--kolommen": varianten.length } as React.CSSProperties} role="radiogroup" aria-label="Route">
+          {varianten.map((v, i) => (
+            <button key={i} type="button" role="radio" aria-checked={i === variant}
+              className={`schakelaar-stand ${i === variant ? "is-filled" : ""}`} onClick={() => onVariant?.(i)}>
+              <span className="schakelaar-rol">{v.rol}</span>
+              <span className="schakelaar-naam">{v.naam}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {open && <div className="chip-panel">{children(open, () => setOpen(null))}</div>}
     </div>
   );
