@@ -23,7 +23,7 @@
   text-wrap: balance;   /* "BESTE VERTREK 14:30" mag over twee regels; korte titels blijven één regel */
 }
 .titelEta { margin-left: var(--sp-5); font-size: var(--fs-time); color: var(--body); white-space: nowrap; }
-.feiten { margin-top: var(--sp-3); font-family: var(--font-num); font-size: var(--fs-merk); font-weight: var(--fw-num); color: var(--parchment); }
+.feiten { margin-top: var(--sp-3); font-family: var(--font-num); font-size: var(--fs-merk); font-weight: var(--fw-num); color: var(--body); }
 .sub { margin-top: var(--sp-3); font-size: var(--fs-label); color: var(--slate); }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
