@@ -23,7 +23,7 @@ export default function Page() {
     fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, chainHavens, routeLijn, routeVarianten, routeIdx, chooseRoute, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
-    routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur, ready, nowMs,
+    routeTide, routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur, ready, nowMs,
   } = tocht;
   const vanData = useHaven(endpoints?.van ?? null);
   const naarData = useHaven(endpoints?.naar ?? null);
@@ -70,7 +70,7 @@ export default function Page() {
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts} waves={routeWaves}
           fromTide={routeTide} via={viaHavens} boat={boat}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} etappeTimelines={etappeTimelines}
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial}
           punten={chainHavens} lijn={routeLijn} />
       </>
     ),

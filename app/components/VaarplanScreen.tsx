@@ -7,10 +7,11 @@ import { useId, useMemo, useState } from "react";
 import { localDateISO, localHM } from "@/lib/tz";
 import { dirLabel16, fmtDuurKort, sailPhrase, tijdblok } from "@/lib/format";
 import {
-  combineLegTimelines, effectLabel, etappes, letOp,
-  type Etappe, type EtappeLeg, type GustSample, type LegTimeline, type ViaHaven, type WaveSample,
+  effectLabel, etappes, letOp,
+  type Etappe, type EtappeLeg, type GustSample, type ViaHaven, type WaveSample,
 } from "@/lib/tocht";
-import { krommeBereik, krommeKenteringen, krommePieken, krommeSegmenten } from "@/lib/getij";
+import { krommeKenteringen } from "@/lib/getij";
+import { gladReeks, rasterWaarden } from "@/lib/grafiek";
 import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
 import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
@@ -22,6 +23,7 @@ import type { BoatProfile } from "@/lib/polar";
 import { Skeleton } from "./Shell";
 import { HavenDetail, ToegangMarkering } from "./HavenSelector";
 import { WindArrow, WindHoekIcon } from "./icons";
+import { Raster, RASTER_GUT } from "./Raster";
 import s from "./VaarplanScreen.module.css";
 
 const H = 3_600_000;
@@ -52,7 +54,6 @@ export interface VaarplanScreenProps {
   via: ViaHaven[];
   boat: BoatProfile;
   anyStroom: boolean;
-  etappeTimelines: LegTimeline[][];       // stroom per etappe: de legs van die etappe (zelfde volgorde als legs)
   punten: RouteHaven[];                   // de gevaren route: havens én knooppunten in vaarvolgorde
   lijn: { lat: number; lon: number }[];   // route-geometrie voor het kaartje
 }
@@ -143,8 +144,9 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         </div>
       </div>
 
-      {et[sel] && <StroomKromme etappe={et[sel]} timelines={p.etappeTimelines[sel] ?? []} depMs={depMs} arrMs={trip.arrMs} />}
+      {et[sel] && <StroomKromme etappe={et[sel]} steps={trip.steps} progVan={et.slice(0, sel).reduce((a, e) => a + e.distNm, 0)} />}
       {et[sel] && <WindTegel steps={trip.steps} gusts={gusts} depMs={depMs} arrMs={trip.arrMs} />}
+      {et[sel] && <SnelheidTegel steps={trip.steps} depMs={depMs} arrMs={trip.arrMs} distanceNm={distanceNm} />}
 
       <div>
         <div className={s.sectie}>HAVENINFO</div>
@@ -301,9 +303,9 @@ function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: numbe
 }
 
 // Aslabels onder een tijdgrafiek: de vertrekdag (00–24) of het meeschuivende venster.
-function TijdAs({ van, tot, dagweergave }: { van: number; tot: number; dagweergave: boolean }) {
+function TijdAs({ van, tot, dagweergave, inset = 0 }: { van: number; tot: number; dagweergave: boolean; inset?: number }) {
   return (
-    <div className={s.as}>
+    <div className={s.as} style={inset ? { paddingLeft: `${(inset / W) * 100}%` } : undefined}>
       {dagweergave ? <><span>00:00</span><span>12:00</span><span>24:00</span></>
         : [van, (van + tot) / 2, tot].map((ms) => <span key={ms}>{asLabel(ms)}</span>)}
     </div>
@@ -314,23 +316,24 @@ function TijdAs({ van, tot, dagweergave }: { van: number; tot: number; dagweerga
 // eronder de windhoek t.o.v. de boot: per zeilhoek-stuk (aan de wind / halve wind / ruime wind /
 // voor de wind) een vak met het icoon (boot, ring, bolletje = waar de wind de boot raakt).
 // Eigen tijdas = de vaartijd (vertrek–aankomst); de data zijn de sim-stappen van het gekozen vertrek.
-const WH = 44, WPAD = 4, WLBL = 12, BAND_Y = 52, BAND_H = 26, WTOT = BAND_Y + BAND_H;
+const WH = 56, WPAD = 4, WLBL = 12, BAND_Y = 64, BAND_H = 26, WTOT = BAND_Y + BAND_H;
 function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: GustSample[]; depMs: number; arrMs: number | null }) {
   const eind = arrMs ?? depMs;
   const van = depMs, tot = Math.max(eind, depMs + 1);   // eigen tijdas: precies de vaartijd
   const pts = steps.filter((q) => q.tMs >= depMs && q.tMs <= eind);
   if (pts.length < 2) return null;
-  const maxW = Math.max(10, ...pts.map((q) => q.wSpd));
-  const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;
-  const y = (v: number) => WH - WPAD - (v / maxW) * (WH - WPAD - WLBL);
-  const lijn = pts.map((q) => `${x(q.tMs).toFixed(1)},${y(q.wSpd).toFixed(1)}`);
-  const top = pts.reduce((m, q) => (q.wSpd > m.wSpd ? q : m), pts[0]);
-  const eerste = pts[0], laatste = pts[pts.length - 1];
+  const gl = gladReeks(pts.map((q) => ({ ms: q.tMs, v: q.wSpd })), van, tot);
+  const rast = rasterWaarden(0, Math.max(10, ...gl.map((q) => q.v)), 3);
+  const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
+  const y = (v: number) => WH - WPAD - (v / rast.top) * (WH - WPAD - WLBL);
+  const lijn = gl.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
+  const top = gl.reduce((m, q) => (q.v > m.v ? q : m), gl[0]);
+  const eerste = gl[0], laatste = gl[gl.length - 1];
   // hardste vlaag binnen de vaartijd (uurwaarden van de stations langs de route; vanaf het uur van vertrek)
   const vlagen = gusts.filter((g) => g.ms >= Math.floor(depMs / H) * H && g.ms <= eind);
   const vlaag = vlagen.length ? vlagen.reduce((m, g) => (g.gustKn > m.gustKn ? g : m)) : null;
   // beginlabel boven het hoogste punt van de lijn onder het label, zodat de lijn er niet doorheen loopt
-  const startLabelY = Math.min(...pts.filter((q) => x(q.tMs) <= x(eerste.tMs) + 30).map((q) => y(q.wSpd)));
+  const startLabelY = Math.min(...gl.filter((q) => x(q.ms) <= x(eerste.ms) + 30).map((q) => y(q.v)));
   // zeilhoek-stukken: opeenvolgende stappen met dezelfde omschrijving
   const stukken: { fraseer: string; van: number; tot: number; stappen: SimStep[] }[] = [];
   pts.forEach((q, i) => {
@@ -343,12 +346,13 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
     <div className={`card ${s.krommeKaart}`}>
       <div className={s.sectie}>WIND ONDERWEG · KN</div>
       <svg className={s.kromme} viewBox={`0 0 ${W} ${WTOT}`} role="img" aria-label="windsnelheid en windhoek langs de route">
-        <polygon className={s.windVlak} points={`${x(eerste.tMs).toFixed(1)},${WH - WPAD} ${lijn.join(" ")} ${x(laatste.tMs).toFixed(1)},${WH - WPAD}`} />
+        <Raster waarden={rast.waarden} y={y} x1={W} />
+        <polygon className={s.windVlak} points={`${x(eerste.ms).toFixed(1)},${WH - WPAD} ${lijn.join(" ")} ${x(laatste.ms).toFixed(1)},${WH - WPAD}`} />
         <polyline className={s.windLijn} points={lijn.join(" ")} />
-        <circle cx={x(top.tMs)} cy={y(top.wSpd)} r={3} className={s.windStipRand} />
-        <text x={labelX(x(top.tMs))} y={y(top.wSpd) - 6} className={s.windLabel}>{Math.round(top.wSpd)} kn · {localHM(top.tMs)}</text>
-        {x(top.tMs) - x(eerste.tMs) > 70 && (
-          <text x={x(eerste.tMs) + 4} y={startLabelY - 5} className={`${s.windLabel} ${s.windLabelStart}`}>{Math.round(eerste.wSpd)} kn</text>
+        <circle cx={x(top.ms)} cy={y(top.v)} r={3} className={s.windStipRand} />
+        <text x={labelX(x(top.ms))} y={y(top.v) - 6} className={s.windLabel}>{Math.round(top.v)} kn · {localHM(top.ms)}</text>
+        {x(top.ms) - x(eerste.ms) > 70 && (
+          <text x={x(eerste.ms) + 4} y={startLabelY - 5} className={`${s.windLabel} ${s.windLabelStart}`}>{Math.round(eerste.v)} kn</text>
         )}
         {stukken.map((st, i) => {
           const x0 = x(st.van), x1 = x(st.tot), breed = x1 - x0, midX = (x0 + x1) / 2;
@@ -361,76 +365,118 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
           );
         })}
       </svg>
-      <TijdAs van={van} tot={tot} dagweergave={false} />
+      <TijdAs van={van} tot={tot} dagweergave={false} inset={RASTER_GUT} />
       {vlaag && <div className={s.windVlagen}>Vlagen tot {Math.round(vlaag.gustKn)}&nbsp;kn rond {localHM(vlaag.ms)}</div>}
     </div>
   );
 }
 
-// Stroomkromme van de tocht: de vertrekdag (00–24), of bij een tocht over middernacht een
-// venster dat met de tocht meeschuift (krommeBereik). De vaartijd (vertrek–aankomst) staat
-// tussen twee haarlijnen en is in volle kleur, de rest gedimd; een gestreepte lijn = nu.
-// Gaten blijven gaten. Een etappe via knooppunten bestaat uit meerdere legs: hun stroom
-// telt naar lengte gewogen mee.
-// Labels alleen binnen de vaartijd: bij een piek sterkte + tijd (mee erboven, tegen
-// eronder), bij een kentering de tijd naast de open stip. Daarbuiten alleen gedimde
-// stippen. LBL = ruimte voor de pieklabels.
+// SNELHEID-tegel: vaarsnelheid over de grond (kn) langs de tocht, uit de sim-stappen van het gekozen vertrek
+// (door het water + stroom). Eigen tijdas = de vaartijd. De lijn is gemiddeld over een uur (de stroom springt
+// op de etappegrenzen), met een subtiel raster en de snelheden in een smalle marge links. Hoogste
+// snelheid als label boven de lijn; gemiddelde en laagste eronder als tekst (nooit een label over de lijn).
+const SH = 70;
+function SnelheidTegel({ steps, depMs, arrMs, distanceNm }: { steps: SimStep[]; depMs: number; arrMs: number | null; distanceNm: number | null }) {
+  const eind = arrMs ?? depMs;
+  const raw = steps.filter((q) => q.tMs >= depMs && q.tMs <= eind);
+  if (raw.length < 2) return null;
+  const van = depMs, tot = Math.max(eind, depMs + 1);
+  const pts = gladReeks(raw.map((q) => ({ ms: q.tMs, v: q.sog })), van, tot);
+  const rast = rasterWaarden(0, Math.max(...pts.map((q) => q.v)), 4);
+  const axMax = Math.max(rast.top, rast.stap * 2);
+  const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
+  const y = (v: number) => SH - WPAD - (v / axMax) * (SH - WPAD - WLBL);
+  const lijn = pts.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
+  const top = pts.reduce((m, q) => (q.v > m.v ? q : m), pts[0]);
+  const laag = pts.reduce((m, q) => (q.v < m.v ? q : m), pts[0]);
+  const gem = distanceNm != null && arrMs ? distanceNm / ((arrMs - depMs) / H) : null;
+  return (
+    <div className={`card ${s.krommeKaart}`}>
+      <div className={s.sectie}>SNELHEID ONDERWEG · KN</div>
+      <svg className={s.kromme} viewBox={`0 0 ${W} ${SH}`} role="img" aria-label="vaarsnelheid langs de route">
+        <Raster waarden={rast.waarden} y={y} x1={W} />
+        <polygon className={s.snelVlak} points={`${x(pts[0].ms).toFixed(1)},${SH - WPAD} ${lijn.join(" ")} ${x(pts[pts.length - 1].ms).toFixed(1)},${SH - WPAD}`} />
+        <polyline className={s.snelLijn} points={lijn.join(" ")} />
+        <circle cx={x(top.ms)} cy={y(top.v)} r={3} className={s.snelStip} />
+        <text x={labelX(x(top.ms))} y={y(top.v) - 6} className={s.snelLabel}>{kn(top.v)} kn · {localHM(top.ms)}</text>
+      </svg>
+      <TijdAs van={van} tot={tot} dagweergave={false} inset={RASTER_GUT} />
+      <div className={s.snelTekst}>
+        {gem != null && <>Gemiddeld {kn(gem)}&nbsp;kn · </>}laagst {kn(laag.v)}&nbsp;kn rond {localHM(laag.ms)}
+      </div>
+    </div>
+  );
+}
+
+// Stroomkromme van de tocht: de stroom die de boot zelf meemaakt op de gekozen etappe, op de plek waar
+// ze op elk moment is (de simulatiestappen, dus per been de eigen getijfase). Niet het gemiddelde over de
+// route op een klokuur: de getijgolf loopt langs de kust en dat gemiddelde zou een andere tocht tonen.
+// X-as = de vaartijd van deze etappe. Gestreepte lijn = nu. Een etappe zonder (complete) stroomdata
+// toont een streepje. Labels: bij een piek sterkte + tijd (mee erboven, tegen eronder), bij een
+// kentering de tijd naast de open stip. LBL = ruimte voor de pieklabels.
 const W = 300, HG = 116, PAD = 6, LBL = 12;
 const kn = (v: number) => Math.abs(v).toFixed(1).replace(".", ",");
-const labelX = (px: number) => Math.min(W - 34, Math.max(34, px));
+const labelX = (px: number) => Math.min(W - 34, Math.max(RASTER_GUT + 34, px));   // niet in de marge met rasterwaarden
 // aslabel bij een meeschuivend venster: dag erbij, want het loopt over middernacht
 const asLabel = (ms: number) =>
   `${new Intl.DateTimeFormat("nl-NL", { weekday: "short", timeZone: "Europe/Amsterdam" }).format(ms).replace(".", "").toUpperCase()} ${localHM(ms)}`;
-function StroomKromme({ etappe, timelines, depMs, arrMs }: { etappe: Etappe; timelines: LegTimeline[]; depMs: number; arrMs: number | null }) {
-  const { van, tot, dagweergave } = krommeBereik(depMs, arrMs);
-  const eind = arrMs ?? depMs;
+// Per getijfase (zelfde teken) alleen het sterkste punt: de stroom op de boot springt op de etappegrenzen
+// (eigen getijfase per been), en dat geeft anders kleine schijnpieken. Fases onder 0,15 kn krijgen geen label.
+function faseTop(seg: { ms: number; v: number }[]): { ms: number; v: number; soort: "mee" | "tegen" }[] {
+  const out: { ms: number; v: number; soort: "mee" | "tegen" }[] = [];
+  let top: { ms: number; v: number } | null = null;
+  const sluit = () => { if (top && Math.abs(top.v) >= 0.15) out.push({ ...top, soort: top.v > 0 ? "mee" : "tegen" }); top = null; };
+  seg.forEach((q, i) => {
+    if (i && (q.v >= 0) !== (seg[i - 1].v >= 0)) sluit();
+    if (!top || Math.abs(q.v) > Math.abs(top.v)) top = q;
+  });
+  sluit();
+  return out;
+}
+function StroomKromme({ etappe, steps, progVan }: { etappe: Etappe; steps: SimStep[]; progVan: number }) {
+  const st = etappe.stroom ? steps.filter((q) => q.prog >= progVan - 1e-9 && q.prog <= progVan + etappe.distNm + 1e-9) : [];
+  const seg = st.length > 1 ? gladReeks(st.map((q) => ({ ms: q.tMs, v: q.cur })), st[0].tMs, st[st.length - 1].tMs) : [];
+  const segs = seg.length > 1 ? [seg] : [];
+  const van = seg[0]?.ms ?? 0, tot = seg[seg.length - 1]?.ms ?? 1;
   const nu = Date.now();
-  const inTocht = (ms: number) => ms >= depMs && ms <= eind;
-  const { series } = combineLegTimelines(timelines);
-  // alleen als élk stuk van de etappe stroomdata heeft; anders zou de curve een deel voor het geheel tonen
-  const segs = etappe.stroom ? krommeSegmenten(series, van, tot) : [];
-  const maxAbs = Math.max(0.5, ...segs.flat().map((q) => Math.abs(q.v)));
-  const x = (ms: number) => ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * W;
+  const data = Math.max(0.5, ...seg.map((q) => Math.abs(q.v)));
+  const rast = rasterWaarden(-data, data, 3);
+  const maxAbs = Math.max(rast.top, -rast.bodem);   // schaal = buitenste rasterlijn
+  const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
   const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD - LBL);
   const kenteringen = segs.flatMap(krommeKenteringen);
   // lijn boven de nullijn = mee (groen), eronder = tegen (oker): dezelfde lijn twee keer, geknipt
   const clip = useId().replace(/:/g, "");
   return (
     <div className={`card ${s.krommeKaart}`}>
-      <div className={s.sectie}>STROOM LANGS DE ROUTE</div>
+      <div className={s.sectie}>STROOM ONDERWEG · KN</div>
       {!segs.length ? (
-        <div className={s.leeg}>—<div className={s.noot}>{etappe.stroom ? "geen stroomdata voor deze etappe op deze dag" : "stroomdata ontbreekt voor een deel van de tocht"}</div></div>
+        <div className={s.leeg}>—<div className={s.noot}>{etappe.stroom ? "geen stroomdata voor deze etappe" : "stroomdata ontbreekt voor een deel van de tocht"}</div></div>
       ) : (
-        <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`stroom langs ${etappe.label} over 24 uur`}>
-          <line x1={0} x2={W} y1={HG / 2} y2={HG / 2} className={s.nullijn} />
+        <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`stroom onderweg op ${etappe.label}`}>
+          <Raster waarden={rast.waarden} y={y} x1={W} fmt={(v) => `${v > 0 ? "+" : "−"}${String(Math.abs(v)).replace(".", ",")}`} />
+          <line x1={RASTER_GUT} x2={W} y1={HG / 2} y2={HG / 2} className={s.nullijn} />
           <clipPath id={`${clip}m`}><rect x={0} y={0} width={W} height={HG / 2} /></clipPath>
           <clipPath id={`${clip}t`}><rect x={0} y={HG / 2} width={W} height={HG / 2} /></clipPath>
-          <clipPath id={`${clip}v`}><rect x={x(depMs)} y={0} width={Math.max(0, x(eind) - x(depMs))} height={HG} /></clipPath>
-          {/* de hele dag gedimd, de vaartijd daaroverheen in volle kleur */}
-          {[s.buiten, undefined].map((cls, laag) => (
-            <g key={laag} className={cls} clipPath={laag ? `url(#${clip}v)` : undefined}>
-              {segs.map((seg, i) => {
-                const pts = seg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
-                return (
-                  <g key={i}>
-                    <polyline className={s.lijn} points={pts} clipPath={`url(#${clip}m)`} />
-                    <polyline className={`${s.lijn} ${s.lijnTegen}`} points={pts} clipPath={`url(#${clip}t)`} />
-                  </g>
-                );
-              })}
-            </g>
-          ))}
-          {[depMs, eind].map((ms) => <line key={ms} x1={x(ms)} x2={x(ms)} y1={0} y2={HG} className={s.vaartijd} />)}
+          {segs.map((sg, i) => {
+            const pts = sg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+            return (
+              <g key={i}>
+                <polyline className={s.lijn} points={pts} clipPath={`url(#${clip}m)`} />
+                <polyline className={`${s.lijn} ${s.lijnTegen}`} points={pts} clipPath={`url(#${clip}t)`} />
+              </g>
+            );
+          })}
           {nu > van && nu < tot && (
             <line x1={x(nu)} x2={x(nu)} y1={0} y2={HG} className={s.nuLijn} />
           )}
-          {segs.flatMap(krommePieken).map((q) => (
-            <g key={q.ms} className={inTocht(q.ms) ? undefined : s.buiten}>
+          {segs.flatMap(faseTop).map((q) => (
+            <g key={q.ms}>
               <circle cx={x(q.ms)} cy={y(q.v)} r={4} className={q.soort === "mee" ? s.piekMee : s.piekTegen} />
-              {inTocht(q.ms) && <text x={labelX(x(q.ms))} y={q.soort === "mee" ? y(q.v) - 8 : y(q.v) + 15}
+              <text x={labelX(x(q.ms))} y={q.soort === "mee" ? y(q.v) - 8 : y(q.v) + 15}
                 className={`${s.krommeLabel} ${q.soort === "mee" ? s.labelMee : s.labelTegen}`}>
                 {kn(q.v)} kn · {localHM(q.ms)}
-              </text>}
+              </text>
             </g>
           ))}
           {/* tijd rechts van de kentering aan de kant waar de lijn niet loopt; aan de rechterrand
@@ -438,21 +484,20 @@ function StroomKromme({ etappe, timelines, depMs, arrMs }: { etappe: Etappe; tim
           {kenteringen.map(({ ms, naarMee }) => {
             const rechts = x(ms) > W - 30;
             return (
-              <g key={ms} className={inTocht(ms) ? undefined : s.buiten}>
+              <g key={ms}>
                 <circle cx={x(ms)} cy={HG / 2} r={3} className={s.kentering} />
-                {inTocht(ms) && <text x={x(ms) + (rechts ? -5 : 5)} y={naarMee !== rechts ? HG / 2 + 11 : HG / 2 - 5}
-                  className={s.kenteringLabel} textAnchor={rechts ? "end" : "start"}>{localHM(ms)}</text>}
+                <text x={x(ms) + (rechts ? -5 : 5)} y={naarMee !== rechts ? HG / 2 + 11 : HG / 2 - 5}
+                  className={s.kenteringLabel} textAnchor={rechts ? "end" : "start"}>{localHM(ms)}</text>
               </g>
             );
           })}
         </svg>
       )}
-      <TijdAs van={van} tot={tot} dagweergave={dagweergave} />
+      {segs.length > 0 && <TijdAs van={van} tot={tot} dagweergave={false} inset={RASTER_GUT} />}
       <div className={s.legenda}>
         <span><span className={`${s.stip} ${s.piekMee}`} />MEESTROOM</span>
         <span><span className={`${s.stip} ${s.piekTegen}`} />TEGENSTROOM</span>
         <span><span className={`${s.stip} ${s.stipKentering}`} />KENTERING</span>
-        <span><span className={`${s.stip} ${s.stipVertrek}`} />VAARTIJD</span>
         <span><span className={`${s.stip} ${s.stipNu}`} />NU</span>
       </div>
     </div>

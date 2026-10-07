@@ -77,6 +77,11 @@
 .windVlak { fill: var(--ochre-fill); }
 .windStipRand { fill: var(--ochre); }
 .windLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--ochre-text); text-anchor: middle; }
+.snelLijn { fill: none; stroke: var(--parchment); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
+.snelTekst { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); }
+.snelVlak { fill: var(--fill-faint); }
+.snelStip { fill: var(--parchment); }
+.snelLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--parchment); text-anchor: middle; }
 .windLabelStart { text-anchor: start; }
 .lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }

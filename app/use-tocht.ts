@@ -256,7 +256,6 @@ export function useTocht(boat: BoatProfile) {
     });
     return gladLijn(pts);
   }, [chain, legCurrents]);
-  const etappeTimelines = groepen.map((g) => g.map((i) => routeMeta.legTimelines[i]));
 
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
   const routeGusts = useMemo<GustSample[]>(
@@ -278,7 +277,7 @@ export function useTocht(boat: BoatProfile) {
     chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, routeWaves, vanWeather, etappeLegs, etappeTimelines, horizonUur,
+    routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur,
     routeTide, ready: !!routeWind, nowMs, err,
   };
 }

@@ -156,6 +156,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   text-transform: uppercase; color: var(--slate);
   animation: skeleton-puls 1.6s ease-in-out infinite;
 }
+/* raster in tijdgrafieken (app/components/Raster.tsx) */
+.grafiek-raster { stroke: var(--hairline-soft); stroke-width: var(--line); stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; opacity: 0.6; }
+.grafiek-as { font-family: var(--font-num); font-size: 6px; fill: var(--slate); text-anchor: end; opacity: 0.8; }
 @keyframes skeleton-puls { 50% { opacity: 0.4; } }
 .skeleton-melding { display: flex; flex-direction: column; align-items: center; gap: var(--sp-5); }
 .windroos { width: var(--windroos); height: var(--windroos); animation: windroos-draai 6s linear infinite; }

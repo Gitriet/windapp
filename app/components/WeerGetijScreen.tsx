@@ -11,6 +11,8 @@ import type { ForecastResponse, RouteHaven, WeekResponse } from "@/lib/planner-d
 import type { TideData, TidePoint } from "@/lib/types";
 import NuScreen from "./NuScreen";
 import { Skeleton } from "./Shell";
+import { Raster, RASTER_GUT } from "./Raster";
+import { rasterWaarden } from "@/lib/grafiek";
 import s from "./WeerGetijScreen.module.css";
 
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -129,24 +131,26 @@ function GetijKromme({ tide, dag }: { tide: TideData; dag: string }) {
   const pts = reeks.map((p) => ({ ms: tms(p.t), v: p.v })).filter((p) => p.ms >= van && p.ms <= tot);
   if (pts.length < 2) return null;
   const lo = Math.min(0, ...pts.map((p) => p.v)), hi = Math.max(0, ...pts.map((p) => p.v));
-  const x = (ms: number) => ((ms - van) / (tot - van)) * W;
+  const rast = rasterWaarden(lo, hi, 3);
+  const x = (ms: number) => RASTER_GUT + ((ms - van) / (tot - van)) * (W - RASTER_GUT);
   const y = (v: number) => PAD + LBL + ((hi - v) / (hi - lo || 1)) * (HG - 2 * (PAD + LBL));
   const ext = tide.extremes.map((e) => ({ ms: tms(e.t), v: e.v, hw: e.kind === "HW" })).filter((e) => e.ms >= van && e.ms <= tot);
   return (
     <div className={s.krommeWrap}>
       <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label="waterstand over 24 uur">
-        <line x1={0} x2={W} y1={y(0)} y2={y(0)} className={s.nullijn} />
+        <Raster waarden={rast.waarden} y={y} x1={W} fmt={(v) => `${v > 0 ? "+" : "−"}${Math.abs(v)}`} />
+        <line x1={RASTER_GUT} x2={W} y1={y(0)} y2={y(0)} className={s.nullijn} />
         <polyline className={s.lijn} points={pts.map((p) => `${x(p.ms).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ")} />
         {ext.map((e) => (
           <g key={e.ms}>
             <circle cx={x(e.ms)} cy={y(e.v)} r={3.5} className={s.stipExt} />
-            <text x={Math.min(W - 26, Math.max(26, x(e.ms)))} y={e.hw ? y(e.v) - 7 : y(e.v) + 14} className={s.extTijd}>
+            <text x={Math.min(W - 26, Math.max(RASTER_GUT + 26, x(e.ms)))} y={e.hw ? y(e.v) - 7 : y(e.v) + 14} className={s.extTijd}>
               {localHM(e.ms)} <tspan className={s.extCm}>{e.v > 0 ? "+" : ""}{Math.round(e.v)}</tspan>
             </text>
           </g>
         ))}
       </svg>
-      <div className={s.as}><span>00:00</span><span>12:00</span><span>24:00</span></div>
+      <div className={s.as} style={{ paddingLeft: `${(RASTER_GUT / W) * 100}%` }}><span>00:00</span><span>12:00</span><span>24:00</span></div>
       <div className={s.noot}>cm t.o.v. NAP · {tide.name}{pts[0].ms > expEnd ? " · astronomisch (zonder windopzet)" : ""}</div>
     </div>
   );
