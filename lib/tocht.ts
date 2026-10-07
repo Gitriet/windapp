@@ -79,20 +79,13 @@ export function pickBest(depOptions: DepOption[]): DepOption | null {
   return pool.reduce((b, o) => (o.depMs < b.depMs ? o : b));   // vroegste = dichtstbij
 }
 
-// Vertrekvenster vanaf het beste vertrek (alleen later): aaneengesloten vertrekken die hooguit VENSTER_PCT
-// langer duren, even zeker zijn en (als het beste meestroom heeft) ook meestroom houden.
-export const VENSTER_PCT = 0.05;
+// Melding "nog steeds gunstig": VENSTER_MARGE_MIN minuten voor en na het beste vertrek, binnen
+// de gerekende vertrekken (niet vóór het eerste kandidaat-tijdstip).
+export const VENSTER_MARGE_MIN = 30;
 export function vertrekVenster(depOptions: DepOption[], best: DepOption | null): { vanMs: number; totMs: number } | null {
-  if (!best) return null;
-  const i = depOptions.findIndex((o) => o.depMs === best.depMs);
-  if (i < 0) return null;
-  const max = best.result.tripMin * (1 + VENSTER_PCT);
-  const past = (o: DepOption | undefined) => !!o && o.result.arrMs != null && o.result.tripMin <= max
-    && o.result.voorbijHorizon === best.result.voorbijHorizon
-    && (best.result.effectMin >= 0 || o.result.effectMin < 0);
-  let b = i;
-  while (past(depOptions[b + 1])) b++;
-  return { vanMs: best.depMs, totMs: depOptions[b].depMs };
+  if (!best || !depOptions.length) return null;
+  const m = VENSTER_MARGE_MIN * 60_000;
+  return { vanMs: Math.max(best.depMs - m, depOptions[0].depMs), totMs: Math.min(best.depMs + m, depOptions[depOptions.length - 1].depMs) };
 }
 
 // andere vensters = lokale duur-minima (excl. de beste), ≥4u uit elkaar, kortste eerst
@@ -207,8 +200,7 @@ export function stroomVerloop(r: SimResult, anyStroom: boolean): StroomVerloop {
 }
 
 // Uitlegzin: stroom + wind uit de sim-stappen van een vertrek. Voor het beste vertrek met
-// de slotzin waarom het het beste is; voor een ander gekozen vertrek zonder die claim en
-// met "Bij vertrek HH:MM:" ervoor.
+// de slotzin waarom het het beste is; voor een ander gekozen vertrek zonder die claim.
 export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true, horizonUur?: number): string | null {
   if (!b.arrMs || !b.steps.length) return null;
   const s0 = b.steps[0];
@@ -227,20 +219,19 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true, h
       stroomStr = startMee ? "stroom mee vrijwel de hele tocht" : "stroom overwegend tegen";
     }
   }
-  let windStr = `${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)}\u00A0kn ${sailPhrase(s0.twa)}`;
-  const maxSpd = Math.max(...body.map((s) => s.wSpd));
-  if (maxSpd - s0.wSpd >= 4) windStr += `, bouwt op naar ${Math.round(maxSpd)}\u00A0kn`;
-  const sEnd = body[body.length - 1];
-  const veer = sEnd ? Math.abs(((sEnd.wDir - s0.wDir + 540) % 360) - 180) : 0;
-  if (sEnd && veer >= 40) windStr += `, draait naar ${dirLabel16(sEnd.wDir)}`;
-  const zin = stroomStr ? `${cap(stroomStr)}. ${windStr}` : cap(windStr);
-  if (!isBeste) return `Bij vertrek ${localHM(b.departMs)}: ${zin.charAt(0).toLowerCase()}${zin.slice(1)}.`;
-  // alleen "gunstige stroom" claimen als de stroom netto tijd wint
-  const tail = !anyStroom ? "Eerstvolgende vertrek met gunstige zeilhoek"
-    : b.effectMin < 0 ? "Eerstvolgende vertrek met gunstige stroom en zeilhoek"
-    : b.effectMin > 0 ? `Geen vertrek met meestroom binnen ${horizonUur ?? 48} uur`
-    : "Eerstvolgend gunstig vertrekmoment";
-  return `${zin}. ${tail}.`;
+  // zin 1: wind bij vertrek en zeilhoek; zin 2: hoe de wind onderweg verloopt
+  const start = `wind uit ${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)}\u00A0kn, je vaart ${sailPhrase(s0.twa)}`;
+  const sMax = body.reduce((m, s) => (s.wSpd > m.wSpd ? s : m), body[0]);
+  const verschil = (d: number) => Math.abs(((d - s0.wDir + 540) % 360) - 180);
+  const sDraai = body.find((s) => verschil(s.wDir) >= 40);
+  const op = sMax.wSpd - s0.wSpd >= 4 ? `loopt de wind op tot ${Math.round(sMax.wSpd)}\u00A0kn rond ${localHM(sMax.tMs)}` : null;
+  const draai = sDraai ? `draait ${op ? "hij" : "de wind"} rond ${localHM(sDraai.tMs)} naar ${dirLabel16(sDraai.wDir)}` : null;
+  const verloop = [op, draai].filter(Boolean).join(" en ") || "blijft de wind vrijwel gelijk";
+  const windStr = `${cap(start)}. Onderweg ${verloop}`;
+  const zin = stroomStr ? `${cap(stroomStr)}. ${windStr}` : windStr;
+  if (!isBeste) return `${zin}.`;
+  // slotzin alleen als de stroom per saldo tegen is: dan is er geen vertrek met meestroom
+  return anyStroom && b.effectMin > 0 ? `${zin}. Geen vertrek met meestroom binnen ${horizonUur ?? 48} uur.` : `${zin}.`;
 }
 
 // ── etappes (VAARPLAN) ──────────────────────────────────────────────────

@@ -13,6 +13,20 @@ export function WindArrow({ dir }: { dir: number }) {
   );
 }
 
+// Windhoek t.o.v. de boot: pijl = de boot (boeg omhoog), ring = rondom de boot, bolletje = waar de wind
+// de boot raakt. rel = windrichting t.o.v. de boeg (0 = recht van voren, 90 = van stuurboord).
+export function WindHoekIcon({ rel }: { rel: number }) {
+  const R = 9, r = (rel * Math.PI) / 180;
+  const x = 12 + R * Math.sin(r), y = 12 - R * Math.cos(r);
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden style={{ flex: "0 0 auto", margin: "-3px 0" }}>
+      <circle cx={12} cy={12} r={R} fill="none" stroke="currentColor" strokeWidth={1.5} opacity={0.45} />
+      <path d="M12 6.5 L15.5 17 L12 14.8 L8.5 17 Z" fill="currentColor" />
+      <circle cx={x} cy={y} r={3} fill="currentColor" />
+    </svg>
+  );
+}
+
 // Menu (hamburger), 2px lijn zoals de weericonen.
 export function MenuIcon({ size }: { size: number }) {
   return (

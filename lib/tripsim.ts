@@ -36,6 +36,7 @@ export type SimStep = {
   twa: number;    // ware windhoek, 0–180
   wSpd: number;   // ware windsnelheid over de grond (kn)
   wDir: number;   // windrichting waaruit (graden)
+  course: number; // koers over de grond van het been (graden)
 };
 
 export type SimResult = {
@@ -194,7 +195,7 @@ export function simulateTrip(input: {
       const { stw, twa, wDir, wSpd } = throughWaterAt(boat, wg, course, cur);
       const sog = stw + cur;                         // cur is al langs de koers
       if (sog < MIN_SOG_KN) { unreachable = true; break outer; }
-      steps.push({ tMs: t, prog: cumBefore[li] + progLeg, stw, sog, cur, twa, wSpd, wDir });
+      steps.push({ tMs: t, prog: cumBefore[li] + progLeg, stw, sog, cur, twa, wSpd, wDir, course });
       const remain = dist - progLeg, stepNm = sog * stepH;
       if (stepNm >= remain) { t += (remain / sog) * 3600_000; progLeg = dist; }
       else { progLeg += stepNm; t += STEP_MIN * 60_000; }

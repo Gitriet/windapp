@@ -12,7 +12,7 @@ const H = 3_600_000, T0 = Date.UTC(2026, 8, 18, 10, 0);
 // 2 legs: 4 nm + 2 nm; stap per 0,5 nm (6 min). Leg 1: mee, kentering op 3 nm → tegen.
 const steps: SimStep[] = Array.from({ length: 13 }, (_, i) => ({
   tMs: T0 + i * 6 * 60000, prog: i * 0.5, stw: 5, sog: 5, cur: i * 0.5 < 3 ? 1 : -0.5, twa: 90,
-  wSpd: i * 0.5 < 4 ? 14 : 18, wDir: 315,
+  wSpd: i * 0.5 < 4 ? 14 : 18, wDir: 315, course: 45,
 }));
 const trip = { steps: [...steps, { ...steps[12], prog: 6 }], departMs: T0, arrMs: T0 + 80 * 60000 } as SimResult;
 const legs: EtappeLeg[] = [

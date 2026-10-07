@@ -50,7 +50,7 @@ export default function Page() {
         <RouteScreen
           ready={ready} fout={!!err} nowMs={nowMs} best={bestOption} venster={venster} vensters={vensters} firstDepMs={firstDepMs} horizonUur={horizonUur}
           nuOptie={depOptions[0]?.depMs === firstDepMs ? depOptions[0] : null}
-          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} depMs={depMs} selTrip={selTrip}
+          anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} distanceNm={routeDistNm} depMs={depMs} selTrip={selTrip}
           routeBearing={routeBearing} routeTide={routeTide} routeGusts={routeGusts} vanWeather={vanWeather}
           onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>

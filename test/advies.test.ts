@@ -25,7 +25,7 @@ ok("later slot → vertrek", adviesState(best(T0 + H), T0, true) === "vertrek");
 
 console.log("— letOp —");
 const step = (tMs: number, wSpd: number, cur = 0, wDir = 0): SimStep =>
-  ({ tMs, prog: 0, stw: 5, sog: 5, cur, twa: 90, wSpd, wDir });
+  ({ tMs, prog: 0, stw: 5, sog: 5, cur, twa: 90, wSpd, wDir, course: 0 });
 const trip = (wSpds: number[], cur = 0, wDir = 0): SimResult => {
   const steps = wSpds.map((w, i) => step(T0 + i * 15 * 60000, w, cur, wDir));
   return { steps, departMs: T0, arrMs: steps[steps.length - 1].tMs } as SimResult;
@@ -62,9 +62,14 @@ ok("geen stroomdata", stroomVerloop({ steps: [] } as unknown as SimResult, false
 console.log("— adviesUitleg —");
 const tr = { ...trip([12, 12, 12], 1, 270), kentMs: null, effectMin: -8 } as SimResult;
 const beste = adviesUitleg(tr, true)!, gekozen = adviesUitleg(tr, true, false)!;
-ok("beste: met slotzin", beste.endsWith(". Eerstvolgende vertrek met gunstige stroom en zeilhoek.") && !/[—–]/.test(beste), beste);
+ok("beste: eindigt op de windzin, geen slotzin", beste.endsWith("vrijwel gelijk.") && !beste.includes("Gunstig") && !/[—–]/.test(beste), beste);
 const tegen = adviesUitleg({ ...trip([12, 12, 12], -1, 270), kentMs: null, effectMin: 10 } as SimResult, true, true, 36)!;
 ok("beste bij tegenstroom (minst slecht): geen meestroom binnen de horizon", tegen.endsWith(". Geen vertrek met meestroom binnen 36 uur.") && !tegen.includes("gunstige stroom"), tegen);
-ok("gekozen: 'Bij vertrek HH:MM:' en geen beste-claim", /^Bij vertrek \d\d:\d\d: stroom mee/.test(gekozen) && !gekozen.includes("Eerstvolgende"), gekozen);
+const opl = adviesUitleg({ ...trip([8, 8, 14, 14], 1, 270), kentMs: null, effectMin: -8 } as SimResult, true)!;
+ok("wind loopt op: noemt tijdstip", /\. Wind uit \w+ 8.kn, je vaart .+\. Onderweg loopt de wind op tot 14.kn rond \d\d:\d\d\./.test(opl), opl);
+const dr = adviesUitleg({ ...trip([8, 8, 8, 8], 1, 270), steps: [step(T0, 8, 1, 270), step(T0 + H, 8, 1, 270), step(T0 + 2 * H, 8, 1, 0), step(T0 + 3 * H, 8, 1, 0)], kentMs: null, effectMin: -8 } as SimResult, true)!;
+ok("wind gelijk: zegt dat het gelijk blijft", /Wind uit W 12.kn, je vaart .+\. Onderweg blijft de wind vrijwel gelijk\./.test(beste), beste);
+ok("wind draait: noemt tijdstip", /\. Onderweg draait de wind rond \d\d:\d\d naar N\./.test(dr), dr);
+ok("gekozen: zonder voorvoegsel en geen beste-claim", /^Stroom mee/.test(gekozen) && !gekozen.includes("meestroom binnen"), gekozen);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

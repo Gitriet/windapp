@@ -2,7 +2,7 @@
 // ROUTE — beslisscherm: één advieskaart (5 toestanden) + alle vertrekvensters (48u).
 // Alleen presentatie; alle afleidingen komen uit lib/tocht.ts.
 import { localHM, localDateISO } from "@/lib/tz";
-import { aankomstLabel, dirLabel16, fmtDuurKort, tijdblok } from "@/lib/format";
+import { aankomstLabel, dirLabel16, fmtDuurKort, sailPhrase, tijdblok } from "@/lib/format";
 import { wxLabel } from "@/lib/weather";
 import {
   adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, pickSnelste, stroomVerloop, weatherAt,
@@ -11,7 +11,7 @@ import {
 import type { TideData, WeatherSeries } from "@/lib/types";
 import type { SimResult } from "@/lib/tripsim";
 import { Skeleton } from "./Shell";
-import { WindArrow, WxIcon } from "./icons";
+import { WindArrow, WindHoekIcon, WxIcon } from "./icons";
 import s from "./RouteScreen.module.css";
 
 const H = 3_600_000;
@@ -49,12 +49,13 @@ export interface RouteScreenProps {
   fout: boolean;                      // laden mislukt: geen wachtscherm, de foutmelding staat erboven
   nowMs: number;
   best: DepOption | null;
-  venster: { vanMs: number; totMs: number } | null;   // vertrekken binnen VENSTER_PCT van de beste
+  venster: { vanMs: number; totMs: number } | null;   // beste vertrek ± VENSTER_MARGE_MIN ("nog steeds gunstig")
   vensters: DepOption[];
   firstDepMs: number | null;
   horizonUur: number;                 // betrouwbare vertrekken reiken zo ver vooruit
   nuOptie: DepOption | null;          // het eerstvolgende vertrek (voor "nu vertrekken")
   anyStroom: boolean;
+  distanceNm: number | null;          // lengte van de hele tocht
   depMs: number | null;
   selTrip: SimResult | null;          // het gekozen vertrek (voor de uitlegzin)
   routeBearing: number | null;
@@ -80,43 +81,55 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, venster, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
+function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
+  // een ander vertrek gekozen (uit de lijst): de hele kaart toont dat vertrek; anders het beste
+  const gekozen = selTrip && best && selTrip.departMs !== best.depMs ? selTrip : null;
+  const rShow = gekozen ?? r;
+  const depShow = gekozen ? gekozen.departMs : best?.depMs ?? 0;
   const hm = best ? localHM(best.depMs) : "";
   const dag = best ? dagLabel(best.depMs, nowMs) : "";
-  const eta = r?.arrMs && best ? `ETA ${aankomstLabel(best.depMs, r.arrMs)} · ${fmtDuurKort(r.tripMin)}` : "ETA —";
-  const bereik = venster && venster.totMs > venster.vanMs ? venster : null;
-  const sub = !best || !r ? "Geen haalbaar vertrek binnen 48 uur."
-    : kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · ${eta} · stroomdata deels onzeker`
-    : kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · ${eta} · rekent zonder getijstroom`
-    : `${dag ? `${dag} · ` : ""}${bereik ? `kan tot ${localHM(bereik.totMs)} · ` : ""}${eta} · ${effectLabel(r.effectMin)}`;
+  const eta = rShow?.arrMs && best ? aankomstLabel(depShow, rShow.arrMs) : null;   // staat in de hero, achter de titel
+  const afstand = distanceNm != null ? `${distanceNm.toFixed(1).replace(".", ",")}\u00A0NM` : "";
+  const feiten = rShow ? [afstand, fmtDuurKort(rShow.tripMin)].filter(Boolean).join(" · ") : "";   // afstand · duur, onder de hero
+  // "nog steeds gunstig tussen …": alleen bij het advies zelf (niet bij onzeker/minst slecht/zonder stroom)
+  const bereik = !gekozen && venster && (kind === "ga-nu" || kind === "vertrek") ? venster : null;
+  const sub = !best || !r || !rShow ? "Geen haalbaar vertrek binnen 48 uur."
+    : !gekozen && kind === "onzeker" ? `Beste venster ${hm}${dag ? ` (${dag})` : ""} · stroomdata deels onzeker`
+    : !gekozen && kind === "zonder-stroom" ? `Beste vertrek ${hm}${dag ? ` (${dag})` : ""} · rekent zonder getijstroom`
+    : `${dagLabel(depShow, nowMs) ? `${dagLabel(depShow, nowMs)} · ` : ""}${effectLabel(rShow.effectMin)}`;
 
-  const s0 = r?.steps[0];
-  const verloop = r ? stroomVerloop(r, anyStroom) : null;
-  const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= best.depMs) : undefined;
-  const warn = r ? letOp(r, routeBearing ?? 0, routeGusts) : null;
+  const s0 = rShow?.steps[0];
+  const verloop = rShow ? stroomVerloop(rShow, anyStroom) : null;
+  const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= depShow) : undefined;
+  const warn = rShow ? letOp(rShow, routeBearing ?? 0, routeGusts) : null;
   const letOpActief = !!(warn?.hardWind || warn?.windTegenStroom);
-  // uitlegzin volgt het gekozen vertrek; zonder (afwijkende) keuze die van het beste
-  const gekozen = selTrip && best && selTrip.departMs !== best.depMs ? selTrip : null;
   const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom, true, horizonUur) : null;
-  const wx = best ? weatherAt(vanWeather, best.depMs) : null;
+  const wx = best ? weatherAt(vanWeather, depShow) : null;
+  const toonKind: AdviesKind = gekozen ? "vertrek" : kind;
 
   return (
     <div className={`card ${s.advies}`}>
       <div className={s.head}>
-        <span className={s.disc} data-kind={kind} aria-hidden>{DISC[kind]}</span>
-        <span className={s.label}>{kind === "minst-slecht" ? `Minst slecht · komende ${horizonUur}\u00A0u` : "Huidig advies"}</span>
+        <span className={s.disc} data-kind={toonKind} aria-hidden>{DISC[toonKind]}</span>
+        <span className={s.label}>{gekozen ? "Gekozen vertrek" : kind === "minst-slecht" ? `Minst slecht · komende ${horizonUur}\u00A0u` : "Huidig advies"}</span>
       </div>
       <div>
-        <div className={s.titel}>{adviesTitel(kind, best?.depMs ?? null, letOpActief)}</div>
+        <div className={s.titel}>
+          {adviesTitel(toonKind, best ? depShow : null, letOpActief)}
+          {eta && <span className={s.titelEta}>ETA&nbsp;{eta}</span>}
+        </div>
+        {feiten && <div className={s.feiten}>{feiten}</div>}
         <div className={s.sub}>{sub}</div>
+        {bereik && <div className={s.sub}>Nog steeds gunstig tussen {localHM(bereik.vanMs)} en {localHM(bereik.totMs)}</div>}
       </div>
-      {r && s0 && (
+      {rShow && s0 && (
         <div className={s.chips}>
           <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)}&nbsp;{Math.round(s0.wSpd)}&nbsp;KN</span>
+          <span className={`${s.chip} ${s.chipWind}`}><WindHoekIcon rel={s0.wDir - s0.course} />{sailPhrase(s0.twa).toUpperCase()}</span>
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
-          {verloop && "totMs" in verloop && !(verloop.kind === "mee" && r.effectMin > 0) && (
+          {verloop && "totMs" in verloop && !(verloop.kind === "mee" && rShow.effectMin > 0) && (
             <span className={`${s.chip} ${verloop.kind === "mee" ? s.chipMee : s.chipTegen}`}>
               {verloop.kind === "mee" ? "MEE" : "TEGEN"} {verloop.totMs != null ? `TOT ${localHM(verloop.totMs)}` : "HELE TOCHT"}
             </span>

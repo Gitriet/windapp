@@ -42,12 +42,14 @@ const v = pickVensters(sweep, pickBest(sweep));
 ok("vensters sluiten beste uit", !v.some((o) => o.depMs === 1 * H), v.map((o) => o.depMs / H).join(","));
 
 console.log("— vertrekVenster —");
-// beste i=2 (60 min, mee); ≤5 % = ≤63, alleen later: i=3 (62) en i=4 (63) wel, i=5 (61, tegen) niet
-const vs = [st(0, 61, -9), st(1, 62, -1), st(2, 60, -5), st(3, 62, -2), st(4, 63, -3), st(5, 61, 2), st(6, 60, -4)];
+// beste i=2: 30 min voor en na (dus tussen de uur-slots van deze test)
+const vs = [st(0, 61, -9), st(1, 62, -1), st(2, 60, -5), st(3, 62, -2), st(4, 63, -3)];
 const vv = vertrekVenster(vs, vs[2]);
-ok("venster vanaf beste, aaneengesloten, ≤5 %, meestroom", vv?.vanMs === 2 * H && vv?.totMs === 4 * H, `${vv!.vanMs / H}-${vv!.totMs / H}`);
-const vt = vertrekVenster(alleTegen, pickBest(alleTegen));
-ok("minst slecht: tegenstroom telt mee in venster", vt?.vanMs === 3 * H && vt?.totMs === 3 * H);
+ok("30 min voor en na het beste vertrek", vv?.vanMs === 2 * H - 30 * 60000 && vv?.totMs === 2 * H + 30 * 60000, `${vv!.vanMs / H}-${vv!.totMs / H}`);
+const v0 = vertrekVenster(vs, vs[0]);
+ok("niet vóór het eerste kandidaat-tijdstip", v0?.vanMs === 0 && v0?.totMs === 30 * 60000);
+const v4 = vertrekVenster(vs, vs[4]);
+ok("niet voorbij het laatste kandidaat-tijdstip", v4?.vanMs === 4 * H - 30 * 60000 && v4?.totMs === 4 * H);
 ok("zonder beste → null", vertrekVenster(vs, null) === null);
 
 console.log("— combineLegTimelines —");
