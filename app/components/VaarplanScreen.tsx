@@ -12,7 +12,7 @@ import {
 } from "@/lib/tocht";
 import { krommeKenteringen } from "@/lib/getij";
 import { gladReeks, rasterWaarden } from "@/lib/grafiek";
-import { gateDatumFor, gateWindows, windowContains } from "@/lib/gates";
+import { toegangsVensters } from "@/lib/gates";
 import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
 import { toegangVan, TOEGANG_LABEL } from "@/lib/haven-info";
@@ -51,6 +51,7 @@ export interface VaarplanScreenProps {
   gusts: GustSample[];
   waves: WaveSample[];
   fromTide: TideData | null;
+  toTide: TideData | null;                // getij bij de aankomsthaven (alleen havens met toegangsmodel)
   via: ViaHaven[];
   boat: BoatProfile;
   anyStroom: boolean;
@@ -73,7 +74,7 @@ export default function VaarplanScreen(p: VaarplanScreenProps) {
 }
 
 function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: RouteHaven; to: RouteHaven }) {
-  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, waves, fromTide, via, boat, anyStroom } = p;
+  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, waves, fromTide, toTide, via, boat, anyStroom } = p;
   const et = useMemo(() => etappes(trip, legs, gusts, waves), [trip, legs, gusts, waves]);
   const [selRaw, setSel] = useState(0);
   const sel = Math.min(selRaw, Math.max(0, et.length - 1));   // nieuwe route met minder etappes
@@ -82,13 +83,14 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
   const dag = localDateISO(depMs) === localDateISO(Date.now()) ? "vandaag"
     : new Intl.DateTimeFormat("nl-NL", { weekday: "long", timeZone: "Europe/Amsterdam" }).format(depMs);
 
-  // getijpoort bij vertrek (zelfde regel als voorheen): alleen met drempel + referentievlak + getijcurve
-  const poort = useMemo(() => {
-    const datum = gateDatumFor(from.haven);
-    if (!from.havenInfo?.drempel || !datum || !fromTide?.expected.length) return null;
-    const wins = gateWindows(fromTide, datum, boat.draftM + boat.keelClearanceM, depMs - 2 * H, depMs + 26 * H);
-    return windowContains(wins, depMs) ? "open" : "dicht";
-  }, [from, fromTide, boat, depMs]);
+  // toegang tot de haven bij vertrek en bij aankomst (ETA): venster uit de drempeldiepte (exact) of, voor
+  // havens zonder diepte-data op de halftij-lijst, uit laag- en hoogwater (indicatie). Alleen havens met
+  // een toegangsmodel en een getijcurve krijgen een regel. Het advies verandert er niet door: het is een melding.
+  const vereist = boat.draftM + boat.keelClearanceM;
+  const poorten = useMemo(() => [
+    toegangRegel("VERTREK", from, fromTide, depMs, vereist),
+    trip.arrMs != null ? toegangRegel("AANKOMST", to, toTide, trip.arrMs, vereist) : null,
+  ].filter((x): x is ToegangRegel => x != null), [from, to, fromTide, toTide, depMs, trip.arrMs, vereist]);
 
   const latMin = Math.min(from.lat, to.lat), latMax = Math.max(from.lat, to.lat);
   const posten = VHF_VERKEERSPOSTEN.filter((v) => v.latMax >= latMin - 0.15 && v.latMin <= latMax + 0.15);
@@ -104,10 +106,11 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         <Kpi label="DUUR" waarde={trip.arrMs ? fmtDuurKort(trip.tripMin) : "—"} />
         <Kpi label="KOERS" waarde={bearingDeg != null ? `${String(Math.round(bearingDeg)).padStart(3, "0")}°` : "—"} />
       </div>
-      {(warn.hardWind || warn.windTegenStroom) && (
+      {(warn.hardWind || warn.windTegenStroom || poorten.some((g) => !g.open)) && (
         <div className={s.chips}>
           {warn.hardWind && <span className={s.letOp}>LET OP · HARDE WIND</span>}
           {warn.windTegenStroom && <span className={s.letOp}>LET OP · WIND TEGEN STROOM</span>}
+          {poorten.filter((g) => !g.open).map((g) => <span key={g.rol} className={s.letOp}>LET OP · HAVEN {g.rol} DICHT BIJ {g.rol === "VERTREK" ? "VERTREK" : "ETA"}</span>)}
         </div>
       )}
 
@@ -153,11 +156,9 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
         <div className={s.lijst}>
           <Haven rol="VERTREK" haven={from} diepgang={boat.draftM} />
           <Haven rol="AANKOMST" haven={to} diepgang={boat.draftM} />
-          {poort && (   // alleen bij een drempelhaven met getijcurve; anders geen regel
-            <div className={`row ${s.poort}`} data-status={poort}>
-              GETIJPOORT VERTREK · {poort === "open" ? "OPEN BIJ VERTREK" : "DICHT BIJ VERTREK"}
-            </div>
-          )}
+          {poorten.map((g) => (   // alleen havens met een toegangsmodel en getijcurve; anders geen regel
+            <div key={g.rol} className={`row ${s.poort}`} data-status={g.open ? "open" : "dicht"}>{g.tekst}</div>
+          ))}
           <div className={`row ${s.compact}`}>
             <span className={s.compactLabel}>VHF</span>
             <span>16 nood &amp; oproep · 70 DSC{posten.map((v) => ` · ${v.kanaal} ${v.naam}`).join("")}</span>
@@ -170,6 +171,26 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
       </div>
     </>
   );
+}
+
+type ToegangRegel = { rol: "VERTREK" | "AANKOMST"; open: boolean; tekst: string };
+const venster = (w: { fromMs: number; toMs: number }) => `${localHM(w.fromMs)}–${localHM(w.toMs)}`;
+// Eén regel per haven: open/dicht op het tijdstip `ms` (vertrek of ETA), met het venster waarin je erin kunt.
+function toegangRegel(rol: "VERTREK" | "AANKOMST", haven: RouteHaven, tide: TideData | null, ms: number, vereistM: number): ToegangRegel | null {
+  const bron = tide ? (tide.expected.length ? tide.expected : tide.astro) : [];
+  if (!tide || !bron.length) return null;
+  // buiten de getijreeks weten we het niet: dan geen regel (nooit 'dicht' door gebrek aan data)
+  const utc = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
+  if (ms < utc(bron[0].t) || ms > utc(bron[bron.length - 1].t)) return null;
+  const t = toegangsVensters(haven.haven, tide, vereistM, ms - 14 * H, ms + 14 * H);
+  if (!t) return null;
+  const nu = t.vensters.find((w) => ms >= w.fromMs && ms <= w.toMs);
+  const volgend = t.vensters.find((w) => w.fromMs > ms);
+  const moment = rol === "VERTREK" ? "VERTREK" : `ETA ${localHM(ms)}`;
+  const naam = t.soort === "halftij" ? "TOEGANG (INDICATIE, HALFTIJ)" : "GETIJPOORT";
+  const tekst = nu ? `${naam} ${rol} · OPEN BIJ ${moment} · ${venster(nu)}`
+    : `${naam} ${rol} · DICHT BIJ ${moment}${volgend ? ` · OPEN ${venster(volgend)}` : ""}`;
+  return { rol, open: !!nu, tekst };
 }
 
 function Kpi({ label, waarde }: { label: string; waarde: string }) {

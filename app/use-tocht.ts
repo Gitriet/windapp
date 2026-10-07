@@ -15,6 +15,7 @@ import {
   pickBest, pickVensters, vertrekVenster, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { TideData } from "@/lib/types";
+import { heeftToegangsmodel } from "@/lib/gates";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -39,6 +40,7 @@ export function useTocht(boat: BoatProfile) {
   const [routeFc, setRouteFc] = useState<Record<string, ForecastResponse>>({});   // per station: vlagen + weer
   const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
   const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
+  const [routeTideNaar, setRouteTideNaar] = useState<TideData | null>(null);   // aankomsthaven (alleen met toegangsmodel)
   const [nowMs, setNowMs] = useState<number>(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -127,6 +129,7 @@ export function useTocht(boat: BoatProfile) {
     const eindKeys = [...new Set([waypoints[0], waypoints[waypoints.length - 1]].map((w) => w.location_key))];
     const tussenKeys = [...new Set(waypoints.map((w) => w.location_key))].filter((k) => !eindKeys.includes(k));
     const vanSlug = (chain ? chain.havens[0] : endpoints?.van)?.haven ?? null;
+    const naarSlug = (chain ? chain.havens[chain.havens.length - 1] : endpoints?.naar)?.haven ?? null;
     const legs = chain?.legs ?? [];
     let ignore = false;
     // oude tochtdata weg (vlagen, stroom, getij horen bij de vorige route); het wachtscherm
@@ -135,14 +138,16 @@ export function useTocht(boat: BoatProfile) {
     setRouteFc({});
     setLegCurrents([]);
     setRouteTide(null);
+    setRouteTideNaar(null);
     setErr(null);
     (async () => {
       try {
-        const [eind, tussen, curs, tide] = await Promise.all([
+        const [eind, tussen, curs, tide, tideNaar] = await Promise.all([
           Promise.all(eindKeys.map((k) => fetchForecast(k))),
           Promise.allSettled(tussenKeys.map((k) => fetchForecast(k))),
           Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
           vanSlug ? fetchHavenTide(vanSlug) : Promise.resolve(null),
+          naarSlug && heeftToegangsmodel(naarSlug) ? fetchHavenTide(naarSlug) : Promise.resolve(null),
         ]);
         if (ignore) return;
         const fcs: Record<string, ForecastResponse> = Object.fromEntries(eindKeys.map((k, i) => [k, eind[i]]));
@@ -152,6 +157,7 @@ export function useTocht(boat: BoatProfile) {
         setRouteFc(fcs);
         setLegCurrents(curs);
         setRouteTide(isTide(tide) ? tide : null);
+        setRouteTideNaar(isTide(tideNaar) ? tideNaar : null);
       } catch (e) {
         if (!ignore) setErr(String(e));
       }
@@ -278,7 +284,7 @@ export function useTocht(boat: BoatProfile) {
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur,
-    routeTide, ready: !!routeWind, nowMs, err,
+    routeTide, routeTideNaar, ready: !!routeWind, nowMs, err,
   };
 }
 

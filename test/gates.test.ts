@@ -3,7 +3,7 @@
 // de diepgang.
 import {
   evaluateGate, gateWindows, depthOverSillM, requiredDepthM, gateDatumFor,
-  GATE_DATUMS, type GateDatum,
+  GATE_DATUMS, type GateDatum, halftijVensters, toegangsVensters, heeftToegangsmodel,
 } from "../lib/gates";
 import { DEFAULT_BOAT, type BoatProfile } from "../lib/polar";
 import type { TideData } from "../lib/types";
@@ -113,6 +113,23 @@ console.log("\n— zonder passagetijd geen oordeel (fase 2 levert hem, niet fase
   ok("status onbekend", v.status === "onbekend" && v.reason === "geen-passagetijd");
   ok("vensters wel berekend", v.windows.length > 0);
 }
+
+console.log("— toegangsvensters (halftij + drempel) —");
+const period = 12.42 * HOUR;
+const extremes = [-1, 0, 1, 2].flatMap((k) => [   // HW rond 06:13 + k·periode, LW halverwege
+  { kind: "HW" as const, t: new Date(T0 + 6.21 * HOUR + k * period).toISOString(), v: 100 },
+  { kind: "LW" as const, t: new Date(T0 + 12.42 * HOUR + k * period).toISOString(), v: -100 },
+]).filter((e) => Date.parse(e.t) >= T0).sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+const TIDE2: TideData = { ...TIDE, extremes: [{ kind: "LW", t: new Date(T0).toISOString(), v: -100 }, ...extremes] };
+const hv = halftijVensters(TIDE2, T0, T0 + 24 * HOUR);
+ok("halftijvenster bestaat rond hoogwater", hv.length >= 1 && hv[0].fromMs < T0 + 6.21 * HOUR && hv[0].toMs > T0 + 6.21 * HOUR, hv.map((w) => `${(w.fromMs - T0) / HOUR}-${(w.toMs - T0) / HOUR}`).join());
+ok("halftij = ongeveer 3,1 u voor tot 3,1 u na HW (sinus, niveau 0)", Math.abs((hv[0].fromMs - T0) / HOUR - (6.21 - 3.105)) < 0.15 && Math.abs((hv[0].toMs - T0) / HOUR - (6.21 + 3.105)) < 0.15);
+ok("zonder extremes geen halftijvenster", halftijVensters({ ...TIDE, extremes: [] }, T0, T0 + 24 * HOUR).length === 0);
+ok("toegangsVensters: Cadzand = halftij, Vlissingen = drempel, Vlieland = null",
+  toegangsVensters("cadzand-bad", TIDE2, 2.45, T0, T0 + DAY_END)?.soort === "halftij"
+  && toegangsVensters("vlissingen", TIDE2, 2.45, T0, T0 + 24 * HOUR)?.soort === "drempel"
+  && toegangsVensters("vlieland", TIDE2, 2.45, T0, T0 + 24 * HOUR) === null);
+ok("heeftToegangsmodel", heeftToegangsmodel("cadzand-bad") && heeftToegangsmodel("vlissingen") && !heeftToegangsmodel("vlieland") && !heeftToegangsmodel("harlingen"));
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
 console.log("\nALL OK");

@@ -168,3 +168,47 @@ export function evaluateGate(
   const status: GateStatus = marginM < 0 ? "niet-gehaald" : marginM < TIGHT_MARGIN_M ? "net-aan" : "gehaald";
   return { windows, passageMs, status, marginM, requiredM };
 }
+
+// ── Toegangsvensters voor Vaarplan ───────────────────────────────────────────────────────────
+// Havens met een gemeten drempeldiepte: exact via gateWindows (eigen diepgang + marge). Havens zonder
+// diepte-data maar wel getijgebonden en op deze lijst: bereikbaar boven halftij, de stand halverwege het
+// laagwater en hoogwater van die getijslag. Dat is een INDICATIE (geen diepte), en wordt zo getoond.
+// Overige getijhavens krijgen geen venster: er is geen data om het op te baseren.
+export const HALFTIJ_HAVENS = ["cadzand-bad"];
+
+export function heeftToegangsmodel(havenKey: string): boolean {
+  return gateDatumFor(havenKey) != null || HALFTIJ_HAVENS.includes(havenKey);
+}
+
+// Eerste tijdstip in [aMs,bMs] waarop de reeks het niveau passeert (lineair), of null.
+function kruisTijd(s: { m: number; v: number }[], aMs: number, bMs: number, level: number): number | null {
+  for (let i = 1; i < s.length; i++) {
+    if (s[i].m < aMs || s[i - 1].m > bMs) continue;
+    const [p, q] = [s[i - 1], s[i]];
+    if ((p.v - level) * (q.v - level) <= 0 && p.v !== q.v) return p.m + ((level - p.v) / (q.v - p.v)) * (q.m - p.m);
+  }
+  return null;
+}
+
+export function halftijVensters(tide: TideData | null, fromMs: number, toMs: number): GateWindow[] {
+  if (!tide) return [];
+  const bron = tide.expected.length ? tide.expected : tide.astro;
+  const s = bron.map((p) => ({ m: tms(p.t), v: p.v })).sort((a, b) => a.m - b.m);
+  const ext = [...tide.extremes].map((e) => ({ m: tms(e.t), v: e.v, hw: e.kind === "HW" })).sort((a, b) => a.m - b.m);
+  const out: GateWindow[] = [];
+  ext.forEach((e, i) => {
+    const prev = ext[i - 1], next = ext[i + 1];
+    if (!e.hw || !prev || !next || prev.hw || next.hw) return;
+    const op = kruisTijd(s, prev.m, e.m, (prev.v + e.v) / 2), neer = kruisTijd(s, e.m, next.m, (e.v + next.v) / 2);
+    if (op != null && neer != null) out.push({ fromMs: Math.max(op, fromMs), toMs: Math.min(neer, toMs) });
+  });
+  return out.filter((w) => w.toMs > w.fromMs);
+}
+
+export type Toegang = { vensters: GateWindow[]; soort: "drempel" | "halftij" };
+export function toegangsVensters(havenKey: string, tide: TideData | null, requiredM: number, fromMs: number, toMs: number): Toegang | null {
+  const datum = gateDatumFor(havenKey);
+  if (datum) return tide?.expected.length ? { vensters: gateWindows(tide, datum, requiredM, fromMs, toMs), soort: "drempel" } : null;
+  if (HALFTIJ_HAVENS.includes(havenKey) && tide) return { vensters: halftijVensters(tide, fromMs, toMs), soort: "halftij" };
+  return null;
+}
