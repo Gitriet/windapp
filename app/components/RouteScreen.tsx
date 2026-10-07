@@ -46,6 +46,7 @@ function nuStroom(v: StroomVerloop): string {
 
 export interface RouteScreenProps {
   ready: boolean;
+  fout: boolean;                      // laden mislukt: geen wachtscherm, de foutmelding staat erboven
   nowMs: number;
   best: DepOption | null;
   venster: { vanMs: number; totMs: number } | null;   // vertrekken binnen VENSTER_PCT van de beste
@@ -65,9 +66,9 @@ export interface RouteScreenProps {
 }
 
 export default function RouteScreen(p: RouteScreenProps) {
-  if (!p.ready) return (
+  if (!p.ready) return p.fout ? null : (
     <>
-      <Skeleton rows={1} height={300} label="advies laden" tekst="Berekening wordt gemaakt…" />
+      <Skeleton rows={1} height={300} label="advies laden" tekst="Route wordt berekend…" />
       <Skeleton rows={3} height={52} label="vertrekken laden" />
     </>
   );

@@ -34,7 +34,18 @@ async function getJSON<T>(url: string): Promise<T> {
 
 export const fetchRoutes = () => getJSON<{ routes: RouteInfo[] }>("/api/routes").then((d) => d.routes);
 
-export const fetchForecast = (key: string) => getJSON<ForecastResponse>(`/api/forecast/${key}`);
+// Route en WEER & GETIJ vragen dezelfde stations op: één aanvraag per station, 10 min
+// hergebruikt. Een mislukte aanvraag wordt niet bewaard, zodat de volgende opnieuw probeert.
+const FC_TTL_MS = 10 * 60_000;
+const fcCache = new Map<string, { at: number; p: Promise<ForecastResponse> }>();
+export function fetchForecast(key: string): Promise<ForecastResponse> {
+  const hit = fcCache.get(key);
+  if (hit && Date.now() - hit.at < FC_TTL_MS) return hit.p;
+  const p = getJSON<ForecastResponse>(`/api/forecast/${key}`);
+  fcCache.set(key, { at: Date.now(), p });
+  p.catch(() => { if (fcCache.get(key)?.p === p) fcCache.delete(key); });
+  return p;
+}
 export const fetchWeek = (key: string) => getJSON<WeekResponse>(`/api/week/${key}`);
 export const fetchTide = (key: string) => getJSON<TideData | { tide: null }>(`/api/tide/${key}`);
 // aankomsthaven-getij via de eigen-station-map (haven slug), niet de wind-station-key

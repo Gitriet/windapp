@@ -33,7 +33,9 @@ export function useTocht(boat: BoatProfile) {
   const [toHaven, setToHaven] = useState<string>("");
   const [depMs, setDepMs] = useState<number | null>(null);
   // per been een stroomreeks; wind per distinct station; getij bij vertrek- en aankomsthaven
-  const [routeWind, setRouteWind] = useState<SimWind | null>(null);
+  // wind + de waypoints waarvoor hij is opgehaald: na een routewissel is de oude wind
+  // in de eerste render nog in state; zo telt die niet mee (geen advies op oude wind)
+  const [windState, setRouteWind] = useState<{ voor: unknown; wind: SimWind } | null>(null);
   const [routeFc, setRouteFc] = useState<Record<string, ForecastResponse>>({});   // per station: vlagen + weer
   const [legCurrents, setLegCurrents] = useState<(RouteCurrent | null)[]>([]);
   const [routeTide, setRouteTide] = useState<TideData | null>(null);      // vertrekhaven
@@ -109,22 +111,34 @@ export function useTocht(boat: BoatProfile) {
   // al gecorrigeerd in fetchRouteCurrent), getij bij de vertrekhaven via het eigen station.
   useEffect(() => {
     if (waypoints.length < 2) { setRouteWind(null); setLegCurrents([]); return; }
-    const keys = [...new Set(waypoints.map((w) => w.location_key))];
+    // vertrek en aankomst zijn verplicht; een tussenpunt mag falen — dan interpoleert de
+    // sim de wind over de route tussen de punten die wel binnenkwamen. Alles in één keer
+    // gezet, zodat het advies na het wachtscherm niet nog verspringt.
+    const eindKeys = [...new Set([waypoints[0], waypoints[waypoints.length - 1]].map((w) => w.location_key))];
+    const tussenKeys = [...new Set(waypoints.map((w) => w.location_key))].filter((k) => !eindKeys.includes(k));
     const vanSlug = (chain ? chain.havens[0] : endpoints?.van)?.haven ?? null;
     const legs = chain?.legs ?? [];
     let ignore = false;
+    // oude tochtdata weg (vlagen, stroom, getij horen bij de vorige route); het wachtscherm
+    // staat tot de nieuwe binnen is
+    setRouteWind(null);
+    setRouteFc({});
+    setLegCurrents([]);
+    setRouteTide(null);
+    setErr(null);
     (async () => {
       try {
-        const [winds, curs, tide] = await Promise.all([
-          Promise.all(keys.map((k) => fetchForecast(k))),
+        const [eind, tussen, curs, tide] = await Promise.all([
+          Promise.all(eindKeys.map((k) => fetchForecast(k))),
+          Promise.allSettled(tussenKeys.map((k) => fetchForecast(k))),
           Promise.all(legs.map((l) => (l.route.stroom ? fetchRouteCurrent(l.route.id, l.bearingDeg) : Promise.resolve(null)))),
           vanSlug ? fetchHavenTide(vanSlug) : Promise.resolve(null),
         ]);
         if (ignore) return;
-        const wind: SimWind = {};
-        const fcs: Record<string, ForecastResponse> = {};
-        keys.forEach((k, i) => { wind[k] = toWindSamples(winds[i].points); fcs[k] = winds[i]; });
-        setRouteWind(wind);
+        const fcs: Record<string, ForecastResponse> = Object.fromEntries(eindKeys.map((k, i) => [k, eind[i]]));
+        tussenKeys.forEach((k, i) => { const r = tussen[i]; if (r.status === "fulfilled") fcs[k] = r.value; });
+        const wind: SimWind = Object.fromEntries(Object.entries(fcs).map(([k, f]) => [k, toWindSamples(f.points)]));
+        setRouteWind({ voor: waypoints, wind });
         setRouteFc(fcs);
         setLegCurrents(curs);
         setRouteTide(isTide(tide) ? tide : null);
@@ -149,6 +163,7 @@ export function useTocht(boat: BoatProfile) {
   );
   // echte beenlengte per leg (langs de geul) zodat de gevaren afstand klopt met de getoonde
   const legDistNm = useMemo(() => (chain ? chain.legs.map((l) => l.route.lengte_nm) : undefined), [chain]);
+  const routeWind = windState?.voor === waypoints ? windState.wind : null;
   const runSim = useMemo(() => {
     return (dep: number): SimResult | null => {
       if (!routeWind || waypoints.length < 2) return null;

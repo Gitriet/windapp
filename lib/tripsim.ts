@@ -161,17 +161,30 @@ export function simulateTrip(input: {
     return last;
   });
 
+  // Wind op routepositie p (nm) en tijd ms: lineair tussen het dichtstbijzijnde waypoint
+  // ervóór en erná dát een windreeks heeft. Met alle reeksen = per been tussen de twee
+  // uiteinden; zijn alleen vertrek en aankomst geladen, dan over de hele route.
+  const cumAt = [...cumBefore, totalNm];
+  const heeftWind = waypoints.map((w) => (wind[w.location_key]?.length ?? 0) > 0);
+  const windAt = (li: number, p: number, ms: number) => {
+    let a = li, b = li + 1;
+    while (a >= 0 && !heeftWind[a]) a--;
+    while (b < waypoints.length && !heeftWind[b]) b++;
+    const va = a >= 0 ? windVecAt(wind[waypoints[a].location_key], ms) : null;
+    const vb = b < waypoints.length ? windVecAt(wind[waypoints[b].location_key], ms) : null;
+    if (!va || !vb) return va ?? vb;
+    const span = cumAt[b] - cumAt[a], f = span > 0 ? (p - cumAt[a]) / span : 0;
+    return { e: va.e + (vb.e - va.e) * f, n: va.n + (vb.n - va.n) * f };
+  };
+
   outer: for (let li = 0; li < legDist.length; li++) {
     const from = waypoints[li], to = waypoints[li + 1];
     const dist = legDist[li];
     const course = bearing(from, to);
-    const sA = wind[from.location_key] ?? [], sB = wind[to.location_key] ?? [];
     let progLeg = 0;
     while (progLeg < dist - 1e-9) {
       if (t > deadline) { unreachable = true; break outer; }
-      const fLeg = dist > 0 ? progLeg / dist : 0;
-      const va = windVecAt(sA, t), vb = windVecAt(sB, t);
-      const wg = va && vb ? { e: va.e + (vb.e - va.e) * fLeg, n: va.n + (vb.n - va.n) * fLeg } : (va ?? vb);
+      const wg = windAt(li, cumBefore[li] + progLeg, t);
       if (!wg) { unreachable = true; break outer; }
       const alongVal = alongAt(along[li] ?? [], t);
       // stroom onzeker als de data ontbreekt (cur=0-fallback) of als we voorbij de
@@ -197,13 +210,10 @@ export function simulateTrip(input: {
   ncOuter: for (let li = 0; li < legDist.length; li++) {
     const from = waypoints[li], to = waypoints[li + 1];
     const dist = legDist[li], course = bearing(from, to);
-    const sA = wind[from.location_key] ?? [], sB = wind[to.location_key] ?? [];
     let progLeg = 0;
     while (progLeg < dist - 1e-9) {
       if (tNc > deadline) { ncUnreach = true; break ncOuter; }
-      const fLeg = dist > 0 ? progLeg / dist : 0;
-      const va = windVecAt(sA, tNc), vb = windVecAt(sB, tNc);
-      const wg = va && vb ? { e: va.e + (vb.e - va.e) * fLeg, n: va.n + (vb.n - va.n) * fLeg } : (va ?? vb);
+      const wg = windAt(li, cumBefore[li] + progLeg, tNc);
       if (!wg) { ncUnreach = true; break ncOuter; }
       const { stw } = throughWaterAt(boat, wg, course, 0);
       if (stw < MIN_SOG_KN) { ncUnreach = true; break ncOuter; }
