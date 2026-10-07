@@ -6,6 +6,7 @@
 // geen enkele API of de database.
 import { bearing } from "./route";
 import type { RouteInfo, RouteHaven } from "./planner-data";
+import { ALTERNATIEVEN, type Alternatief } from "./alternatieven";
 
 export type RouteLeg = {
   route: RouteInfo;      // het gebruikte segment (edge)
@@ -22,6 +23,7 @@ export type ChainedRoute = {
   namen: string[];       // havennamen in volgorde (zonder knooppunten)
   viaNamen: string[];    // tussenliggende havennamen (zonder begin/eind, zonder knooppunten)
   totalNm: number;       // som van lengte_nm per been
+  naam?: string;         // vaste naam bij een handmatig alternatief (lib/alternatieven.ts)
 };
 
 type Buren = Map<string, Map<string, { nm: number; route: RouteInfo }>>;
@@ -64,6 +66,10 @@ function maakKeten(slugs: string[], nb: Buren, havenOf: Map<string, RouteHaven>)
 
 // Kortste pad (Dijkstra, gewicht = lengte_nm). null = geen pad (haven onbekend of
 // niet verbonden). fromHaven === toHaven → null (geen tocht).
+// Een tussenhaven (geen knooppunt, niet het doel) kost HAVEN_STRAF extra bij de keuze van het pad: doorgaand
+// verkeer neemt liever het knooppunt (kruispunt) dan een haven in te varen, ook als dat iets langer is.
+// totalNm blijft de echte lengte.
+export const HAVEN_STRAF_NM = 1;
 export function shortestPath(routes: RouteInfo[], fromHaven: string, toHaven: string): ChainedRoute | null {
   if (!fromHaven || !toHaven || fromHaven === toHaven || !routes.length) return null;
 
@@ -82,7 +88,7 @@ export function shortestPath(routes: RouteInfo[], fromHaven: string, toHaven: st
     if (u === toHaven) break;
     for (const [v, e] of nb.get(u) ?? []) {
       if (done.has(v)) continue;
-      const nd = best + e.nm;
+      const nd = best + e.nm + (v !== toHaven && havenOf.get(v)?.soort !== "knoop" ? HAVEN_STRAF_NM : 0);
       if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); pending.add(v); }
     }
   }
@@ -95,53 +101,37 @@ export function shortestPath(routes: RouteInfo[], fromHaven: string, toHaven: st
   return maakKeten(slugs, nb, havenOf);
 }
 
-// Redelijke alternatieven voor dezelfde tocht (bijv. buitenom Texel of binnendoor via Oudeschild):
-// alle enkelvoudige paden hooguit `factor` × de kortste, waarbij paden met dezelfde havenvolgorde
-// (zonder knooppunten) als één route tellen (de kortste). Kortste eerst; maximaal `max`.
-// Het zoeken is begrensd: een pad wordt alleen verlengd als het via de kortste rest nog binnen de grens blijft.
-export function alternatieveKetens(routes: RouteInfo[], fromHaven: string, toHaven: string, opts: { factor?: number; max?: number } = {}): ChainedRoute[] {
-  const { factor = 1.5, max = 3 } = opts;
+// De kortste keten, gevolgd door de handmatig vastgelegde alternatieven (lib/alternatieven.ts) voor dezelfde
+// tocht, kortste eerst. Een alternatief telt alleen als de begin- en eindhaven kloppen (ook omgekeerd) en elk
+// paar havens een bestaand segment is; een alternatief gelijk aan de kortste keten valt weg. Een alternatief met
+// `vervangKortste` komt in plaats van de kortste keten (en staat dan vooraan).
+export function alternatieveKetens(routes: RouteInfo[], fromHaven: string, toHaven: string, alternatieven: Alternatief[] = ALTERNATIEVEN): ChainedRoute[] {
   const kortste = shortestPath(routes, fromHaven, toHaven);
   if (!kortste) return [];
   const { nb, havenOf } = bouwGraaf(routes);
-  const grens = kortste.totalNm * factor + 1e-9;
-
-  // afstand van elke haven tot het doel (Dijkstra; de graaf is symmetrisch) als ondergrens
-  const rest = new Map<string, number>([[toHaven, 0]]);
-  const open = new Set<string>([toHaven]);
-  while (open.size) {
-    let u = "", d = Infinity;
-    for (const h of open) { const x = rest.get(h)!; if (x < d) { d = x; u = h; } }
-    open.delete(u);
-    for (const [v, e] of nb.get(u) ?? []) {
-      if (d + e.nm < (rest.get(v) ?? Infinity)) { rest.set(v, d + e.nm); open.add(v); }
-    }
+  const eigen = kortste.havens.map((h) => h.haven).join(">");
+  const alt: ChainedRoute[] = [];
+  let standaard: ChainedRoute | null = null;
+  for (const a of alternatieven) {
+    const slugs = a.havens[0] === fromHaven && a.havens[a.havens.length - 1] === toHaven ? a.havens
+      : a.havens[0] === toHaven && a.havens[a.havens.length - 1] === fromHaven ? [...a.havens].reverse() : null;
+    if (!slugs || slugs.join(">") === eigen) continue;
+    if (slugs.some((h) => !havenOf.has(h)) || slugs.slice(1).some((h, i) => !nb.get(slugs[i])?.has(h))) continue;
+    const k = { ...maakKeten(slugs, nb, havenOf), naam: a.naam };
+    if (a.vervangKortste && !standaard) standaard = k; else alt.push(k);
   }
-
-  const perHavens = new Map<string, { slugs: string[]; nm: number }>();
-  let bezocht = 0;
-  const pad = [fromHaven];
-  const zoek = (u: string, nm: number) => {
-    if (++bezocht > 50_000) return;   // vangnet voor grote netwerken
-    if (u === toHaven) {
-      const sig = pad.filter((h) => havenOf.get(h)!.soort !== "knoop").join(">");
-      const bij = perHavens.get(sig);
-      if (!bij || nm < bij.nm) perHavens.set(sig, { slugs: [...pad], nm });
-      return;
-    }
-    for (const [v, e] of nb.get(u) ?? []) {
-      if (pad.includes(v) || nm + e.nm + (rest.get(v) ?? Infinity) > grens) continue;
-      pad.push(v); zoek(v, nm + e.nm); pad.pop();
-    }
-  };
-  zoek(fromHaven, 0);
-  return [...perHavens.values()].sort((a, b) => a.nm - b.nm).slice(0, max).map((p) => maakKeten(p.slugs, nb, havenOf));
+  return [standaard ?? kortste, ...alt.sort((x, y) => x.totalNm - y.totalNm)];
 }
 
-// Korte naam voor de routekeuze: "via Oudeschild" bij tussenhavens, anders de omschrijving van
-// de route zelf ("buitenom Texel", "binnendoor via Inschot"), anders "direct".
+// Korte naam voor de routekeuze: de vaste naam van een alternatief, anders het soort water ("buitenom" /
+// "binnendoor") uit de route-omschrijving met de havens onderweg ("binnendoor via Oudeschild"); bij een
+// directe route de omschrijving van de route zelf ("buitenom Texel"), anders "direct".
 export function ketenNaam(k: ChainedRoute): string {
-  if (k.viaNamen.length) return `via ${k.viaNamen.join(" · ")}`;
+  if (k.naam) return k.naam;
   const vias = k.legs.map((l) => l.route.via).filter((v): v is string => !!v);
-  return vias.find((v) => /buitenom|binnendoor/i.test(v)) ?? vias[0] ?? "direct";
+  const omschrijving = vias.find((v) => /buitenom|binnendoor/i.test(v));
+  const soort = omschrijving?.match(/buitenom|binnendoor/i)?.[0].toLowerCase();
+  const via = k.viaNamen.length > 2 ? `${k.viaNamen[0]} … ${k.viaNamen[k.viaNamen.length - 1]}` : k.viaNamen.join(" · ");
+  if (via) return `${soort ? `${soort} ` : ""}via ${via}`;
+  return omschrijving ?? "direct";
 }

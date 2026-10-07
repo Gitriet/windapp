@@ -16,6 +16,7 @@ import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
 import { toegangVan, TOEGANG_LABEL } from "@/lib/haven-info";
 import KUST from "@/lib/kust.json";
+import { DOORVAART } from "@/lib/alternatieven";
 import type { TideData } from "@/lib/types";
 import type { BoatProfile } from "@/lib/polar";
 import { Skeleton } from "./Shell";
@@ -198,18 +199,25 @@ function Haven({ rol, haven, diepgang }: { rol: string; haven: RouteHaven; diepg
   );
 }
 
-// Kaartje van de route op een eigen kustlijn (lib/kust.json: Natural Earth 1:10m, publiek domein, bijgesneden
-// en vereenvoudigd): land als vlak, zee als achtergrond, in de kleuren van de app. Geen externe
-// kaartdienst. De route (echte punten langs de vaargeul), vertrek (groen), aankomst (vol) en alleen
+// Kaartje van de route op een eigen kustlijn (lib/kust.json, gemaakt door scripts/maak-kust.py uit PDOK Top10NL
+// en Natural Earth, vereenvoudigd): land als vlak, droogvallende platen als lichter vlak, zee als achtergrond,
+// in de kleuren van de app. Geen externe kaartdienst. De route (echte punten langs de vaargeul), vertrek (groen), aankomst (vol) en alleen
 // de havens die ertoe doen — vertrek, aankomst en tussenhavens van deze route. Namen worden zo
 // geplaatst dat ze nooit over de route of over een andere naam lopen. Noord boven.
-const KW = 300, KH = 200, KPAD = 26, KMIN = 0.5;   // KMIN: minimaal venster in graden, de kust is grof
+const KW = 300, KH_MIN = 140, KH_MAX = 330, KPAD = 18, KMIN = 0.5;   // KMIN: minimaal venster in graden, de kust is grof; de hoogte volgt de vorm van de route
 const wereldX = (lon: number) => (lon + 180) / 360;   // genormeerd Web Mercator (0–1)
 const wereldY = (lat: number) => {
   const r = (lat * Math.PI) / 180;
   return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2;
 };
 type Vak = { x0: number; x1: number; y0: number; y1: number };
+// kustringen met hun omhullende (lon/lat), zodat alleen de ringen in beeld getekend worden
+const metBereik = (ringen: number[][]) => ringen.map((r) => {
+  let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+  for (let i = 0; i < r.length; i += 2) { a = Math.min(a, r[i]); b = Math.max(b, r[i]); c = Math.min(c, r[i + 1]); d = Math.max(d, r[i + 1]); }
+  return { r, lon0: a / 1e4, lon1: b / 1e4, lat0: c / 1e4, lat1: d / 1e4 };
+});
+const LAND = metBereik(KUST.land), PLATEN = metBereik(KUST.platen);
 function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: number; lon: number }[] }) {
   const alle = lijn.length >= 2 ? lijn : punten;
   if (alle.length < 2) return null;
@@ -217,15 +225,21 @@ function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: numbe
   const minSpan = wereldX(KMIN) - wereldX(0);   // KMIN graden in genormeerde eenheden
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  // kaarthoogte naar de vorm van de route (liggend of staand), zodat het kader zo vol mogelijk is
+  const KH = Math.round(Math.min(KH_MAX, Math.max(KH_MIN, (KW - 2 * KPAD) * (Math.max(y1 - y0, minSpan) / Math.max(x1 - x0, minSpan)) + 2 * KPAD)));
   const sc = Math.min((KW - 2 * KPAD) / Math.max(x1 - x0, minSpan), (KH - 2 * KPAD) / Math.max(y1 - y0, minSpan));   // eenheden per genormeerde eenheid
   const px = (q: { lat: number; lon: number }) => (wereldX(q.lon) - cx) * sc + KW / 2;
   const py = (q: { lat: number; lon: number }) => (wereldY(q.lat) - cy) * sc + KH / 2;
-  // land: alle ringen als één pad (even-odd, dus meren en binnenwater blijven open)
-  const land = KUST.ringen.map((r) => {
+  // land en platen: alle ringen in beeld als één pad (even-odd, dus meren en binnenwater blijven open)
+  const lonMin = (-KW / 2 / sc + cx) * 360 - 180, lonMax = (KW / 2 / sc + cx) * 360 - 180;
+  const latVan = (y: number) => (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI;
+  const latMax = latVan(cy - KH / 2 / sc), latMin = latVan(cy + KH / 2 / sc);
+  const pad = (ringen: ReturnType<typeof metBereik>) => ringen.filter((q) => q.lon1 >= lonMin && q.lon0 <= lonMax && q.lat1 >= latMin && q.lat0 <= latMax).map(({ r }) => {
     const pts: string[] = [];
     for (let i = 0; i < r.length; i += 2) pts.push(`${px({ lon: r[i] / 1e4, lat: r[i + 1] / 1e4 }).toFixed(1)},${py({ lon: r[i] / 1e4, lat: r[i + 1] / 1e4 }).toFixed(1)}`);
     return `M${pts.join("L")}Z`;
   }).join("");
+  const land = pad(LAND), platen = pad(PLATEN);
 
   // namen: alleen routehavens, op de eerste plek rond de stip die geen route of andere naam raakt
   const route = alle.map((q) => ({ x: px(q), y: py(q) }));
@@ -239,7 +253,7 @@ function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: numbe
     }
     return false;
   });
-  const echt = punten.filter((h) => h.soort !== "knoop");
+  const echt = punten.filter((h, i) => h.soort !== "knoop" && !(i > 0 && i < punten.length - 1 && DOORVAART.includes(h.haven)));
   const dots: Vak[] = echt.map((h) => ({ x0: px(h) - 5, x1: px(h) + 5, y0: py(h) - 5, y1: py(h) + 5 }));
   const geplaatst: Vak[] = [];
   const namen = echt.map((h, i) => {
@@ -249,6 +263,11 @@ function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: numbe
       { anchor: "end", tx: x - 8, v: { x0: x - 8 - w, x1: x - 7, y0: y - 7, y1: y + 4 } },
       { anchor: "middle", tx: x, ty: y - 9, v: { x0: x - w / 2, x1: x + w / 2, y0: y - 18, y1: y - 7 } },
       { anchor: "middle", tx: x, ty: y + 16, v: { x0: x - w / 2, x1: x + w / 2, y0: y + 6, y1: y + 18 } },
+      // schuin erboven/eronder, als rechts, links, boven en onder allemaal bezet zijn
+      { anchor: "start", tx: x + 7, ty: y - 8, v: { x0: x + 6, x1: x + 7 + w, y0: y - 17, y1: y - 6 } },
+      { anchor: "start", tx: x + 7, ty: y + 15, v: { x0: x + 6, x1: x + 7 + w, y0: y + 6, y1: y + 17 } },
+      { anchor: "end", tx: x - 7, ty: y - 8, v: { x0: x - 7 - w, x1: x - 6, y0: y - 17, y1: y - 6 } },
+      { anchor: "end", tx: x - 7, ty: y + 15, v: { x0: x - 7 - w, x1: x - 6, y0: y + 6, y1: y + 17 } },
     ];
     const vrij = (v: Vak) => v.x0 >= 2 && v.x1 <= KW - 2 && v.y0 >= 2 && v.y1 <= KH - 2 && !raakt(v)
       && !geplaatst.some((g) => v.x0 < g.x1 && v.x1 > g.x0 && v.y0 < g.y1 && v.y1 > g.y0)
@@ -263,6 +282,7 @@ function RouteKaart({ punten, lijn }: { punten: RouteHaven[]; lijn: { lat: numbe
     <div className={`card ${s.krommeKaart}`}>
       <div className={s.sectie}>ROUTE</div>
       <svg className={s.kaart} viewBox={`0 0 ${KW} ${KH}`} role="img" aria-label={`kaartje van de route ${punten[0].naam} naar ${punten[punten.length - 1].naam}`}>
+        <path d={platen} fillRule="evenodd" className={s.kaartPlat} />
         <path d={land} fillRule="evenodd" className={s.kaartLand} />
         <polyline className={s.kaartRouteRand} points={route.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />
         <polyline className={s.kaartRoute} points={route.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />

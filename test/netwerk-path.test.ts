@@ -1,6 +1,7 @@
 // shortestPath (lib/netwerk-path.ts): routeren via knooppunten (zeegaten) zonder dat die
 // als haven meetellen.
 import { shortestPath, alternatieveKetens, ketenNaam } from "../lib/netwerk-path";
+import { ALTERNATIEVEN } from "../lib/alternatieven";
 import type { RouteHaven, RouteInfo } from "../lib/planner-data";
 
 let fail = 0;
@@ -27,18 +28,38 @@ ok("tweede been omgekeerd gevaren (opgeslagen als C→K)", pad.legs[1].reversed)
 const zonder = shortestPath(net.slice(0, 2), "a", "c")!;
 ok("via haven: tussenhaven in viaNamen", zonder.viaNamen.join() === "B");
 
-console.log("— alternatieveKetens —");
-const alt = alternatieveKetens(net, "a", "c");
-ok("twee redelijke routes, kortste eerst", alt.length === 2 && alt[0].totalNm === 20 && alt[1].totalNm === 23, alt.map((k) => k.totalNm).join());
-ok("naam: tussenhaven of direct", ketenNaam(alt[1]) === "via B" && ketenNaam(alt[0]) === "direct", alt.map(ketenNaam).join(" | "));
-ok("te lange alternatieven vallen af (factor)", alternatieveKetens(net, "a", "c", { factor: 1.1 }).length === 1);
-ok("max beperkt het aantal", alternatieveKetens(net, "a", "c", { max: 1 }).length === 1);
-// twee paden met dezelfde havenvolgorde (via twee verschillende knooppunten) tellen als één route
-const K2 = punt("k2", 53.16, "knoop");
-const dubbel = [...net, route("R5", A, K2, 10), route("R6", C, K2, 11)];
-ok("zelfde havenvolgorde via ander knooppunt = één route", alternatieveKetens(dubbel, "a", "c").length === 2);
-ok("geen pad → leeg", alternatieveKetens(net, "a", "zzz").length === 0);
-const viaTekst = [{ ...route("R7", A, C, 12), via: "buitenom Texel" }, route("R8", A, B, 7), route("R9", B, C, 7)];
-ok("naam uit de via-omschrijving van de route", ketenNaam(alternatieveKetens(viaTekst, "a", "c")[0]) === "buitenom Texel");
+// tussenhaven vs knooppunt: A→C via haven B = 20 NM, via knooppunt K = 20,6 NM → het knooppunt wint
+const net0 = [route("R5", A, B, 10), route("R6", B, C, 10), route("R7", A, K, 10.3), route("R8", K, C, 10.3)];
+const kz = shortestPath(net0, "a", "c")!;
+ok("liever knooppunt dan tussenhaven (straf 1 NM)", kz.havens.map((h) => h.haven).join() === "a,k,c" && Math.abs(kz.totalNm - 20.6) < 1e-9, `${kz.havens.map((h) => h.haven)} ${kz.totalNm}`);
+ok("tussenhaven blijft mogelijk als het knooppunt veel langer is", shortestPath([route("R5", A, B, 10), route("R6", B, C, 10), route("R7", A, K, 12), route("R8", K, C, 12)], "a", "c")!.viaNamen.join() === "B");
+ok("doel zelf telt niet als tussenhaven", shortestPath([route("R9", A, B, 5)], "a", "b")!.totalNm === 5);
+
+console.log("— alternatieveKetens (handmatige lijst) —");
+const met = (id: string, van: RouteHaven, naar: RouteHaven, nm: number, via: string | null): RouteInfo => ({ ...route(id, van, naar, nm), via });
+const D = punt("d", 53.12);
+// A→C: kortste via knooppunt K (20 nm); via haven B (23 nm) en via D (22 nm) zijn alleen alternatief als ze in de lijst staan
+const net2 = [met("T10", A, K, 10, "buitenom"), met("T11", C, K, 10, "buitenom"), met("T12", A, B, 8, "binnendoor via X"), met("T13", B, C, 15, "binnendoor"), met("T14", A, D, 10, null), met("T15", D, C, 12, null)];
+const lijst = [{ naam: "binnendoor via B", havens: ["a", "b", "c"] }];
+const alt = alternatieveKetens(net2, "a", "c", lijst);
+ok("kortste eerst, dan het alternatief uit de lijst", alt.length === 2 && alt[0].totalNm === 20 && alt[1].totalNm === 23, alt.map((k) => k.totalNm).join());
+ok("alternatief heeft de vaste naam", ketenNaam(alt[1]) === "binnendoor via B");
+ok("zonder lijst geen alternatieven (ook niet via D)", alternatieveKetens(net2, "a", "c", []).length === 1);
+const omgekeerd = alternatieveKetens(net2, "c", "a", lijst);
+ok("omgekeerde richting werkt ook", omgekeerd.length === 2 && omgekeerd[1].havens.map((h) => h.haven).join() === "c,b,a" && omgekeerd[1].totalNm === 23);
+ok("ander eindpunt = geen alternatief", alternatieveKetens(net2, "a", "d", lijst).length === 1);
+ok("alternatief met een niet-bestaand segment wordt overgeslagen", alternatieveKetens(net2, "a", "c", [{ naam: "x", havens: ["a", "c"] }]).length === 1);
+ok("alternatief gelijk aan de kortste keten valt weg", alternatieveKetens(net2, "a", "c", [{ naam: "x", havens: ["a", "k", "c"] }]).length === 1);
+const vervang = alternatieveKetens(net2, "a", "c", [{ naam: "via D", havens: ["a", "d", "c"], vervangKortste: true }]);
+ok("vervangKortste: standaard in plaats van de kortste", vervang.length === 1 && vervang[0].totalNm === 22 && ketenNaam(vervang[0]) === "via D", vervang.map((k) => k.totalNm).join());
+ok("geen pad → leeg", alternatieveKetens(net2, "a", "zzz", lijst).length === 0);
+// naam zonder vaste naam: soort water + haven onderweg, of de omschrijving van de route
+const net5 = [met("T30", A, C, 10, "buitenom Texel"), met("T31", A, B, 4, "binnendoor via Inschot"), met("T32", B, C, 5, null)];
+ok("directe route heet naar zijn omschrijving", ketenNaam(shortestPath(net5.slice(0, 1), "a", "c")!) === "buitenom Texel");
+ok("route via een haven: soort + haven", ketenNaam(shortestPath(net5.slice(1), "a", "c")!) === "binnendoor via B");
+ok("zonder omschrijving: via de haven", ketenNaam(shortestPath([met("T33", A, B, 4, null), met("T34", B, C, 5, null)], "a", "c")!) === "via B");
+
+console.log("— lib/alternatieven.ts —");
+ok("lijst begint en eindigt bij echte havens", ALTERNATIEVEN.every((a) => a.havens.length >= 3 && a.naam.length > 0));
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }

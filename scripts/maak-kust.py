@@ -1,71 +1,105 @@
-# Maakt lib/kust.json: de kust van Nederland en omgeving voor het routekaartje (VAARPLAN).
-# Bron: Natural Earth 1:10m land (publiek domein):
-#   curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
-# Gebruik: python3 scripts/maak-kust.py   (leest ne_10m_land.geojson uit de huidige map, schrijft kust.json)
-# Ringen zijn bijgesneden tot het kader hieronder en vereenvoudigd (Douglas-Peucker, TOL graden).
-import json, math
-LON0, LON1, LAT0, LAT1 = 1.8, 8.2, 50.3, 54.6
-TOL = 0.0015     # graden (~150 m): basic, geen details
+# Maakt lib/kust.json: land en droogvallende platen voor het routekaartje (VAARPLAN).
+# Bronnen:
+#  - PDOK / Kadaster, BRT Top10NL (CC BY 4.0): zee, meren en droogvallend gebied; gemeentegebied als
+#    Nederlands gebied. Dit levert de Nederlandse kust in detail (havens, dijken, eilanden, wadplaten).
+#  - Natural Earth 1:10m land (publiek domein): alles buiten Nederland (Duitsland, België).
+# Gebruik (vanuit windapp/, met `pip install shapely`):  python3 scripts/maak-kust.py
+# Downloadt eenmalig naar ./kust-bron/ (bestaande bestanden worden hergebruikt) en schrijft lib/kust.json.
+# Ringen zijn bijgesneden tot het kader hieronder en vereenvoudigd (Douglas-Peucker, TOL graden), als
+# gehele getallen ×1e4 (lon, lat, lon, lat, ...). Land en platen zijn elk een lijst ringen (even-odd).
+import json, os, time, urllib.request
+from shapely.geometry import shape, box, mapping
+from shapely.ops import unary_union
 
-def clip_edge(pts, inside, inter):
+LON0, LON1, LAT0, LAT1 = 1.8, 8.2, 50.3, 54.6
+TOL = 0.0008        # graden (~90 m): basic, maar de vorm van eilanden en geulen blijft herkenbaar
+GAT = 0.004         # deel van het land dat kleiner is dan dit (graden², ~50 km²) als meer: gevuld, geen gat
+DIR = "kust-bron"
+PDOK = "https://api.pdok.nl"
+NL_BOX = "3.1,51.2,7.3,53.65"   # Zeeland t/m Groningen
+
+
+def haal(naam, url):
+    pad = f"{DIR}/{naam}"
+    if not os.path.exists(pad):
+        os.makedirs(DIR, exist_ok=True)
+        print("download", naam)
+        urllib.request.urlretrieve(url, pad)
+    return pad
+
+
+def pdok_paged(url, filt):
     out = []
-    for i in range(len(pts)):
-        a, b = pts[i - 1], pts[i]
-        ia, ib = inside(a), inside(b)
-        if ib:
-            if not ia: out.append(inter(a, b))
-            out.append(b)
-        elif ia:
-            out.append(inter(a, b))
+    while url:
+        for _ in range(5):
+            try:
+                d = json.load(urllib.request.urlopen(url, timeout=300)); break
+            except Exception as e:
+                print("opnieuw", e); time.sleep(3)
+        out += [x for x in (filt(f) for f in d["features"]) if x]
+        url = next((l["href"] for l in d["links"] if l["rel"] == "next"), None)
     return out
 
-def clip(ring):
-    pts = ring[:-1] if ring[0] == ring[-1] else ring[:]
-    def ix(x):  # snijpunt met verticale lijn
-        return lambda a, b: (x, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]))
-    def iy(y):
-        return lambda a, b: (a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]), y)
-    for inside, inter in [
-        (lambda p: p[0] >= LON0, ix(LON0)), (lambda p: p[0] <= LON1, ix(LON1)),
-        (lambda p: p[1] >= LAT0, iy(LAT0)), (lambda p: p[1] <= LAT1, iy(LAT1))]:
-        if not pts: return []
-        pts = clip_edge(pts, inside, inter)
-    return pts
 
-def dp(pts, tol):
-    if len(pts) < 3: return pts
-    def d(p, a, b):
-        dx, dy = b[0] - a[0], b[1] - a[1]
-        if dx == dy == 0: return math.hypot(p[0] - a[0], p[1] - a[1])
-        t = max(0, min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)))
-        return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
-    keep = [False] * len(pts); keep[0] = keep[-1] = True
-    st = [(0, len(pts) - 1)]
-    while st:
-        i, j = st.pop()
-        m, k = 0, -1
-        for q in range(i + 1, j):
-            dd = d(pts[q], pts[i], pts[j])
-            if dd > m: m, k = dd, q
-        if m > tol: keep[k] = True; st += [(i, k), (k, j)]
-    return [p for p, kk in zip(pts, keep) if kk]
+def nl_gebied():
+    pad = f"{DIR}/gemeentegebied.json"
+    if not os.path.exists(pad):
+        os.makedirs(DIR, exist_ok=True)
+        fs = pdok_paged(f"{PDOK}/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items?f=json&limit=100", lambda f: f["geometry"])
+        json.dump(fs, open(pad, "w"))
+    return unary_union([shape(g).buffer(0) for g in json.load(open(pad))])
 
-def area(p):
-    return abs(sum(p[i][0] * p[(i + 1) % len(p)][1] - p[(i + 1) % len(p)][0] * p[i][1] for i in range(len(p)))) / 2
 
-d = json.load(open("ne_10m_land.geojson"))
-ringen = []
-for f in d["features"]:
-    g = f["geometry"]
-    polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
-    for poly in polys:
-        for ring in poly:
-            xs = [p[0] for p in ring]; ys = [p[1] for p in ring]
-            if max(xs) < LON0 or min(xs) > LON1 or max(ys) < LAT0 or min(ys) > LAT1: continue
-            c = clip([tuple(p) for p in ring])
-            if len(c) < 3: continue
-            c = dp(c + [c[0]], TOL)[:-1]
-            if len(c) < 3 or area(c) < 1e-5: continue
-            ringen.append([round(v * 1e4) for p in c for v in p])
-json.dump({"ringen": ringen}, open("kust.json", "w"), separators=(",", ":"))
-print(len(ringen), sum(len(r) // 2 for r in ringen))
+def nl_water():
+    pad = f"{DIR}/top10nl-water.json"
+    if not os.path.exists(pad):
+        os.makedirs(DIR, exist_ok=True)
+
+        def filt(f):   # ruim vlak water; kleine meren en sloten laten we weg
+            tw = f["properties"].get("typewater")
+            g = f["geometry"]
+            if tw in ("zee", "droogvallend", "droogvallend (LAT)") or (tw == "meer, plas" and len(json.dumps(g)) > 6000):
+                return {"t": "plat" if tw.startswith("droogvallend") else "water", "g": g}
+        fs = pdok_paged(f"{PDOK}/brt/top10nl/ogc/v1/collections/waterdeel_vlak/items?f=json&limit=1000&bbox={NL_BOX}", filt)
+        json.dump(fs, open(pad, "w"))
+    w = json.load(open(pad))
+    water = unary_union([shape(x["g"]).buffer(0) for x in w if x["t"] == "water"])
+    plat = unary_union([shape(x["g"]).buffer(0) for x in w if x["t"] == "plat"])
+    return water, plat
+
+
+def ringen(geom, kader, drop_holes, min_area):
+    out = []
+    g = geom.intersection(kader).simplify(TOL, preserve_topology=True)
+    for p in getattr(g, "geoms", [g]):
+        if p.geom_type != "Polygon" or p.is_empty or p.area < min_area:
+            continue
+        for r in [p.exterior] + ([] if drop_holes else list(p.interiors)):
+            c = list(r.coords)[:-1]
+            if len(c) >= 3:
+                out.append([round(v * 1e4) for pt in c for v in pt])
+    return out
+
+
+def main():
+    kader = box(LON0, LAT0, LON1, LAT1)
+    gebied = nl_gebied()
+    water, plat = nl_water()
+    ne = unary_union([shape(f["geometry"]).buffer(0) for f in json.load(open(haal(
+        "ne_10m_land.geojson", "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson")))["features"]])
+    nl_land = gebied.difference(water).difference(plat)   # droogvallend is geen land: aparte laag
+    buiten = ne.difference(gebied.buffer(0.002))
+    land = unary_union([nl_land, buiten]).buffer(0.0008).buffer(-0.0008)   # naden tussen de bronnen sluiten
+    platen = plat.intersection(gebied)
+    # land zonder kleine binnenmeren (alleen de grote, zoals het IJsselmeer, blijven een gat)
+    from shapely.geometry import Polygon
+    schoon = []
+    for p in getattr(land, "geoms", [land]):
+        schoon.append(Polygon(p.exterior, [h for h in p.interiors if Polygon(h).area >= GAT]))
+    land = unary_union(schoon)
+    l, pl = ringen(land, kader, False, 2e-5), ringen(platen, kader, True, 1e-4)
+    json.dump({"land": l, "platen": pl}, open("lib/kust.json", "w"), separators=(",", ":"))
+    print("land", len(l), sum(len(r) // 2 for r in l), "platen", len(pl), sum(len(r) // 2 for r in pl))
+
+
+main()
