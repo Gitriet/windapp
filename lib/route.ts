@@ -170,3 +170,29 @@ export function pointAlongRoute(
   }
   return { lat: pts[pts.length - 1].lat, lon: pts[pts.length - 1].lon };
 }
+
+// Routelijn voor het kaartje: dubbele punten en korte terugsteekjes (spikes) eruit, daarna één ronde
+// hoeken afronden (Chaikin). Alleen voor weergave; afstand en stroom blijven op de ruwe geometrie.
+type LL = { lat: number; lon: number };
+export function gladLijn(pts: LL[], spikeNm = 0.4, minNm = 0.02): LL[] {
+  const kx = Math.cos((((pts[0]?.lat ?? 0) + (pts[pts.length - 1]?.lat ?? 0)) / 2) * Math.PI / 180);
+  const nm = (a: LL, b: LL) => Math.hypot((b.lon - a.lon) * kx, b.lat - a.lat) * 60;
+  let l = pts.filter((p, i) => i === 0 || nm(pts[i - 1], p) >= minNm || i === pts.length - 1);
+  // spike: punt b waar de lijn (bijna) omkeert en dat dicht bij a of c ligt
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 1; i < l.length - 1; i++) {
+      const [a, b, c] = [l[i - 1], l[i], l[i + 1]];
+      const dot = (b.lon - a.lon) * kx * (c.lon - b.lon) * kx + (b.lat - a.lat) * (c.lat - b.lat);
+      if (dot < 0 && Math.min(nm(a, b), nm(b, c)) < spikeNm) { l = [...l.slice(0, i), ...l.slice(i + 1)]; again = true; break; }
+    }
+  }
+  if (l.length < 3) return l;
+  const out: LL[] = [l[0]];
+  for (let i = 0; i < l.length - 1; i++) {
+    const [a, b] = [l[i], l[i + 1]];
+    out.push({ lat: 0.75 * a.lat + 0.25 * b.lat, lon: 0.75 * a.lon + 0.25 * b.lon }, { lat: 0.25 * a.lat + 0.75 * b.lat, lon: 0.25 * a.lon + 0.75 * b.lon });
+  }
+  out.push(l[l.length - 1]);
+  return out;
+}

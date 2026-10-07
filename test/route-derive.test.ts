@@ -1,7 +1,7 @@
 // Stap 2b/2d: stroom-langs-route-afleidingen, geëxtraheerd uit app/vensters/page.tsx
 // (stroomExtremes, stroomKentering) en components/route/MapView.tsx (currentArrow)
 // naar lib/route.ts. Synthetische reeksen zodat elke uitkomst exact narekenbaar is.
-import { stroomExtremes, stroomKentering, currentArrow, type AlongSample } from "../lib/route";
+import { stroomExtremes, stroomKentering, currentArrow, gladLijn, type AlongSample } from "../lib/route";
 
 let fail = 0;
 const ok = (name: string, cond: boolean, detail = "") => {
@@ -50,6 +50,16 @@ console.log("\n— currentArrow: magnitude + peiling waarheen de stroom loopt �
   ok("u=-1,v=0 -> west (-90°)", near(currentArrow(-1, 0).bearingDeg, -90));
   ok("u=3,v=4 -> mag 5", near(currentArrow(3, 4).mag, 5));
 }
+
+console.log("— gladLijn —");
+const rechte = [0, 0.1, 0.2, 0.3].map((x) => ({ lat: 53, lon: 5 + x }));
+const g0 = gladLijn(rechte);
+ok("rechte lijn blijft recht en houdt begin en eind", g0[0].lon === 5 && near(g0[g0.length - 1].lon, 5.3) && g0.every((p) => near(p.lat, 53)));
+const spike = [{ lat: 53, lon: 5 }, { lat: 53, lon: 5.1 }, { lat: 53, lon: 5.09 }, { lat: 53, lon: 5.2 }];   // 0,06 nm terug
+const g1 = gladLijn(spike);
+ok("korte terugsteek (spike) verdwijnt", g1.every((p, i) => i === 0 || p.lon >= g1[i - 1].lon - 1e-12));
+ok("dubbele punten eruit", gladLijn([rechte[0], rechte[0], rechte[3]]).length === 2);
+ok("lege/korte invoer blijft heel", gladLijn([]).length === 0 && gladLijn([rechte[0]]).length === 1);
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
 console.log("\nALL OK");

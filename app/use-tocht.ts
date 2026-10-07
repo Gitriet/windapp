@@ -9,7 +9,7 @@ import {
   DEFAULT_ROUTE_ID, fetchForecast, fetchWeek, fetchHavenTide, fetchRouteCurrent, fetchRoutes,
   toWindSamples, type ForecastResponse, type WeekResponse, type RouteCurrent, type RouteInfo, type RouteHaven,
 } from "@/lib/planner-data";
-import { bearing, routeDistanceNm } from "@/lib/route";
+import { bearing, routeDistanceNm, gladLijn } from "@/lib/route";
 import { alternatieveKetens, ketenNaam } from "@/lib/netwerk-path";
 import {
   pickBest, pickVensters, vertrekVenster, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
@@ -243,10 +243,18 @@ export function useTocht(boat: BoatProfile) {
   // echte route-geometrie voor het kaartje: de stroompunten per been (in vaarrichting), anders de rechte lijn tussen de havens
   const routeLijn = useMemo(() => {
     if (!chain) return [];
-    return chain.legs.flatMap((l, i) => {
-      const pts = legCurrents.length === chain.legs.length ? legCurrents[i]?.punten ?? [] : [];
-      return [{ lat: l.van.lat, lon: l.van.lon }, ...(l.reversed ? [...pts].reverse() : pts), { lat: l.naar.lat, lon: l.naar.lon }];
+    // geometrie per been aaneengeregen; haven-/knoopcoördinaten alleen aan begin en eind van de tocht.
+    // Een knooppunt ligt tot ~1,5 km naast de vaarlijn (de stukken buigen er doorheen): op een naad bij een
+    // knooppunt laten we dat hoekpunt weg, zodat de lijn er recht doorheen loopt in plaats van een knik te maken.
+    const n = chain.legs.length;
+    const pts = chain.legs.flatMap((l, i) => {
+      const g0 = legCurrents.length === n ? legCurrents[i]?.punten ?? [] : [];
+      let g = l.reversed ? [...g0].reverse() : g0;
+      if (i > 0 && chain.havens[i].soort === "knoop" && g.length > 2) g = g.slice(1);
+      if (i < n - 1 && chain.havens[i + 1].soort === "knoop" && g.length > 2) g = g.slice(0, -1);
+      return [...(i === 0 ? [{ lat: l.van.lat, lon: l.van.lon }] : []), ...g, ...(i === n - 1 ? [{ lat: l.naar.lat, lon: l.naar.lon }] : [])];
     });
+    return gladLijn(pts);
   }, [chain, legCurrents]);
   const etappeTimelines = groepen.map((g) => g.map((i) => routeMeta.legTimelines[i]));
 

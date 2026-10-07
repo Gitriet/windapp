@@ -144,7 +144,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 .skeleton { display: flex; flex-direction: column; gap: var(--sp-3); }
 .skeleton-row {
-  height: var(--row-h);
+  min-height: var(--row-h);   /* groeit mee als de melding hoger is dan de rij */
+  padding: var(--sp-6) var(--sp-4);
   background: var(--fill-faint);
   border: var(--line) solid var(--hairline-soft);
   border-radius: var(--radius-sm);
