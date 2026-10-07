@@ -22,8 +22,17 @@ function useKlok(): number | null {
 
 export function TopBar({ chip, bijgewerkt, onMenu }: { chip?: React.ReactNode; bijgewerkt?: string | null; onMenu?: () => void }) {
   const nu = useKlok();
+  // hoogte van de merkbalk als --shell-top-h, zodat een sticky schermkop er direct onder kan staan
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty("--shell-top-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <header className="shell-top">
+    <header ref={ref} className="shell-top">
       <span className="shell-brand">TIDAN</span>
       {chip && <div className="shell-top-chip">{chip}</div>}
       {nu && (

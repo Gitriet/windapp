@@ -63,7 +63,7 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
 
   return (
     <>
-      <div className="schakelaar" role="radiogroup" aria-label="Haven">
+      <div className="schakelaar scherm-kop" role="radiogroup" aria-label="Haven">
         {SUBTABS.map((t) => (
           <button key={t.id} type="button" role="radio" aria-checked={t.id === rol}
             className={`schakelaar-stand ${t.id === rol ? "is-filled" : ""}`} onClick={() => setRol(t.id)}>

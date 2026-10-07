@@ -207,6 +207,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .shell-top-chip { display: block; order: 1; width: 100%; margin-top: var(--sp-5); }
   .shell[data-tab="weergetij"] .shell-top-chip { display: none; }
   .chip-route { display: none; }
+  /* schermeigen kop (havenschakelaar WEER & GETIJ) blijft direct onder de merkbalk staan;
+     dekkend vlak + inkt-band eronder, zodat scrollende inhoud er niet doorheen schijnt */
+  .shell .scherm-kop {   /* .shell: wint van .schakelaar, die verderop staat */
+    position: sticky; top: var(--shell-top-h, 0px); z-index: 19;
+    background: var(--panel-solid); box-shadow: 0 var(--sp-6) 0 var(--ink);
+  }
 }
 
 .shell-tabbar {
