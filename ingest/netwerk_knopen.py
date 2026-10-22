@@ -137,6 +137,10 @@ def main() -> None:
 
     fouten: list[str] = []
     nieuw: list[dict] = []
+    # handmatig uitgesloten (``"actief": false`` in de bron, bv. een route die over land loopt): blijft in de
+    # database maar wordt nooit gebruikt, niet geknipt en telt niet mee in de controles
+    uit = [f for f in features if f["properties"].get("actief") is False]
+    features = [f for f in features if f["properties"].get("actief") is not False]
     for f in features:
         stukken = knip(f, knopen)
         p = f["properties"]
@@ -167,6 +171,10 @@ def main() -> None:
             s["properties"]["actief"] = i == 0
             if i:
                 s["properties"]["dubbel_van"] = groep[0]["properties"]["id"]
+    for f in uit:
+        f["properties"].setdefault("van_id", slug(f["properties"]["van"]))
+        f["properties"].setdefault("naar_id", slug(f["properties"]["naar"]))
+    nieuw += uit
     actief = [s for s in nieuw if s["properties"]["actief"]]
     print(f"\n{len(features)} routes -> {len(nieuw)} stukken, {len(actief)} actief, "
           f"{len(nieuw) - len(actief)} dubbel")

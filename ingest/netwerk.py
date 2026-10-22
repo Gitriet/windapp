@@ -338,7 +338,7 @@ def droog(features, havens, nodes) -> None:
     if gewijzigd:
         print(f"  gewijzigd: {', '.join(gewijzigd)}")
     if inactief:
-        print("  inactief: " + ", ".join(i + "(=" + bron[i]["properties"]["dubbel_van"] + ")" for i in inactief))
+        print("  inactief: " + ", ".join(i + "(=" + bron[i]["properties"].get("dubbel_van", "handmatig uitgesloten") + ")" for i in inactief))
     if alleen_db:
         print(f"  alleen in database (blijft staan, niet gesnoeid): {', '.join(alleen_db)}")
     n_nieuw = sum(len(resample_route(f["geometry"]["coordinates"])[0]) for f in features
