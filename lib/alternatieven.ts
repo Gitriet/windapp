@@ -14,6 +14,8 @@ export const ALTERNATIEVEN: Alternatief[] = [
   // Buitenom naar West-Terschelling via Marsdiep, Molengat en Stortemelk (eigen Navionics-route, 35,6 nm).
   // Vervangt de kortste keten (binnendoor via Oudeschild en de Inschot), die voor 2 m diepgang niet bedoeld is.
   { naam: "buitenom", havens: ["den-helder", "k-marsdiep", "k-molengat", "k-stortemelk", "west-terschelling"], vervangKortste: true },
+  // Den Helder → Stellendam: buitenom (eigen Navionics-route R28, 82,6 nm) is de kortste keten; dit is de route langs de kust.
+  { naam: "langs de kust", havens: ["den-helder", "ijmuiden", "scheveningen", "stellendam"] },
 ];
 
 // Havens die een route alleen passeert: op het routekaartje geen stip of naam als ze tussen begin en eind liggen.

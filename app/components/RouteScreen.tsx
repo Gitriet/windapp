@@ -134,7 +134,7 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
           {verloop && "totMs" in verloop && !(verloop.kind === "mee" && rShow.effectMin > 0) && (
             <span className={`${s.chip} ${verloop.kind === "mee" ? s.chipMee : s.chipTegen}`}>
-              {verloop.kind === "mee" ? "MEE" : "TEGEN"} {verloop.totMs != null ? `TOT ${localHM(verloop.totMs)}` : "HELE TOCHT"}
+              STROOM {verloop.kind === "mee" ? "MEE" : "TEGEN"} {verloop.totMs != null ? `TOT ${localHM(verloop.totMs)}` : "HELE TOCHT"}
             </span>
           )}
           {hw && <span className={`${s.chip} ${s.chipHw}`}>HW&nbsp;{localHM(tms(hw.t))}</span>}

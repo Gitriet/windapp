@@ -11,6 +11,7 @@ import { Raster, RASTER_GUT } from "./Raster";
 import s from "./TochtGetij.module.css";
 
 const H = 3_600_000;
+const CYCLUS = 13 * H;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 const W = 300, HG = 110, PAD = 6, LBL = 11;
 
@@ -23,8 +24,8 @@ function getijReeks(t: TideData): { pts: TidePoint[]; expEnd: number } {
 }
 
 export default function TochtGetij({ delen, vanMs, totMs }: { delen: GetijDeel[]; vanMs: number; totMs: number }) {
-  // venster: de tocht met 2 uur marge, minstens 6 uur breed
-  const marge = Math.max(2 * H, (6 * H - (totMs - vanMs)) / 2);
+  // venster: de tocht met 2 uur marge, minstens een hele getijcyclus (12u25, afgerond 13 uur) breed
+  const marge = Math.max(2 * H, (CYCLUS - (totMs - vanMs)) / 2);
   const van = vanMs - marge, tot = totMs + marge;
   const reeksen = delen.map((d) => {
     if (!d.tide) return { d, pts: [] as { ms: number; v: number }[], astro: false };
