@@ -2,7 +2,7 @@
 // Schil: merkbalk, tabbar (mobiel), kiezerchip en skeleton. Alleen vorm — welke
 // schermen er zijn en in welke volgorde komt uit app/screens.ts; layout per breedte
 // staat in globals.css (.shell-*).
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { SCREENS, type ScreenId } from "../screens";
 import { localDateLong, localHM } from "@/lib/tz";
 import { MenuIcon } from "./icons";
@@ -88,14 +88,17 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
 }
 
 // Routekiezer: schakelaar met VERTREK en AANKOMST (zelfde vorm als de havenschakelaar op
-// WEER & GETIJ); een vlak aantikken opent de havenkiezer van die kant eronder (klik buiten sluit).
+// WIND & GETIJ); een vlak aantikken opent de havenkiezer van die kant eronder (klik buiten sluit).
 export type Kant = "van" | "naar";
-export function RouteKiezer({ van, naar, className, varianten, variant = 0, onVariant, children }: {
-  van: string; naar: string; className?: string; children: (kant: Kant, sluit: () => void) => React.ReactNode;
+export function RouteKiezer({ van, naar, className, varianten, variant = 0, onVariant, onOmruil, onSluit, children }: {
+  van: string; naar: string; className?: string; children: (kant: Kant, sluit: () => void, open: (kant: Kant) => void) => React.ReactNode;
   varianten?: { rol: string; naam: string }[]; variant?: number; onVariant?: (i: number) => void;   // routekeuze bij meerdere redelijke routes
+  onOmruil?: () => void;   // vertrek en aankomst omdraaien: knop tussen de twee standen
+  onSluit?: () => void;    // de havenkiezer is dicht (gekozen, buiten geklikt of omgeruild)
 }) {
   const [open, setOpen] = useState<Kant | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (!open) onSluit?.(); }, [open]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null); };
@@ -104,13 +107,23 @@ export function RouteKiezer({ van, naar, className, varianten, variant = 0, onVa
   }, [open]);
   return (
     <div ref={ref} className={`chip-wrap ${className ?? ""}`}>
-      <div className="schakelaar">
+      <div className={`schakelaar ${onOmruil ? "schakelaar-omruil" : ""}`}>
         {([["van", "VERTREK", van], ["naar", "AANKOMST", naar]] as const).map(([k, rol, naam]) => (
-          <button key={k} type="button" className={`schakelaar-stand ${open === k ? "is-filled" : ""}`} aria-expanded={open === k}
-            onClick={() => setOpen((o) => (o === k ? null : k))}>
-            <span className="schakelaar-rol">{rol}</span>
-            <span className="schakelaar-naam">{naam}</span>
-          </button>
+          <Fragment key={k}>
+            {k === "naar" && onOmruil && (
+              <button type="button" className="schakelaar-wissel" aria-label="Vertrek en aankomst omruilen" title="Vertrek en aankomst omruilen"
+                onClick={() => { setOpen(null); onOmruil(); }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M7 4 3 8l4 4" /><path d="M3 8h14" /><path d="m17 20 4-4-4-4" /><path d="M21 16H7" />
+                </svg>
+              </button>
+            )}
+            <button type="button" className={`schakelaar-stand ${open === k ? "is-filled" : ""}`} aria-expanded={open === k}
+              onClick={() => setOpen((o) => (o === k ? null : k))}>
+              <span className="schakelaar-rol">{rol}</span>
+              <span className="schakelaar-naam">{naam}</span>
+            </button>
+          </Fragment>
         ))}
       </div>
       {varianten && varianten.length > 1 && (
@@ -124,7 +137,7 @@ export function RouteKiezer({ van, naar, className, varianten, variant = 0, onVa
           ))}
         </div>
       )}
-      {open && <div className="chip-panel">{children(open, () => setOpen(null))}</div>}
+      {open && <div className="chip-panel">{children(open, () => setOpen(null), setOpen)}</div>}
     </div>
   );
 }

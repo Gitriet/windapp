@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm, gladLijn } from "@/lib/route";
 import { alternatieveKetens, ketenNaam } from "@/lib/netwerk-path";
 import {
-  pickBest, pickVensters, vertrekVenster, gustsOnTrip, type StationPos, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
+  pickBest, pickVensters, vertrekVenster, gustsOnTrip, weatherAt, type WeerOp, type StationPos, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { TideData } from "@/lib/types";
 import { heeftToegangsmodel } from "@/lib/gates";
@@ -126,6 +126,9 @@ export function useTocht(boat: BoatProfile) {
     setRouteIdx(0);
     setDepMs(null);
   };
+
+  // Vertrek en aankomst omruilen: dezelfde tocht de andere kant op.
+  const keerOm = () => kiesHavens(toHaven, fromHaven);
 
   // ── tochtdata bij tochtwissel ── wind per distinct station, stroom per been (teken
   // al gecorrigeerd in fetchRouteCurrent), getij bij de vertrekhaven via het eigen station.
@@ -284,6 +287,11 @@ export function useTocht(boat: BoatProfile) {
       return { key: w.location_key, nm };
     });
   }, [waypoints, chain, routeDistNm]);
+  // weer van de boot langs een gekozen vertrek: het dichtstbijzijnde station langs de route op dat moment
+  const weerOp = useMemo<WeerOp>(() => (nm, ms) => {
+    const st = stationPos.reduce<StationPos | null>((m, p) => (m == null || Math.abs(p.nm - nm) < Math.abs(m.nm - nm) ? p : m), null);
+    return st ? weatherAt(routeFc[st.key]?.weather, ms) : null;
+  }, [stationPos, routeFc]);
   // vlagen van de boot langs een gekozen vertrek (positie- en tijdsgebonden)
   const gustsVoor = useMemo(() => (trip: SimResult) => gustsOnTrip(trip, stationPos, stationGusts), [stationPos, stationGusts]);
   // golfhoogte per station (Open-Meteo Marine; landpunt = geen samples) voor de etappes
@@ -298,7 +306,7 @@ export function useTocht(boat: BoatProfile) {
 
 
   return {
-    chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
+    chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, keerOm, weerOp, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     gustsVoor, routeWaves, vanWeather, etappeLegs, horizonUur,
@@ -306,7 +314,7 @@ export function useTocht(boat: BoatProfile) {
   };
 }
 
-// Weer + getij op één haven (WEER & GETIJ): wind/weer van het dichtstbijzijnde station,
+// Weer + getij op één haven (WIND & GETIJ): wind/weer van het dichtstbijzijnde station,
 // 7-daagse verwachting en getij van het eigen RWS-station van de haven.
 export function useHaven(h: RouteHaven | null) {
   const [data, setData] = useState<{ fc: ForecastResponse; week: WeekResponse; tide: TideData | null } | null>(null);

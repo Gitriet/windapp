@@ -51,7 +51,7 @@ export default function TochtGetij({ delen, vanMs, totMs }: { delen: GetijDeel[]
         return (
           <div key={d.naam} className={`${s.grafiek} ${i === 0 ? s.hA : s.hB}`}>
             <div className={s.kop}>
-              <span className={s.standLabel}>{d.ankerLabel} · {d.naam.toUpperCase()}</span>
+              <span className={s.standLabel}>{d.ankerLabel} {localHM(d.ankerMs)} · {d.naam.toUpperCase()}</span>
               <span className={s.standWaarde}>{tn ? `${tn.rising ? "↑" : "↓"} ${signedCm(tn.level)}` : "—"}<span className={s.eenheid}>cm</span></span>
             </div>
             <svg className={s.kromme} viewBox={`0 0 ${W} ${HG}`} role="img" aria-label={`waterstand ${d.naam} tijdens de tocht`}>
@@ -60,7 +60,6 @@ export default function TochtGetij({ delen, vanMs, totMs }: { delen: GetijDeel[]
               <rect x={x0} y={0} width={Math.max(0, x1 - x0)} height={HG} className={s.band} />
               <line x1={x0} x2={x0} y1={0} y2={HG} className={s.ankerLijn} />
               <line x1={x1} x2={x1} y1={0} y2={HG} className={s.ankerLijn} />
-              <text x={i === 0 ? x0 + 2 : x1 - 2} y={7} className={s.ankerLabel} textAnchor={i === 0 ? "start" : "end"}>{d.ankerLabel} {localHM(d.ankerMs)}</text>
               {r.pts.length > 1 && <polyline className={s.lijn} points={lijnPts(r.pts)} />}
               {ext.map((e) => (
                 <g key={e.ms}>

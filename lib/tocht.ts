@@ -233,8 +233,11 @@ export function windOnderweg(trip: SimResult, gusts: GustSample[]): WindOnderweg
 
 // Wind en vlagen per klokuur langs de tocht, zoals de boot ze tegenkomt (sim-wind en positiegebonden vlagen),
 // in de vorm van een uurpunt voor de uurstrook. Het eerste en laatste uur zijn deeluren van de tocht.
-export type UurPunt = { time: string; speed_kn: number; gust_kn: number; dir_deg: number };
-export function windPerUur(trip: SimResult, gusts: GustSample[]): UurPunt[] {
+export type UurWeer = { code: number | null; temp: number | null; precip: number | null };
+export type UurPunt = { time: string; speed_kn: number; gust_kn: number; dir_deg: number; weer?: UurWeer };
+// weerOp: weer op een plek (nm vanaf vertrek) en tijdstip; zonder weerOp geen weer per uur.
+export type WeerOp = (nm: number, ms: number) => UurWeer | null;
+export function windPerUur(trip: SimResult, gusts: GustSample[], weerOp?: WeerOp): UurPunt[] {
   const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
   const perUur = new Map<number, SimStep[]>();
   for (const st of body) {
@@ -245,11 +248,37 @@ export function windPerUur(trip: SimResult, gusts: GustSample[]): UurPunt[] {
     const e = ss.reduce((a, q) => a + Math.sin((q.wDir * Math.PI) / 180), 0), n = ss.reduce((a, q) => a + Math.cos((q.wDir * Math.PI) / 180), 0);
     const g = gusts.filter((x) => Math.floor(x.ms / H) * H === u).map((x) => x.gustKn);
     const speed = ss.reduce((a, q) => a + q.wSpd, 0) / ss.length;
+    const weer = weerOp?.(ss.reduce((a, q) => a + q.prog, 0) / ss.length, u + H / 2) ?? undefined;
     return {
       time: new Date(u).toISOString().slice(0, 16), speed_kn: speed, gust_kn: g.length ? Math.max(...g) : speed,
-      dir_deg: ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360,
+      dir_deg: ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360, ...(weer ? { weer } : {}),
     };
   });
+}
+
+// Lange tocht: meerdere uren samenvoegen tot hooguit `max` staven zodat de uurstrook leesbaar blijft. Per blok
+// van k opeenvolgende uren: gemiddelde wind, hardste vlaag, gemiddelde richting (vectorgemiddelde); de tijd is
+// het begin van het blok. Tot `max` uren blijft alles zoals het is (k = 1).
+export function bundelUren(pts: UurPunt[], max: number): { pts: UurPunt[]; uurPerStaaf: number } {
+  const k = Math.max(1, Math.ceil(pts.length / max));
+  if (k === 1) return { pts, uurPerStaaf: 1 };
+  const uit: UurPunt[] = [];
+  for (let i = 0; i < pts.length; i += k) {
+    const g = pts.slice(i, i + k);
+    const e = g.reduce((a, q) => a + Math.sin((q.dir_deg * Math.PI) / 180), 0), n = g.reduce((a, q) => a + Math.cos((q.dir_deg * Math.PI) / 180), 0);
+    // weer van een blok: het natste uur bepaalt het icoon (regen telt zwaarder dan zon), temperatuur gemiddeld
+    const wx = g.flatMap((q) => (q.weer ? [q.weer] : []));
+    const nat = wx.reduce<UurWeer | null>((m, w) => (m == null || (w.precip ?? 0) > (m.precip ?? 0) ? w : m), null);
+    const temps = wx.flatMap((w) => (w.temp != null ? [w.temp] : []));
+    uit.push({
+      ...(nat ? { weer: { code: nat.code, precip: Math.max(...wx.map((w) => w.precip ?? 0)), temp: temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null } } : {}),
+      time: g[0].time,
+      speed_kn: g.reduce((a, q) => a + q.speed_kn, 0) / g.length,
+      gust_kn: Math.max(...g.map((q) => q.gust_kn)),
+      dir_deg: ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360,
+    });
+  }
+  return { pts: uit, uurPerStaaf: k };
 }
 
 // Weer op een tijdstip: het uur-sample waarin `ms` valt (uurgrid, UTC).

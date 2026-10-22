@@ -35,7 +35,7 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 | Weerregel | `/api/forecast/{station vertrekhaven}` → `weather` | `weatherAt()` op het vertrekuur |
 | Alle vertrekken | zelfde sweep | `pickVensters()`; rechts de tochtduur (`fmtDuurKort`: "48m", "1u 15m", ≥24u "1d 3u") |
 
-### WEER & GETIJ TOCHT (vertrek- en aankomsthaven tegelijk)
+### WIND & GETIJ (vertrek- en aankomsthaven tegelijk)
 
 Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven op de ETA van het gekozen vertrek (`WeerGetijScreen`, `trip` uit `selTrip`): `TochtVergelijk` (wind, vlaag, richting, weer naast elkaar + wind onderweg), een `UrenStrook` met de wind per uur langs de route (`windPerUur`) en `TochtGetij`: de getijcurves van beide havens in één grafiek over de tocht (+2 uur marge), met stand en stijgen/dalen op vertrek en ETA.
 
@@ -50,7 +50,7 @@ Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven o
 | Weerregel | `/api/forecast/{station vertrekhaven}` → `weather` | `weatherAt()` op het vertrekuur |
 | Alle vertrekken | zelfde sweep | `pickVensters()`; rechts de tochtduur (`fmtDuurKort`: "48m", "1u 15m", ≥24u "1d 3u") |
 
-### WEER & GETIJ TOCHT (per haven: schakelaar VERTREK / AANKOMST)
+### WIND & GETIJ (per haven: schakelaar VERTREK / AANKOMST)
 
 Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven op de ETA van het gekozen vertrek (`WeerGetijScreen`, `trip` uit `selTrip`); geen dagkeuze. Wind-tegel = wind van de komende 6 uur vanaf dat moment (`tochtWind`), uurstrook met tochtperiode, getijmarkering.
 
@@ -78,6 +78,6 @@ Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven o
 - **Watertemperatuur**: geen bron; weggelaten.
 - **VHF-kanalen uit het prototype** (09/12) zijn voorbeeldwaarden; de app toont `havens-info`.
 
-## WEER & GETIJ toont geen verleden
+## WIND & GETIJ toont geen verleden
 Besluit 2026-09-18: de dagstrip begint altijd bij vandaag en toont nooit oude dagen. De
 eerder geplande GETIJDEN-historie uit de R2-hindcast vervalt daarmee.

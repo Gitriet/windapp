@@ -269,6 +269,11 @@ def write_db(features, havens, nodes) -> dict:
                        VALUES (%s,%s,%s,%s,%s)""", rows)
                 n_samples += len(rows)
 
+            # routes die niet meer in de bron staan (bv. een opgeknipt stuk dat een andere id kreeg): niet
+            # verwijderen (CASCADE zou stroomdata meenemen) maar uit gebruik nemen, anders blijven ze actief
+            cur.execute("UPDATE netwerk_routes SET actief = false WHERE actief AND NOT (id = ANY(%s))",
+                        ([f["properties"]["id"] for f in features],))
+
             if has_stroom:
                 cur.execute("SELECT count(*) FROM stroom_punt_forecast")
                 stroom_after = cur.fetchone()[0]
@@ -340,7 +345,7 @@ def droog(features, havens, nodes) -> None:
     if inactief:
         print("  inactief: " + ", ".join(i + "(=" + bron[i]["properties"].get("dubbel_van", "handmatig uitgesloten") + ")" for i in inactief))
     if alleen_db:
-        print(f"  alleen in database (blijft staan, niet gesnoeid): {', '.join(alleen_db)}")
+        print(f"  alleen in database (niet verwijderd, wel op inactief gezet): {', '.join(alleen_db)}")
     n_nieuw = sum(len(resample_route(f["geometry"]["coordinates"])[0]) for f in features
                   if f["properties"].get("actief", True))
     print(f"netwerk_samplepunten: {n_samp} nu -> {n_nieuw}")

@@ -34,7 +34,7 @@ async function getJSON<T>(url: string): Promise<T> {
 
 export const fetchRoutes = () => getJSON<{ routes: RouteInfo[] }>("/api/routes").then((d) => d.routes);
 
-// Route en WEER & GETIJ vragen dezelfde stations op: één aanvraag per station, 10 min
+// Route en WIND & GETIJ vragen dezelfde stations op: één aanvraag per station, 10 min
 // hergebruikt. Een mislukte aanvraag wordt niet bewaard, zodat de volgende opnieuw probeert.
 const FC_TTL_MS = 10 * 60_000;
 const fcCache = new Map<string, { at: number; p: Promise<ForecastResponse> }>();

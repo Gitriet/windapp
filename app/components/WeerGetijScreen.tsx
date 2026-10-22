@@ -1,5 +1,5 @@
 "use client";
-// WEER & GETIJ TOCHT — weer en getij van vertrek- én aankomsthaven tegelijk, op het moment van het gekozen vertrek
+// WIND & GETIJ — weer en getij van vertrek- én aankomsthaven tegelijk, op het moment van het gekozen vertrek
 // (vertrekhaven op het vertrekmoment, aankomsthaven op de ETA): vergelijkingskaart, wind langs de route en één
 // getijgrafiek met beide havens. Weer en getij zijn eigenschappen van de haven; stroom hoort bij de etappe
 // (VAARPLAN). Alleen presentatie.

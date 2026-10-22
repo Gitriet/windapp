@@ -20,12 +20,18 @@
 .kn { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--kleur); }
 .pijl { display: flex; color: var(--slate-dim); }
 .balk { width: 100%; border-radius: var(--radius-xs); background: var(--kleur); }
+/* weer langs de route: een icoon per staaf, onder de balken; regen valt op */
+.weer { display: flex; gap: var(--tab-gap); margin-top: var(--sp-3); }
+.weerCel { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); color: var(--slate); }
+.temp { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-num); color: var(--slate); }
+.weerCel[data-nat] { color: var(--wind-fris); }
 .as { display: flex; justify-content: space-between; margin-top: var(--sp-2); font-family: var(--font-num); font-size: var(--fs-caption); color: var(--slate); }
 
 /* mobiel: alleen de even uren */
 @media (max-width: 767px) {
-  .staaf[data-desktop] { display: none; }
+  .staaf[data-desktop], .weerCel[data-desktop] { display: none; }
 }
 @media (min-width: 768px) {
   .staven { height: var(--staaf-h-desk); gap: var(--sp-1); }
+  .weer { gap: var(--sp-1); }
 }

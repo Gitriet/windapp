@@ -2,7 +2,7 @@
 // desktopkolommen en URL (?tab=) lezen allemaal hieruit. label = paneeltitel, kort = tabbar.
 export const SCREENS = [
   { id: "route", label: "ROUTE", kort: "ROUTE" },
-  { id: "weertocht", label: "WEER & GETIJ TOCHT", kort: "WEER & GETIJ" },
+  { id: "weertocht", label: "WIND & GETIJ", kort: "WIND & GETIJ" },
   { id: "vaarplan", label: "VAARPLAN", kort: "VAARPLAN" },
 ] as const;
 

@@ -1,5 +1,5 @@
 "use client";
-// Tidan — drie schermen (ROUTE · WEER & GETIJ · VAARPLAN) in één schil. Data en logica
+// Tidan — drie schermen (ROUTE · WIND & GETIJ · VAARPLAN) in één schil. Data en logica
 // leven in app/use-tocht.ts (useTocht, useHaven) en lib/; dit bestand verbindt alleen.
 import { useEffect, useState } from "react";
 import HavenSelector from "./components/HavenSelector";
@@ -24,7 +24,7 @@ export default function Page() {
   const tocht = useTocht(boat);
   const [tab, setTab] = useScreenTab();
   const {
-    fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, allHavens, naamOf, vanOptions, naarOptions,
+    fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, keerOm, weerOp, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, chainHavens, routeLijn, routeVarianten, routeIdx, chooseRoute, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
     routeTide, routeTideNaar, gustsVoor, routeWaves, vanWeather, etappeLegs, horizonUur, ready, nowMs,
@@ -35,7 +35,7 @@ export default function Page() {
   useVertrekUrl(depMs, setDepMs, depOptions);
   const onderwegGusts = selTrip ? gustsVoor(selTrip) : [];
   const onderweg = selTrip ? windOnderweg(selTrip, onderwegGusts) : null;
-  const onderwegUren = selTrip ? windPerUur(selTrip, onderwegGusts) : [];   // wind en vlagen onderweg, voor de WEER-hero
+  const onderwegUren = selTrip ? windPerUur(selTrip, onderwegGusts, weerOp) : [];   // wind en vlagen onderweg, voor de WEER-hero
 
   // Startstand: laatst gebruikte havens zolang ze <48u geleden gebruikt zijn, anders het
   // startvenster. Daarna wordt elke havenstand bewaard (ook dat verlengt de termijn).
@@ -53,14 +53,17 @@ export default function Page() {
 
   // routekiezer: schakelaar VERTREK/AANKOMST boven ROUTE en VAARPLAN (en in de topbalk);
   // elk vlak opent de havenkiezer van die kant
+  // Een nieuwe vertrekhaven wacht tot ook de aankomsthaven gekozen is: pas dan wordt de tocht (opnieuw) berekend.
+  const [wachtVan, setWachtVan] = useState<string | null>(null);
   const maakRouteChip = (className?: string) => (
-    <RouteKiezer className={className} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}
-      varianten={routeVarianten} variant={routeIdx} onVariant={chooseRoute}>
-      {(kant, sluit) => kant === "van" ? (
-        <HavenSelector value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={(h) => { chooseFrom(h); sluit(); }}
+    <RouteKiezer className={className} van={wachtVan ? naamOf(wachtVan) : endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}
+      varianten={routeVarianten} variant={routeIdx} onVariant={chooseRoute} onOmruil={keerOm} onSluit={() => setWachtVan(null)}>
+      {(kant, sluit, open) => kant === "van" ? (
+        <HavenSelector value={wachtVan ?? fromHaven} options={vanOptions} naamOf={naamOf} onSelect={(h) => { setWachtVan(h); open("naar"); }}
           stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
       ) : (
-        <HavenSelector value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={(h) => { chooseTo(h); sluit(); }}
+        <HavenSelector value={toHaven} options={wachtVan ? allHavens.filter((h) => h !== wachtVan) : naarOptions} naamOf={naamOf}
+          onSelect={(h) => { if (wachtVan) kiesHavens(wachtVan, h); else chooseTo(h); sluit(); }}
           stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
       )}
     </RouteKiezer>

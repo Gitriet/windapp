@@ -1,4 +1,4 @@
-// WEER & GETIJ: welke gecorrigeerde uren horen bij de gekozen dag. Vandaag = vanaf nu
+// WIND & GETIJ: welke gecorrigeerde uren horen bij de gekozen dag. Vandaag = vanaf nu
 // (de reeks begint bij het huidige uur); een andere dag = vanaf DAG_START_UUR lokaal.
 // Leeg venster = de dag valt buiten de gecorrigeerde uurreeks (~3 dagen).
 import type { CorrectedPoint } from "./types";

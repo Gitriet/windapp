@@ -1,4 +1,4 @@
-// WEER & GETIJ / VAARPLAN: pure afleidingen: datumbereik, dagstrip en de
+// WIND & GETIJ / VAARPLAN: pure afleidingen: datumbereik, dagstrip en de
 // 24-uurs stroomkromme. Client-safe. Datums zijn lokale kalenderdagen "YYYY-MM-DD"
 // (Europe/Amsterdam); rekenen op datums gebeurt in UTC-middag zodat zomertijd niet stoort.
 import { localDateISO, localMidnight } from "./tz";

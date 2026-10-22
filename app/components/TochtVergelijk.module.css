@@ -1,4 +1,4 @@
-/* Vertrek en aankomst naast elkaar (hero van WEER & GETIJ TOCHT). */
+/* Vertrek en aankomst naast elkaar (hero van WIND & GETIJ). */
 .vergelijk { display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-8); background: var(--fill-faint); }   /* gevuld: de hoofdkaart, de rest is omlijnd */
 .kolommen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); }
 .deel { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }

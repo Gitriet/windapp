@@ -5,7 +5,7 @@
 // zonder tussenstops = de hele tocht). Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
 import { useId, useMemo, useState } from "react";
 import { localDateISO, localHM } from "@/lib/tz";
-import { dirLabel16, fmtDuurKort, sailPhrase, tijdblok, windErnst, windErnstChip, vlaagErnstChip, knBereik } from "@/lib/format";
+import { aankomstLabel, dirLabel16, fmtDuurKort, sailPhrase, windErnst, windErnstChip, vlaagErnstChip, knBereik } from "@/lib/format";
 import {
   effectLabel, etappes, letOp, windPiek,
   type Etappe, type EtappeLeg, type GustSample, type ViaHaven, type WaveSample,
@@ -97,7 +97,7 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
   return (
     <>
       <div>
-        <div className={s.tijdblok}>{tijdblok(depMs, trip.arrMs)}</div>
+        <div className={s.tijdblok}><span className={s.tijdLabel}>VERTREK</span> {localHM(depMs)} → <span className={s.tijdLabel}>ETA</span> {trip.arrMs != null ? aankomstLabel(depMs, trip.arrMs) : "—"}</div>
         <div className={s.sub}>{dag}{anyStroom && trip.arrMs ? ` · ${effectLabel(trip.effectMin)}` : ""}</div>
       </div>
       <div className={s.kpis}>

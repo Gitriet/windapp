@@ -3,6 +3,7 @@
   font-family: var(--font-num); font-size: var(--fs-time); font-weight: var(--fw-num);
   letter-spacing: var(--ls-tijdblok); color: var(--parchment); white-space: nowrap;
 }
+.tijdLabel { font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); }   /* VERTREK / ETA kleiner dan de tijden */
 .sub { margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--slate); }
 .sectie {
   margin-bottom: var(--sp-4);

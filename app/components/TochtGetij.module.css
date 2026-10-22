@@ -1,4 +1,4 @@
-/* Getij van vertrek- en aankomsthaven in één grafiek (WEER & GETIJ TOCHT). */
+/* Getij van vertrek- en aankomsthaven in één grafiek (WIND & GETIJ). */
 .wrap { display: flex; flex-direction: column; gap: var(--sp-3); }
 .grafiek { display: flex; flex-direction: column; gap: var(--sp-2); }
 .grafiek + .grafiek { padding-top: var(--sp-4); border-top: var(--line) solid var(--hairline-soft); }
@@ -14,7 +14,6 @@
 .extTijd { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--haven-kleur); text-anchor: middle; }  /* SVG-eenheden, schaalt mee */
 .extCm { font-weight: var(--fw-label); fill: var(--slate); }
 .ankerLijn { stroke: var(--slate); stroke-width: var(--line); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-.ankerLabel { font-family: var(--font-num); font-size: 8px; font-weight: var(--fw-num); fill: var(--slate); }
 .ankerStip { fill: var(--ink); stroke: var(--haven-kleur); stroke-width: var(--kromme-markering); }
 .as { display: flex; justify-content: space-between; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .standLabel { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--haven-kleur); }

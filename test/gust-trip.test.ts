@@ -1,5 +1,5 @@
 // gustsOnTrip() (lib/tocht.ts): vlagen per positie en tijd, geen maximum over alle stations.
-import { gustsOnTrip, etappes, letOp, windPerUur, type EtappeLeg } from "../lib/tocht";
+import { gustsOnTrip, etappes, letOp, windPerUur, bundelUren, type EtappeLeg } from "../lib/tocht";
 import type { SimResult, SimStep } from "../lib/tripsim";
 
 let fail = 0;
@@ -46,3 +46,11 @@ ok("windPerUur: uren 13:00, 14:00 en 15:00", wu.length === 3 && wu[0].time === "
 ok("windPerUur: gemiddelde wind en hardste vlaag per uur", Math.round(wu[0].speed_kn) === 10 && wu[0].gust_kn > 20 && wu[2].gust_kn > wu[1].gust_kn && wu[1].gust_kn > wu[0].gust_kn, JSON.stringify(wu.map((x) => Math.round(x.gust_kn))));
 
 if (fail) process.exit(1);
+
+// bundelUren: lange reeks samengevoegd tot hooguit max staven
+const lang = Array.from({ length: 41 }, (_, i) => ({ time: new Date(Date.UTC(2026, 9, 22, 10 + i)).toISOString().slice(0, 16), speed_kn: 10 + (i % 3), gust_kn: 15 + i, dir_deg: i < 30 ? 350 : 10 }));
+const bu = bundelUren(lang, 14);
+ok("bundelUren: 41 uren worden 14 staven van 3 uur", bu.pts.length === 14 && bu.uurPerStaaf === 3, `${bu.pts.length} / ${bu.uurPerStaaf}`);
+ok("bundelUren: hardste vlaag, begintijd en gemiddelde wind per blok", bu.pts[0].gust_kn === 17 && bu.pts[0].time === lang[0].time && Math.round(bu.pts[0].speed_kn) === 11, JSON.stringify(bu.pts[0]));
+ok("bundelUren: richting rond noord blijft noord (vectorgemiddelde)", bu.pts[13].dir_deg < 20 || bu.pts[13].dir_deg > 340, String(bu.pts[13].dir_deg));
+ok("bundelUren: korte reeks blijft ongewijzigd", bundelUren(lang.slice(0, 12), 14).pts.length === 12 && bundelUren(lang.slice(0, 12), 14).uurPerStaaf === 1);

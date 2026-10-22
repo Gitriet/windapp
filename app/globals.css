@@ -68,6 +68,7 @@
   --sp-11: 32px;
   --sp-12: 36px;
   --gutter: 20px;
+  --wissel: 36px;        /* omruilknop op de naad van de routekiezer */
   --tap: 48px;           /* minimale tapvlak én minimale rij-/tegelhoogte */
   --tabbar-space: 72px;  /* tabbar boven de inset (10 + 48) + 14 lucht; inset komt er apart bij */
   --tabbar-pad-bottom: 18px;
@@ -203,14 +204,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell-top-chip, .shell-top-tijd { display: none; }
 
 /* mobiel (< 768px): merkbalk + routekiezer blijven bovenaan staan bij scrollen. De
-   routekiezer staat dan in de topbalk (niet per scherm); op WEER & GETIJ niet, daar
+   routekiezer staat dan in de topbalk (niet per scherm); op WIND & GETIJ niet, daar
    staat de havenschakelaar van het scherm zelf. */
 @media (max-width: 767px) {
   .shell-top { position: sticky; top: 0; z-index: 20; flex-wrap: wrap; background: var(--ink); padding-bottom: var(--sp-6); }
   .shell-top-chip { display: block; order: 1; width: 100%; margin-top: var(--sp-5); }
   .shell[data-tab="weertocht"] .shell-top-chip { display: none; }
   .chip-route { display: none; }
-  /* schermeigen kop (havenschakelaar WEER & GETIJ) blijft direct onder de merkbalk staan;
+  /* schermeigen kop (havenschakelaar WIND & GETIJ) blijft direct onder de merkbalk staan;
      dekkend vlak + inkt-band eronder, zodat scrollende inhoud er niet doorheen schijnt */
   .shell .scherm-kop {   /* .shell: wint van .schakelaar, die verderop staat */
     position: sticky; top: var(--shell-top-h, 0px); z-index: 19;
@@ -237,7 +238,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .shell-tab[aria-current="page"] .shell-tab-dot { background: var(--parchment); border-color: var(--parchment); }
 
 /* schakelaar VERTREK / AANKOMST: één omlijnd vlak met twee standen; gevuld = gekozen
-   (WEER & GETIJ) of open (routekiezer). Gedeeld door beide. */
+   (WIND & GETIJ) of open (routekiezer). Gedeeld door beide. */
 /* toegankelijkheidsstip van een haven (havenkiezer, VAARPLAN) */
 .toegang-stip { display: inline-block; flex-shrink: 0; width: var(--sp-4); height: var(--sp-4); border-radius: 50%; }
 .toegang-stip[data-toegang="vrij"] { background: var(--sea-green); }
@@ -250,6 +251,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); padding: var(--sp-1);
   border: var(--line) solid var(--hairline-strong); border-radius: var(--radius-sm); background: var(--fill-faint);
 }
+/* omruilknop: een rondje midden op de naad tussen VERTREK en AANKOMST, over beide vlakken heen */
+.schakelaar-omruil { position: relative; }
+.schakelaar-wissel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1;
+  display: flex; align-items: center; justify-content: center; width: var(--wissel); height: var(--wissel); border-radius: 50%;
+  background: var(--ink); border: var(--line) solid var(--hairline-strong); color: var(--slate);
+  transition: color var(--dur-hover), border-color var(--dur-hover);
+}
+.schakelaar-wissel:hover { color: var(--parchment); border-color: var(--hairline-hover); }
 /* routekeuze onder VERTREK/AANKOMST: één stand per redelijke route (--kolommen) */
 .schakelaar-route { grid-template-columns: repeat(var(--kolommen, 2), minmax(0, 1fr)); margin-top: var(--sp-2); }
 .schakelaar-route .schakelaar-naam { white-space: normal; text-align: center; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

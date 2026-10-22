@@ -1,4 +1,4 @@
-/* WEER & GETIJ TOCHT — havenschakelaar en het blok met weer en getij op het vertrek-/ETA-moment. */
+/* WIND & GETIJ — havenschakelaar en het blok met weer en getij op het vertrek-/ETA-moment. */
 .sectie {
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);

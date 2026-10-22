@@ -68,8 +68,9 @@ function maakKeten(slugs: string[], nb: Buren, havenOf: Map<string, RouteHaven>)
 // niet verbonden). fromHaven === toHaven → null (geen tocht).
 // Een tussenhaven (geen knooppunt, niet het doel) kost HAVEN_STRAF extra bij de keuze van het pad: doorgaand
 // verkeer neemt liever het knooppunt (kruispunt) dan een haven in te varen, ook als dat iets langer is.
-// totalNm blijft de echte lengte.
-export const HAVEN_STRAF_NM = 1;
+// totalNm blijft de echte lengte. De 0,01 voorkomt een exacte gelijkstand tussen een pad via een haven en een
+// via knooppunten: bij gelijk gewicht hangt de keuze anders af van de richting, en heen en terug verschillen dan.
+export const HAVEN_STRAF_NM = 1.01;
 export function shortestPath(routes: RouteInfo[], fromHaven: string, toHaven: string): ChainedRoute | null {
   if (!fromHaven || !toHaven || fromHaven === toHaven || !routes.length) return null;
 
