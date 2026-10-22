@@ -45,3 +45,9 @@ export function aankomstLabel(depMs: number, arrMs: number): string {
 export function tijdblok(depMs: number, arrMs: number | null): string {
   return `${localHM(depMs)} → ${arrMs != null ? aankomstLabel(depMs, arrMs) : "—"}`;
 }
+
+// Getijhoogte in cm met teken: "+115", "−28" (echt minteken, zoals op de rasteras), "0".
+export function signedCm(v: number): string {
+  const r = Math.round(v);
+  return r > 0 ? `+${r}` : r < 0 ? `\u2212${Math.abs(r)}` : "0";
+}

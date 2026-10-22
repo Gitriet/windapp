@@ -12,7 +12,7 @@ import {
 import { bearing, routeDistanceNm, gladLijn } from "@/lib/route";
 import { alternatieveKetens, ketenNaam } from "@/lib/netwerk-path";
 import {
-  pickBest, pickVensters, vertrekVenster, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
+  pickBest, pickVensters, vertrekVenster, gustsOnTrip, type StationPos, type DepOption, type EtappeLeg, type ViaHaven, type GustSample, type WaveSample, type RouteMeta,
 } from "@/lib/tocht";
 import type { TideData } from "@/lib/types";
 import { heeftToegangsmodel } from "@/lib/gates";
@@ -272,10 +272,20 @@ export function useTocht(boat: BoatProfile) {
   }, [chain, legCurrents]);
 
   // vlagen van alle stations langs de route (voor de harde-wind-check) + weer bij vertrek
-  const routeGusts = useMemo<GustSample[]>(
+  const stationGusts = useMemo<GustSample[]>(
     () => Object.entries(routeFc).flatMap(([key, f]) => f.points.map((p) => ({ ms: tms(p.time), gustKn: p.gust_kn, key }))),
     [routeFc],
   );
+  // stations langs de route met hun positie (nm vanaf vertrek), zoals de sim ze voor de wind gebruikt
+  const stationPos = useMemo<StationPos[]>(() => {
+    let nm = 0;
+    return waypoints.map((w, i) => {
+      if (i > 0) nm += chain ? chain.legs[i - 1].route.lengte_nm : routeDistNm ?? 0;
+      return { key: w.location_key, nm };
+    });
+  }, [waypoints, chain, routeDistNm]);
+  // vlagen van de boot langs een gekozen vertrek (positie- en tijdsgebonden)
+  const gustsVoor = useMemo(() => (trip: SimResult) => gustsOnTrip(trip, stationPos, stationGusts), [stationPos, stationGusts]);
   // golfhoogte per station (Open-Meteo Marine; landpunt = geen samples) voor de etappes
   const routeWaves = useMemo<WaveSample[]>(
     () => Object.entries(routeFc).flatMap(([key, f]) => (f.weather?.time ?? []).flatMap((t, i) => {
@@ -291,7 +301,7 @@ export function useTocht(boat: BoatProfile) {
     chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
-    routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur,
+    gustsVoor, routeWaves, vanWeather, etappeLegs, horizonUur,
     routeTide, routeTideNaar, ready: !!routeWind, nowMs, err,
   };
 }

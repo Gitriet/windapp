@@ -26,7 +26,7 @@ export default function Page() {
     fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, chainHavens, routeLijn, routeVarianten, routeIdx, chooseRoute, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
-    routeTide, routeTideNaar, routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur, ready, nowMs,
+    routeTide, routeTideNaar, gustsVoor, routeWaves, vanWeather, etappeLegs, horizonUur, ready, nowMs,
   } = tocht;
   const vanData = useHaven(endpoints?.van ?? null);
   const naarData = useHaven(endpoints?.naar ?? null);
@@ -81,7 +81,7 @@ export default function Page() {
           ready={ready} fout={!!err} nowMs={nowMs} best={bestOption} venster={venster} vensters={vensters} firstDepMs={firstDepMs} horizonUur={horizonUur}
           nuOptie={depOptions[0]?.depMs === firstDepMs ? depOptions[0] : null}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial} distanceNm={routeDistNm} depMs={depMs} selTrip={selTrip}
-          routeBearing={routeBearing} routeTide={routeTide} routeGusts={routeGusts} vanWeather={vanWeather}
+          routeBearing={routeBearing} routeTide={routeTide} gustsVoor={gustsVoor} vanWeather={vanWeather}
           onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>
     ),
@@ -97,7 +97,7 @@ export default function Page() {
         {maakRouteChip("chip-route chip-vaarplan")}
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
-          distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts} waves={routeWaves}
+          distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gustsVoor={gustsVoor} waves={routeWaves}
           fromTide={routeTide} toTide={routeTideNaar} via={viaHavens} boat={boat}
           anyStroom={routeMeta.stroomComplete || routeMeta.stroomPartial}
           punten={chainHavens} lijn={routeLijn} />

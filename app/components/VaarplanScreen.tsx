@@ -7,7 +7,7 @@ import { useId, useMemo, useState } from "react";
 import { localDateISO, localHM } from "@/lib/tz";
 import { dirLabel16, fmtDuurKort, sailPhrase, tijdblok } from "@/lib/format";
 import {
-  effectLabel, etappes, letOp,
+  effectLabel, etappes, letOp, windPiek,
   type Etappe, type EtappeLeg, type GustSample, type ViaHaven, type WaveSample,
 } from "@/lib/tocht";
 import { gladReeks, rasterWaarden, stroomFasen } from "@/lib/grafiek";
@@ -47,7 +47,7 @@ export interface VaarplanScreenProps {
   distanceNm: number | null;
   bearingDeg: number | null;
   legs: EtappeLeg[];
-  gusts: GustSample[];
+  gustsVoor: (trip: SimResult) => GustSample[];
   waves: WaveSample[];
   fromTide: TideData | null;
   toTide: TideData | null;                // getij bij de aankomsthaven (alleen havens met toegangsmodel)
@@ -73,12 +73,12 @@ export default function VaarplanScreen(p: VaarplanScreenProps) {
 }
 
 function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: RouteHaven; to: RouteHaven }) {
-  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gusts, waves, fromTide, toTide, via, boat, anyStroom } = p;
+  const { trip, depMs, from, to, distanceNm, bearingDeg, legs, gustsVoor, waves, fromTide, toTide, via, boat, anyStroom } = p;
+  const gusts = useMemo(() => gustsVoor(trip), [gustsVoor, trip]);
   const et = useMemo(() => etappes(trip, legs, gusts, waves), [trip, legs, gusts, waves]);
   const [selRaw, setSel] = useState(0);
   const sel = Math.min(selRaw, Math.max(0, et.length - 1));   // nieuwe route met minder etappes
   const warn = letOp(trip, bearingDeg ?? 0, gusts);
-  const maxAbs = Math.max(0.3, ...et.flatMap((e) => e.segmenten.map(Math.abs)));
   const dag = localDateISO(depMs) === localDateISO(Date.now()) ? "vandaag"
     : new Intl.DateTimeFormat("nl-NL", { weekday: "long", timeZone: "Europe/Amsterdam" }).format(depMs);
 
@@ -124,19 +124,11 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
                 <span className={s.etappeNaam}>{e.label}</span>
                 <span className={s.etappeNm}>{komma(e.distNm)}&nbsp;NM</span>
               </div>
-              {e.segmenten.length ? (
-                <div className={s.balken} role="img" aria-label={`stroom langs ${e.label}`}>
-                  {e.segmenten.map((c, i) => (
-                    <div key={i} className={s.balk} data-mee={c >= 0 ? "" : undefined}
-                      style={{ height: `${Math.max(20, Math.round((Math.abs(c) / maxAbs) * 100))}%` }} />
-                  ))}
-                  {e.kenteringFrac != null && <div className={s.kentering} style={{ left: `${e.kenteringFrac * 100}%` }} />}
-                </div>
-              ) : <div className={s.noot}>zonder stroomdata</div>}
+              {!e.segmenten.length && <div className={s.noot}>zonder stroomdata</div>}
               {e.windDir != null && e.windKn != null && (
                 <div className={s.wind}>
                   <WindArrow dir={e.windDir} />
-                  <span className={s.windKn}>{dirLabel16(e.windDir)}&nbsp;{Math.round(e.windKn)}&nbsp;KN</span>
+                  <span className={s.windKn}>GEM.&nbsp;{dirLabel16(e.windDir)}&nbsp;{Math.round(e.windKn)}&nbsp;KN</span>
                   {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN <span className={s.windKn}>{Math.round(e.vlaagKn)}&nbsp;KN</span></span>}
                   {e.golfM != null && <span className={s.vlaag}>GOLF <span className={s.windKn}>{komma(e.golfM)}&nbsp;M</span></span>}
                 </div>
@@ -327,7 +319,7 @@ function TijdAs({ van, tot, dagweergave, inset = 0 }: { van: number; tot: number
   return (
     <div className={s.as} style={inset ? { paddingLeft: `${(inset / W) * 100}%` } : undefined}>
       {dagweergave ? <><span>00:00</span><span>12:00</span><span>24:00</span></>
-        : [van, (van + tot) / 2, tot].map((ms) => <span key={ms}>{asLabel(ms)}</span>)}
+        : [van, (van + tot) / 2, tot].map((ms) => <span key={ms}>{asLabel(ms, localDateISO(van) !== localDateISO(tot))}</span>)}
     </div>
   );
 }
@@ -342,12 +334,12 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
   const van = depMs, tot = Math.max(eind, depMs + 1);   // eigen tijdas: precies de vaartijd
   const pts = steps.filter((q) => q.tMs >= depMs && q.tMs <= eind);
   if (pts.length < 2) return null;
-  const gl = gladReeks(pts.map((q) => ({ ms: q.tMs, v: q.wSpd })), van, tot);
-  const rast = rasterWaarden(0, Math.max(10, ...gl.map((q) => q.v)), 3);
+  const { gl, top } = windPiek(steps, depMs, arrMs);
+  if (!top) return null;
+  const rast = rasterWaarden(0, Math.max(10, top.v, ...gl.map((q) => q.v)), 3);
   const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
   const y = (v: number) => WH - WPAD - (v / rast.top) * (WH - WPAD - WLBL);
   const lijn = gl.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
-  const top = gl.reduce((m, q) => (q.v > m.v ? q : m), gl[0]);
   const eerste = gl[0], laatste = gl[gl.length - 1];
   // hardste vlaag binnen de vaartijd (uurwaarden van de stations langs de route; vanaf het uur van vertrek)
   const vlagen = gusts.filter((g) => g.ms >= Math.floor(depMs / H) * H && g.ms <= eind);
@@ -437,9 +429,9 @@ function SnelheidTegel({ steps, depMs, arrMs, distanceNm }: { steps: SimStep[]; 
 const W = 300, HG = 116, PAD = 6, LBL = 12;
 const kn = (v: number) => Math.abs(v).toFixed(1).replace(".", ",");
 const labelX = (px: number) => Math.min(W - 34, Math.max(RASTER_GUT + 34, px));   // niet in de marge met rasterwaarden
-// aslabel bij een meeschuivend venster: dag erbij, want het loopt over middernacht
-const asLabel = (ms: number) =>
-  `${new Intl.DateTimeFormat("nl-NL", { weekday: "short", timeZone: "Europe/Amsterdam" }).format(ms).replace(".", "").toUpperCase()} ${localHM(ms)}`;
+// aslabel bij een meeschuivend venster: dag erbij alleen als de tocht over middernacht loopt
+const asLabel = (ms: number, metDag: boolean) =>
+  metDag ? `${new Intl.DateTimeFormat("nl-NL", { weekday: "short", timeZone: "Europe/Amsterdam" }).format(ms).replace(".", "").toUpperCase()} ${localHM(ms)}` : localHM(ms);
 function StroomKromme({ etappe, steps, progVan }: { etappe: Etappe; steps: SimStep[]; progVan: number }) {
   const st = etappe.stroom ? steps.filter((q) => q.prog >= progVan - 1e-9 && q.prog <= progVan + etappe.distNm + 1e-9) : [];
   // afvlakvenster groeit mee met de tocht: een tocht van een dag heeft een ruimer venster dan een van een uur

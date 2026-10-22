@@ -5,7 +5,8 @@ import type { RouteCurrent, RouteHaven } from "./planner-data";
 import type { WeatherSeries } from "./types";
 import { WARN } from "./constants";
 import { localHM } from "./tz";
-import { dirLabel16, sailPhrase } from "./format";
+import { dirLabel16, fmtDuurKort, sailPhrase } from "./format";
+import { gladReeks } from "./grafiek";
 
 const H = 3_600_000;
 const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -154,13 +155,43 @@ export function adviesState(best: DepOption | null, firstDepMs: number | null, a
 
 // Stroomeffect t.o.v. dezelfde tocht bij stilstaand water (tripsim.effectMin).
 export function effectLabel(effectMin: number): string {
-  if (effectMin < 0) return `${-effectMin}\u00A0min sneller dan bij stilstaand water`;
-  if (effectMin > 0) return `stroom tegen, ${effectMin}\u00A0min langer dan bij stilstaand water`;
+  if (effectMin < 0) return `${fmtDuurKort(-effectMin)} sneller dan bij stilstaand water`;
+  if (effectMin > 0) return `stroom tegen, ${fmtDuurKort(effectMin)} langer dan bij stilstaand water`;
   return "even snel als bij stilstaand water";
 }
 
 // Vlaag-sample van een station (uit de forecast-punten), voor de harde-wind-check.
-export type GustSample = { ms: number; gustKn: number; key?: string };   // key = station
+export type GustSample = { ms: number; gustKn: number; key?: string; prog?: number };   // key = station; prog = positie langs de route (nm) bij een positiegebonden sample
+// Station + positie langs de route (nm vanaf vertrek), zodat vlagen net als de sim-wind per positie
+// tussen de stations geïnterpoleerd kunnen worden.
+export type StationPos = { key: string; nm: number };
+
+// Vlag van de boot langs de tocht: per sim-stap (positie + tijd) lineair tussen de twee
+// omliggende stations (en per station tussen de uurwaarden). Zo telt een vlaag bij IJmuiden
+// niet mee terwijl je nog bij Den Helder vaart — hetzelfde principe als de sim-wind.
+export function gustsOnTrip(trip: SimResult, stations: StationPos[], gusts: GustSample[]): GustSample[] {
+  const perKey = new Map<string, GustSample[]>();
+  for (const g of gusts) if (g.key != null) perKey.set(g.key, [...(perKey.get(g.key) ?? []), g]);
+  perKey.forEach((a) => a.sort((x, y) => x.ms - y.ms));
+  const pos = stations.filter((p) => perKey.has(p.key)).sort((a, b) => a.nm - b.nm);
+  if (!pos.length) return [];
+  const at = (key: string, ms: number) => {
+    const a = perKey.get(key)!;
+    if (ms <= a[0].ms) return a[0].gustKn;
+    const i = a.findIndex((g) => g.ms >= ms);
+    if (i < 0) return a[a.length - 1].gustKn;
+    const f = a[i].ms === a[i - 1].ms ? 0 : (ms - a[i - 1].ms) / (a[i].ms - a[i - 1].ms);
+    return a[i - 1].gustKn + f * (a[i].gustKn - a[i - 1].gustKn);
+  };
+  const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
+  return body.map((st) => {
+    const lo = [...pos].reverse().find((p) => p.nm <= st.prog) ?? pos[0];
+    const hi = pos.find((p) => p.nm >= st.prog) ?? pos[pos.length - 1];
+    const f = hi.nm > lo.nm ? Math.min(1, Math.max(0, (st.prog - lo.nm) / (hi.nm - lo.nm))) : 0;
+    return { ms: st.tMs, gustKn: at(lo.key, st.tMs) * (1 - f) + at(hi.key, st.tMs) * f, prog: st.prog };
+  });
+}
+
 export type WaveSample = { ms: number; m: number; key: string };          // golfhoogte (m) per station
 
 // LET OP voor een gekozen venster: harde wind (maximum over alle stappen van de tocht
@@ -199,6 +230,18 @@ export function stroomVerloop(r: SimResult, anyStroom: boolean): StroomVerloop {
   return { kind: mee ? "mee" : "tegen", totMs: kent ? r.kentMs : null };
 }
 
+// Windverloop langs de tocht (afgevlakt, voor de lijn) plus de hardste echte sim-stap. Eén bron
+// voor de windgrafiek (VAARPLAN) én de uitlegzin (ROUTE): beide noemen dezelfde piek, niet
+// de afgevlakte (die zou een korte piek lager en later tonen).
+export function windPiek(steps: SimStep[], depMs: number, arrMs: number | null): { gl: { ms: number; v: number }[]; top: { ms: number; v: number } | null } {
+  const eind = arrMs ?? depMs;
+  const pts = steps.filter((q) => q.tMs >= depMs && q.tMs <= eind);
+  if (pts.length < 2) return { gl: [], top: null };
+  const gl = gladReeks(pts.map((q) => ({ ms: q.tMs, v: q.wSpd })), depMs, Math.max(eind, depMs + 1));
+  const top = pts.reduce((m, q) => (q.wSpd > m.wSpd ? q : m), pts[0]);
+  return { gl, top: { ms: top.tMs, v: top.wSpd } };
+}
+
 // Uitlegzin: stroom + wind uit de sim-stappen van een vertrek. Voor het beste vertrek met
 // de slotzin waarom het het beste is; voor een ander gekozen vertrek zonder die claim.
 export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true, horizonUur?: number): string | null {
@@ -221,10 +264,10 @@ export function adviesUitleg(b: SimResult, anyStroom: boolean, isBeste = true, h
   }
   // zin 1: wind bij vertrek en zeilhoek; zin 2: hoe de wind onderweg verloopt
   const start = `wind uit ${dirLabel16(s0.wDir)} ${Math.round(s0.wSpd)}\u00A0kn, je vaart ${sailPhrase(s0.twa)}`;
-  const sMax = body.reduce((m, s) => (s.wSpd > m.wSpd ? s : m), body[0]);
+  const piek = windPiek(b.steps, b.departMs, b.arrMs).top;
   const verschil = (d: number) => Math.abs(((d - s0.wDir + 540) % 360) - 180);
   const sDraai = body.find((s) => verschil(s.wDir) >= 40);
-  const op = sMax.wSpd - s0.wSpd >= 4 ? `loopt de wind op tot ${Math.round(sMax.wSpd)}\u00A0kn rond ${localHM(sMax.tMs)}` : null;
+  const op = piek && piek.v - s0.wSpd >= 4 ? `loopt de wind op tot ${Math.round(piek.v)}\u00A0kn rond ${localHM(piek.ms)}` : null;
   const draai = sDraai ? `draait ${op ? "hij" : "de wind"} rond ${localHM(sDraai.tMs)} naar ${dirLabel16(sDraai.wDir)}` : null;
   const verloop = [op, draai].filter(Boolean).join(" en ") || "blijft de wind vrijwel gelijk";
   const windStr = `${cap(start)}. Onderweg ${verloop}`;
@@ -273,7 +316,8 @@ export function etappes(trip: SimResult, legs: EtappeLeg[], gusts: GustSample[],
     const windDir = st.length ? ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360 : null;
     const windKn = st.length ? spd / st.length : null;
     const t0 = st.length ? Math.floor(st[0].tMs / H) * H : 0, t1 = st.length ? st[st.length - 1].tMs : 0;
-    const vl = gusts.filter((g) => g.key != null && leg.keys.includes(g.key) && g.ms >= t0 && g.ms <= t1).map((g) => g.gustKn);
+    const vl = gusts.filter((g) => g.ms >= t0 && g.ms <= t1
+      && (g.prog != null ? g.prog >= van - 1e-9 && g.prog <= tot + 1e-9 : g.key != null && leg.keys.includes(g.key))).map((g) => g.gustKn);
     const gf = waves.filter((w) => leg.keys.includes(w.key) && w.ms >= t0 && w.ms <= t1).map((w) => w.m);
     return {
       label: leg.label, distNm: leg.distNm, stroom: leg.stroom, segmenten: leg.stroom ? segmenten : [],

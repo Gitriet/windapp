@@ -1,5 +1,5 @@
 // Tijdblok-formatter (lib/format.ts) en advies-titel (lib/tocht.ts).
-import { aankomstLabel, fmtDuurKort, tijdblok } from "../lib/format";
+import { aankomstLabel, fmtDuurKort, signedCm, tijdblok } from "../lib/format";
 import { adviesTitel } from "../lib/tocht";
 
 let fail = 0;
@@ -32,4 +32,10 @@ ok("GA NU met LET OP → BESTE VERTREK", adviesTitel("ga-nu", dep, true) === "BE
 ok("VERTREK blijft VERTREK", adviesTitel("vertrek", dep, true) === "VERTREK 14:30");
 ok("GEEN VENSTER", adviesTitel("geen-venster", null, false) === "GEEN VENSTER");
 
+// signedCm: echt minteken (U+2212), zoals op de rasteras
+ok("signedCm +", signedCm(74.4) === "+74");
+ok("signedCm −", signedCm(-27.6) === "\u221228");
+ok("signedCm 0", signedCm(0.2) === "0");
+
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
+

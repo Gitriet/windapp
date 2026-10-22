@@ -6,6 +6,7 @@
 // Alleen presentatie.
 import { useState } from "react";
 import { localHM, localDateISO, localMidnight } from "@/lib/tz";
+import { signedCm } from "@/lib/format";
 import { addDays, binnenBereik, datumBereik, stripDagen } from "@/lib/getij";
 import type { ForecastResponse, RouteHaven, WeekResponse } from "@/lib/planner-data";
 import type { TideData, TidePoint } from "@/lib/types";
@@ -100,10 +101,7 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
           <div className={s.nu}>
             <NuScreen fc={hd.fc} naam={haven.naam} dag={{ date: gekozen, day: hd.week.days.find((w) => w.date === gekozen) }} vandaag={vandaag} />
           </div>
-          <div>
-            <div className={`${s.sectie} ${s.kop}`}>GETIJ · {haven.naam}</div>
-            <GetijDag dag={gekozen} tide={hd.tide ?? null} />
-          </div>
+          <GetijDag naam={haven.naam} dag={gekozen} tide={hd.tide ?? null} />
         </>
       )}
     </>
@@ -111,10 +109,11 @@ export default function WeerGetijScreen({ nowMs, havens, data }: WeerGetijScreen
 }
 
 // Getij van de gekozen dag: de getijcurve met HW/LW (tijd + hoogte) in de grafiek.
-function GetijDag({ dag, tide }: { dag: string; tide: TideData | null }) {
+function GetijDag({ naam, dag, tide }: { naam: string; dag: string; tide: TideData | null }) {
   const ext = (tide?.extremes ?? []).filter((e) => localDateISO(tms(e.t)) === dag);
   return (
     <div className={`card ${s.blok}`}>
+      <div className={s.sectie}>GETIJ · {naam} · CM</div>
       {!tide ? <div className={s.noot}>geen getijstation voor deze haven</div>
         : !ext.length && <div className={s.noot}>geen getijdata voor deze dag</div>}
       {tide && <GetijKromme tide={tide} dag={dag} />}
@@ -145,7 +144,7 @@ function GetijKromme({ tide, dag }: { tide: TideData; dag: string }) {
           <g key={e.ms}>
             <circle cx={x(e.ms)} cy={y(e.v)} r={3.5} className={s.stipExt} />
             <text x={Math.min(W - 26, Math.max(RASTER_GUT + 26, x(e.ms)))} y={e.hw ? y(e.v) - 7 : y(e.v) + 14} className={s.extTijd}>
-              {localHM(e.ms)} <tspan className={s.extCm}>{e.v > 0 ? "+" : ""}{Math.round(e.v)}</tspan>
+              <tspan className={s.extCm}>{signedCm(e.v)}</tspan> · {localHM(e.ms)}
             </text>
           </g>
         ))}

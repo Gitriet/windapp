@@ -60,7 +60,7 @@ export interface RouteScreenProps {
   selTrip: SimResult | null;          // het gekozen vertrek (voor de uitlegzin)
   routeBearing: number | null;
   routeTide: TideData | null;
-  routeGusts: GustSample[];
+  gustsVoor: (trip: SimResult) => GustSample[];
   vanWeather: WeatherSeries | null;
   onSelect: (depMs: number) => void; // vertrek kiezen (blijft op ROUTE)
   onOpenVaarplan: () => void;        // naar VAARPLAN met het gekozen vertrek
@@ -81,7 +81,7 @@ export default function RouteScreen(p: RouteScreenProps) {
   );
 }
 
-function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, routeGusts, vanWeather, onOpenVaarplan }: RouteScreenProps) {
+function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUur, anyStroom, nowMs, routeBearing, routeTide, gustsVoor, vanWeather, onOpenVaarplan }: RouteScreenProps) {
   const kind = adviesState(best, firstDepMs, anyStroom);
   const r = best?.result ?? null;
   // een ander vertrek gekozen (uit de lijst): de hele kaart toont dat vertrek; anders het beste
@@ -103,7 +103,7 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
   const s0 = rShow?.steps[0];
   const verloop = rShow ? stroomVerloop(rShow, anyStroom) : null;
   const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= depShow) : undefined;
-  const warn = rShow ? letOp(rShow, routeBearing ?? 0, routeGusts) : null;
+  const warn = rShow ? letOp(rShow, routeBearing ?? 0, gustsVoor(rShow)) : null;
   const letOpActief = !!(warn?.hardWind || warn?.windTegenStroom);
   const uitleg = gekozen ? adviesUitleg(gekozen, anyStroom, false) : r ? adviesUitleg(r, anyStroom, true, horizonUur) : null;
   const wx = best ? weatherAt(vanWeather, depShow) : null;
@@ -126,7 +126,7 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
       </div>
       {rShow && s0 && (
         <div className={s.chips}>
-          <span className={`${s.chip} ${s.chipWind}`}><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)}&nbsp;{Math.round(s0.wSpd)}&nbsp;KN</span>
+          <span className={`${s.chip} ${s.chipWind}`} title="wind bij vertrek"><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)}&nbsp;{Math.round(s0.wSpd)}&nbsp;KN</span>
           <span className={`${s.chip} ${s.chipWind}`}><WindHoekIcon rel={s0.wDir - s0.course} />{sailPhrase(s0.twa).toUpperCase()}</span>
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
           {verloop && "totMs" in verloop && !(verloop.kind === "mee" && rShow.effectMin > 0) && (
@@ -145,7 +145,7 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
           <WxIcon code={wx.code} size={18} />
           <span className={s.weerTemp}>{Math.round(wx.temp)}°C</span>
           <span className={s.weerTekst}>
-            · {wxLabel(wx.code)}{wx.precip != null ? ` · ${wx.precip > 0 ? `${wx.precip.toFixed(1).replace(".", ",")} mm neerslag` : "geen neerslag"}` : ""}
+            · {wxLabel(wx.code)}{wx.precip != null ? ` · ${wx.precip > 0 ? `${wx.precip.toFixed(1).replace(".", ",")} mm neerslag` : "geen neerslag"}` : ""} · bij vertrek
           </span>
         </div>
       )}

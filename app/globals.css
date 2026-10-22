@@ -95,7 +95,6 @@
   --kromme-markering: 1.5px;  /* rand van de kenteringstip in de stroomkromme */
   --kromme-buiten: 0.3;       /* stroomkromme buiten de vaartijd (gedimd) */
   --ls-tijdblok: -0.4px;
-  --balk-h: 16px;        /* stroombalkjes per etappe */
   --etappe-gap: var(--sp-3);
   --compact-label: 56px;
   --fade-h: 40px;        /* fade onderaan een scrollend paneel */

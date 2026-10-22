@@ -9,7 +9,7 @@
 .maandRij { display: flex; align-items: center; gap: var(--sp-3); }
 .maand {
   flex: 1; text-align: center;
-  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-kop); color: var(--slate);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate);
 }
 /* tapvlak --tap breed en --sp-11 hoog (compacte rij), 22px zichtbaar vierkant */
 .nav { width: var(--tap); height: var(--sp-11); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--slate); }
@@ -39,7 +39,7 @@
 .kop { display: block; margin-bottom: var(--sp-4); }
 
 /* gekozen dag: weerregel, live wind, en onderaan het getij (HW/LW + curve) */
-.blok { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-5) var(--sp-4); }
+.blok { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-6); }
 .nu { display: flex; flex-direction: column; gap: var(--sp-7); }
 
 .krommeWrap { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
