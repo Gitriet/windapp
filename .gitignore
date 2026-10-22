@@ -6,3 +6,4 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 kust-bron/
+__pycache__/

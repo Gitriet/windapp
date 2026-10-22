@@ -10,8 +10,7 @@ import {
   effectLabel, etappes, letOp,
   type Etappe, type EtappeLeg, type GustSample, type ViaHaven, type WaveSample,
 } from "@/lib/tocht";
-import { krommeKenteringen } from "@/lib/getij";
-import { gladReeks, rasterWaarden } from "@/lib/grafiek";
+import { gladReeks, rasterWaarden, stroomFasen } from "@/lib/grafiek";
 import { toegangsVensters } from "@/lib/gates";
 import type { SimResult, SimStep } from "@/lib/tripsim";
 import type { RouteHaven } from "@/lib/planner-data";
@@ -441,22 +440,11 @@ const labelX = (px: number) => Math.min(W - 34, Math.max(RASTER_GUT + 34, px)); 
 // aslabel bij een meeschuivend venster: dag erbij, want het loopt over middernacht
 const asLabel = (ms: number) =>
   `${new Intl.DateTimeFormat("nl-NL", { weekday: "short", timeZone: "Europe/Amsterdam" }).format(ms).replace(".", "").toUpperCase()} ${localHM(ms)}`;
-// Per getijfase (zelfde teken) alleen het sterkste punt: de stroom op de boot springt op de etappegrenzen
-// (eigen getijfase per been), en dat geeft anders kleine schijnpieken. Fases onder 0,15 kn krijgen geen label.
-function faseTop(seg: { ms: number; v: number }[]): { ms: number; v: number; soort: "mee" | "tegen" }[] {
-  const out: { ms: number; v: number; soort: "mee" | "tegen" }[] = [];
-  let top: { ms: number; v: number } | null = null;
-  const sluit = () => { if (top && Math.abs(top.v) >= 0.15) out.push({ ...top, soort: top.v > 0 ? "mee" : "tegen" }); top = null; };
-  seg.forEach((q, i) => {
-    if (i && (q.v >= 0) !== (seg[i - 1].v >= 0)) sluit();
-    if (!top || Math.abs(q.v) > Math.abs(top.v)) top = q;
-  });
-  sluit();
-  return out;
-}
 function StroomKromme({ etappe, steps, progVan }: { etappe: Etappe; steps: SimStep[]; progVan: number }) {
   const st = etappe.stroom ? steps.filter((q) => q.prog >= progVan - 1e-9 && q.prog <= progVan + etappe.distNm + 1e-9) : [];
-  const seg = st.length > 1 ? gladReeks(st.map((q) => ({ ms: q.tMs, v: q.cur })), st[0].tMs, st[st.length - 1].tMs) : [];
+  // afvlakvenster groeit mee met de tocht: een tocht van een dag heeft een ruimer venster dan een van een uur
+  const trajectMs = st.length > 1 ? st[st.length - 1].tMs - st[0].tMs : 0;
+  const seg = st.length > 1 ? gladReeks(st.map((q) => ({ ms: q.tMs, v: q.cur })), st[0].tMs, st[st.length - 1].tMs, Math.min(3 * H, Math.max(H, trajectMs / 16))) : [];
   const segs = seg.length > 1 ? [seg] : [];
   const van = seg[0]?.ms ?? 0, tot = seg[seg.length - 1]?.ms ?? 1;
   const nu = Date.now();
@@ -465,7 +453,7 @@ function StroomKromme({ etappe, steps, progVan }: { etappe: Etappe; steps: SimSt
   const maxAbs = Math.max(rast.top, -rast.bodem);   // schaal = buitenste rasterlijn
   const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
   const y = (v: number) => HG / 2 - (v / maxAbs) * (HG / 2 - PAD - LBL);
-  const kenteringen = segs.flatMap(krommeKenteringen);
+  const { pieken, kenteringen } = stroomFasen(seg);   // alleen de belangrijke fases krijgen een label
   // lijn boven de nullijn = mee (groen), eronder = tegen (oker): dezelfde lijn twee keer, geknipt
   const clip = useId().replace(/:/g, "");
   return (
@@ -491,13 +479,15 @@ function StroomKromme({ etappe, steps, progVan }: { etappe: Etappe; steps: SimSt
           {nu > van && nu < tot && (
             <line x1={x(nu)} x2={x(nu)} y1={0} y2={HG} className={s.nuLijn} />
           )}
-          {segs.flatMap(faseTop).map((q) => (
+          {pieken.map((q, i) => (
             <g key={q.ms}>
               <circle cx={x(q.ms)} cy={y(q.v)} r={4} className={q.soort === "mee" ? s.piekMee : s.piekTegen} />
-              <text x={labelX(x(q.ms))} y={q.soort === "mee" ? y(q.v) - 8 : y(q.v) + 15}
+              {/* labels van dezelfde kant die elkaar raken: alleen het sterkste (bij gelijk het eerste) */}
+              {!pieken.some((r, j) => j !== i && r.soort === q.soort && Math.abs(labelX(x(r.ms)) - labelX(x(q.ms))) < 50
+                && (Math.abs(r.v) > Math.abs(q.v) || (Math.abs(r.v) === Math.abs(q.v) && j < i))) && <text x={labelX(x(q.ms))} y={q.soort === "mee" ? y(q.v) - 8 : y(q.v) + 15}
                 className={`${s.krommeLabel} ${q.soort === "mee" ? s.labelMee : s.labelTegen}`}>
                 {kn(q.v)} kn · {localHM(q.ms)}
-              </text>
+              </text>}
             </g>
           ))}
           {/* tijd rechts van de kentering aan de kant waar de lijn niet loopt; aan de rechterrand

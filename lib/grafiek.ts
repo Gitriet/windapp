@@ -26,3 +26,44 @@ export function rasterWaarden(lo: number, hi: number, maxLijnen = 4): { stap: nu
   for (let v = -stap; v >= bodem - 1e-9; v -= stap) waarden.push(Math.round(v * 1e6) / 1e6);
   return { stap, waarden: waarden.sort((a, b) => b - a), top, bodem };
 }
+
+// Getijfases van een stroomreeks (kn, >0 mee) voor labels: een piek per fase en een kentering tussen fases.
+// Kleine wisselingen (een fase met een piek onder max(minPiek, relMin × sterkste) of korter dan minDuur)
+// tellen niet mee: ze worden in de omliggende fase opgenomen, zodat een lange tocht niet vol labels staat.
+export type StroomFase = { sign: 1 | -1; i0: number; i1: number };
+export function stroomFasen(seg: { ms: number; v: number }[], minPiek = 0.25, relMin = 0.2, minDuurMs = 45 * 60_000): {
+  pieken: { ms: number; v: number; soort: "mee" | "tegen" }[];
+  kenteringen: { ms: number; naarMee: boolean }[];
+} {
+  if (seg.length < 2) return { pieken: [], kenteringen: [] };
+  const sterkste = Math.max(...seg.map((q) => Math.abs(q.v)));
+  const drempel = Math.max(minPiek, relMin * sterkste);
+  let fasen: StroomFase[] = [];
+  seg.forEach((q, i) => {
+    const sign = q.v >= 0 ? 1 : -1, l = fasen[fasen.length - 1];
+    if (l && l.sign === sign) l.i1 = i; else fasen.push({ sign, i0: i, i1: i });
+  });
+  const piek = (f: StroomFase) => Math.max(...seg.slice(f.i0, f.i1 + 1).map((q) => Math.abs(q.v)));
+  const duur = (f: StroomFase) => seg[f.i1].ms - seg[f.i0].ms;
+  const klein = (f: StroomFase) => piek(f) < drempel || duur(f) < minDuurMs;
+  for (let k = fasen.findIndex(klein); k >= 0 && fasen.length > 1; k = fasen.findIndex(klein)) {
+    const f = fasen[k], v = fasen[k - 1], n = fasen[k + 1];
+    if (v && n) fasen = [...fasen.slice(0, k - 1), { sign: v.sign, i0: v.i0, i1: n.i1 }, ...fasen.slice(k + 2)];
+    else if (v) fasen = [...fasen.slice(0, k - 1), { ...v, i1: f.i1 }];
+    else fasen = [{ ...n, i0: f.i0 }, ...fasen.slice(2)];
+  }
+  const pieken = fasen.flatMap((f) => {
+    const top = seg.slice(f.i0, f.i1 + 1).reduce((m, q) => (Math.abs(q.v) > Math.abs(m.v) ? q : m));
+    return Math.abs(top.v) >= drempel ? [{ ms: top.ms, v: top.v, soort: (f.sign > 0 ? "mee" : "tegen") as "mee" | "tegen" }] : [];
+  });
+  // kentering tussen twee fases: de laatste nulpassage vóór de piek van de volgende fase, in die richting
+  const kenteringen = fasen.slice(1).flatMap((f, k) => {
+    const naarMee = f.sign > 0;
+    for (let i = f.i0; i > fasen[k].i0; i--) {
+      const a = seg[i - 1], b = seg[i];
+      if (a.v * b.v < 0 && (b.v > 0) === naarMee) return [{ ms: a.ms + (a.v / (a.v - b.v)) * (b.ms - a.ms), naarMee }];
+    }
+    return [];
+  });
+  return { pieken, kenteringen };
+}
