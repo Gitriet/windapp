@@ -119,6 +119,14 @@ export function useTocht(boat: BoatProfile) {
     setDepMs(null);
   };
 
+  // Beide havens in één keer (startstand uit opslag); geen omdraai-logica nodig.
+  const kiesHavens = (van: string, naar: string) => {
+    setFromHaven(van);
+    setToHaven(naar);
+    setRouteIdx(0);
+    setDepMs(null);
+  };
+
   // ── tochtdata bij tochtwissel ── wind per distinct station, stroom per been (teken
   // al gecorrigeerd in fetchRouteCurrent), getij bij de vertrekhaven via het eigen station.
   useEffect(() => {
@@ -280,7 +288,7 @@ export function useTocht(boat: BoatProfile) {
 
 
   return {
-    chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
+    chainHavens: chain?.havens ?? [], routeLijn, fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, routeVarianten, routeIdx, chooseRoute, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm, routeMeta, viaHavens,
     depMs, setDepMs, depOptions, bestOption, venster, vensters, selTrip, firstDepMs: candidates[0] ?? null,
     routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur,

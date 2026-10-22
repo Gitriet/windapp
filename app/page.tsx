@@ -1,7 +1,7 @@
 "use client";
 // Tidan — drie schermen (ROUTE · WEER & GETIJ · VAARPLAN) in één schil. Data en logica
 // leven in app/use-tocht.ts (useTocht, useHaven) en lib/; dit bestand verbindt alleen.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import HavenSelector from "./components/HavenSelector";
 import RouteScreen from "./components/RouteScreen";
 import WeerGetijScreen from "./components/WeerGetijScreen";
@@ -9,6 +9,9 @@ import VaarplanScreen from "./components/VaarplanScreen";
 import { useTocht, useHaven } from "./use-tocht";
 import { useBoot } from "./use-boot";
 import BootPaneel from "./components/BootPaneel";
+import StartKiezer from "./components/StartKiezer";
+import { useStartHavens } from "./use-start-haven";
+import { geldigeStart } from "@/lib/start-haven";
 import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
 import { TopBar, TabBar, RouteKiezer, ScreenPanel } from "./components/Shell";
@@ -20,7 +23,7 @@ export default function Page() {
   const tocht = useTocht(boat);
   const [tab, setTab] = useScreenTab();
   const {
-    fromHaven, toHaven, chooseFrom, chooseTo, naamOf, vanOptions, naarOptions,
+    fromHaven, toHaven, chooseFrom, chooseTo, kiesHavens, allHavens, naamOf, vanOptions, naarOptions,
     endpoints, routeBearing, routeDistNm,
     routeMeta, viaHavens, chainHavens, routeLijn, routeVarianten, routeIdx, chooseRoute, depMs, setDepMs, depOptions, bestOption, venster, vensters, firstDepMs, selTrip,
     routeTide, routeTideNaar, routeGusts, routeWaves, vanWeather, etappeLegs, horizonUur, ready, nowMs,
@@ -29,6 +32,20 @@ export default function Page() {
   const naarData = useHaven(endpoints?.naar ?? null);
   const err = tocht.err ?? vanData.err ?? naarData.err;
   useVertrekUrl(depMs, setDepMs, depOptions);
+
+  // Startstand: laatst gebruikte havens zolang ze <48u geleden gebruikt zijn, anders het
+  // startvenster. Daarna wordt elke havenstand bewaard (ook dat verlengt de termijn).
+  const { opgeslagen, bewaar } = useStartHavens();
+  const [startFase, setStartFase] = useState<"init" | "vraag" | "klaar">("init");
+  useEffect(() => {
+    if (startFase !== "init" || opgeslagen === undefined || !allHavens.length) return;
+    const s = geldigeStart(opgeslagen, Date.now(), allHavens);
+    if (s) kiesHavens(s.van, s.naar);
+    setStartFase(s ? "klaar" : "vraag");
+  }, [startFase, opgeslagen, allHavens]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (startFase === "klaar" && fromHaven && toHaven) bewaar(fromHaven, toHaven);
+  }, [startFase, fromHaven, toHaven, bewaar]);
 
   // routekiezer: schakelaar VERTREK/AANKOMST boven ROUTE en VAARPLAN (en in de topbalk);
   // elk vlak opent de havenkiezer van die kant
@@ -43,6 +60,18 @@ export default function Page() {
           stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
       )}
     </RouteKiezer>
+  );
+  const startVenster = (
+    <StartKiezer open={startFase === "vraag"} van={endpoints?.van.naam ?? "…"} naar={endpoints?.naar.naam ?? "…"}
+      onKlaar={() => setStartFase("klaar")}>
+      {(kant, volgende) => kant === "van" ? (
+        <HavenSelector value={fromHaven} options={vanOptions} naamOf={naamOf} onSelect={(h) => { chooseFrom(h); volgende(); }}
+          stationKey={endpoints?.van.key ?? null} bootDiepgang={boat.draftM} />
+      ) : (
+        <HavenSelector value={toHaven} options={naarOptions} naamOf={naamOf} onSelect={chooseTo}
+          stationKey={endpoints?.naar.key ?? null} bootDiepgang={boat.draftM} />
+      )}
+    </StartKiezer>
   );
   const content: Record<ScreenId, React.ReactNode> = {
     route: (
@@ -65,7 +94,7 @@ export default function Page() {
     ),
     vaarplan: (
       <>
-        {maakRouteChip("chip-route")}
+        {maakRouteChip("chip-route chip-vaarplan")}
         <VaarplanScreen
           ready={ready} depMs={depMs} trip={selTrip} from={endpoints?.van ?? null} to={endpoints?.naar ?? null}
           distanceNm={routeDistNm} bearingDeg={routeBearing} legs={etappeLegs} gusts={routeGusts} waves={routeWaves}
@@ -79,6 +108,7 @@ export default function Page() {
   return (
     <div className="shell" data-tab={tab}>
       <TopBar chip={maakRouteChip()} bijgewerkt={nowMs ? localHM(nowMs) : null} onMenu={() => setBootOpen(true)} />
+      {startVenster}
       <BootPaneel open={bootOpen} onClose={() => setBootOpen(false)} boat={boat} setBoat={setBoat} />
       {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
       <main className="shell-screens">
