@@ -192,7 +192,7 @@ export async function buildHavenTide(havenSlug: string): Promise<TideData | null
 
 async function buildTideForStation(code: string, name: string): Promise<TideData | null> {
   const now = Date.now();
-  const begin = now - 3600000;
+  const begin = now - DAY;                        // vandaag moet vanaf 00:00 getekend kunnen worden (dagcurve WEER & GETIJ)
   // the last day-tab (za) reaches into the 4th day ahead, so the visible slice +
   // extrema must cover 4 days — not just the 3-day (3d) overview window.
   const end = now + 4 * DAY + 3600000;

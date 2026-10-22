@@ -297,7 +297,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); letter-spacing: var(--ls-label); color: var(--parchment);
   }
 }
-/* Chartplotter (≥1400px): vaste topbalk met de enige routechip; drie panelen die elk
+/* Chartplotter (≥1400px): vaste topbalk; drie panelen die elk
    zelf scrollen binnen 100dvh, met een sticky kop en een fade zolang er inhoud onder zit. */
 @media (min-width: 1400px) {
   .shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -309,14 +309,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     border-bottom: var(--line) solid var(--hairline-soft);
   }
   .shell-brand { font-size: var(--fs-merk); letter-spacing: var(--ls-merk); color: var(--parchment); }
-  /* chip vooraan, exact boven de ROUTE-kolom: zelfde padding als .shell-screens, dus 1 van 3 kolommen */
-  .shell-top-chip { display: block; order: -1; width: calc((100% - 2 * var(--sp-10)) / 3); }
+  /* geen chip in de topbalk: de routekiezer staat in het ROUTE-paneel zelf (.chip-route); VAARPLAN staat ernaast en heeft hem niet nodig */
+  .chip-vaarplan { display: none; }
   .shell-top-klok { font-size: var(--fs-title); }
   .shell-top-tijd {
     display: block;
     font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--slate); white-space: nowrap;
   }
-  .chip-route { display: none; }
 
   .shell-screens {
     flex: 1; min-height: 0;
