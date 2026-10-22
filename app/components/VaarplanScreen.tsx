@@ -5,7 +5,7 @@
 // zonder tussenstops = de hele tocht). Geen nieuwe berekeningen: alles uit SimResult, stroom, haveninfo en getij.
 import { useId, useMemo, useState } from "react";
 import { localDateISO, localHM } from "@/lib/tz";
-import { dirLabel16, fmtDuurKort, sailPhrase, tijdblok } from "@/lib/format";
+import { dirLabel16, fmtDuurKort, sailPhrase, tijdblok, windErnst, windErnstChip, vlaagErnstChip, knBereik } from "@/lib/format";
 import {
   effectLabel, etappes, letOp, windPiek,
   type Etappe, type EtappeLeg, type GustSample, type ViaHaven, type WaveSample,
@@ -107,7 +107,8 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
       </div>
       {(warn.hardWind || warn.windTegenStroom || poorten.some((g) => !g.open)) && (
         <div className={s.chips}>
-          {warn.hardWind && <span className={s.letOp}>LET OP · HARDE WIND</span>}
+          {warn.ernstWind !== "rustig" && <span className={s.letOp} data-ernst={warn.ernstWind}>{windErnstChip(warn.ernstWind)}</span>}
+          {warn.ernstVlaag !== "rustig" && <span className={s.letOp} data-ernst={warn.ernstVlaag}>{vlaagErnstChip(warn.minVlaagKn, warn.maxVlaagKn)}</span>}
           {warn.windTegenStroom && <span className={s.letOp}>LET OP · WIND TEGEN STROOM</span>}
           {poorten.filter((g) => !g.open).map((g) => <span key={g.rol} className={s.letOp}>LET OP · HAVEN {g.rol} DICHT BIJ {g.rol === "VERTREK" ? "VERTREK" : "ETA"}</span>)}
         </div>
@@ -129,7 +130,7 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
                 <div className={s.wind}>
                   <WindArrow dir={e.windDir} />
                   <span className={s.windKn}>GEM.&nbsp;{dirLabel16(e.windDir)}&nbsp;{Math.round(e.windKn)}&nbsp;KN</span>
-                  {e.vlaagKn != null && <span className={s.vlaag}>VLAGEN <span className={s.windKn}>{Math.round(e.vlaagKn)}&nbsp;KN</span></span>}
+                  {e.vlaagKn != null && <span className={s.vlaag} data-ernst={windErnst(null, e.vlaagKn)}>VLAGEN <span className={s.windKn}>{Math.round(e.vlaagKn)}&nbsp;KN</span></span>}
                   {e.golfM != null && <span className={s.vlaag}>GOLF <span className={s.windKn}>{komma(e.golfM)}&nbsp;M</span></span>}
                 </div>
               )}
@@ -140,7 +141,7 @@ function Plan(p: VaarplanScreenProps & { trip: SimResult; depMs: number; from: R
 
       {et[sel] && <StroomKromme etappe={et[sel]} steps={trip.steps} progVan={et.slice(0, sel).reduce((a, e) => a + e.distNm, 0)} />}
       {et[sel] && <WindTegel steps={trip.steps} gusts={gusts} depMs={depMs} arrMs={trip.arrMs} />}
-      {et[sel] && <SnelheidTegel steps={trip.steps} depMs={depMs} arrMs={trip.arrMs} distanceNm={distanceNm} />}
+      {et[sel] && <SnelheidTegel steps={trip.steps} depMs={depMs} arrMs={trip.arrMs} />}
 
       <div>
         <div className={s.sectie}>HAVENINFO</div>
@@ -328,7 +329,7 @@ function TijdAs({ van, tot, dagweergave, inset = 0 }: { van: number; tot: number
 // eronder de windhoek t.o.v. de boot: per zeilhoek-stuk (aan de wind / halve wind / ruime wind /
 // voor de wind) een vak met het icoon (boot, ring, bolletje = waar de wind de boot raakt).
 // Eigen tijdas = de vaartijd (vertrek–aankomst); de data zijn de sim-stappen van het gekozen vertrek.
-const WH = 56, WPAD = 4, WLBL = 12, BAND_Y = 64, BAND_H = 26, WTOT = BAND_Y + BAND_H;
+const WH = 64, WPAD = 4, WLBL = 12, BAND_Y = 72, BAND_H = 26, WTOT = BAND_Y + BAND_H;
 function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: GustSample[]; depMs: number; arrMs: number | null }) {
   const eind = arrMs ?? depMs;
   const van = depMs, tot = Math.max(eind, depMs + 1);   // eigen tijdas: precies de vaartijd
@@ -336,16 +337,25 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
   if (pts.length < 2) return null;
   const { gl, top } = windPiek(steps, depMs, arrMs);
   if (!top) return null;
-  const rast = rasterWaarden(0, Math.max(10, top.v, ...gl.map((q) => q.v)), 3);
+  // vlagen langs de boot (positie- en tijdsgebonden, zie gustsOnTrip), afgevlakt zoals de wind
+  const vlagen = gusts.filter((g) => g.ms >= depMs && g.ms <= eind);
+  const gg = gladReeks(vlagen.map((g) => ({ ms: g.ms, v: g.gustKn })), van, tot);
+  const vlaagTop = gg.length ? gg.reduce((m, q) => (q.v > m.v ? q : m), gg[0]) : null;
+  const rast = rasterWaarden(0, Math.max(10, top.v, ...gl.map((q) => q.v), ...gg.map((q) => q.v)), 3);
   const x = (ms: number) => RASTER_GUT + ((Math.min(tot, Math.max(van, ms)) - van) / (tot - van)) * (W - RASTER_GUT);
   const y = (v: number) => WH - WPAD - (v / rast.top) * (WH - WPAD - WLBL);
   const lijn = gl.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
   const eerste = gl[0], laatste = gl[gl.length - 1];
-  // hardste vlaag binnen de vaartijd (uurwaarden van de stations langs de route; vanaf het uur van vertrek)
-  const vlagen = gusts.filter((g) => g.ms >= Math.floor(depMs / H) * H && g.ms <= eind);
-  const vlaag = vlagen.length ? vlagen.reduce((m, g) => (g.gustKn > m.gustKn ? g : m)) : null;
-  // beginlabel boven het hoogste punt van de lijn onder het label, zodat de lijn er niet doorheen loopt
-  const startLabelY = Math.min(...gl.filter((q) => x(q.ms) <= x(eerste.ms) + 30).map((q) => y(q.v)));
+  const gLijn = gg.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
+  // windlabel onder de lijn (erboven loopt de vlagenlijn)
+  const onder = (v: number) => Math.min(y(v) + 11, WH - 2);
+  // band tussen wind en vlagen: hoe ver de vlagen boven de gemiddelde wind uitsteken
+  const band = gLijn.length === lijn.length ? [...gLijn, ...[...lijn].reverse()].join(" ") : null;
+  // bereik voor de legenda: wind uit de sim-stappen, vlagen uit de positiegebonden samples
+  const windRange = knBereik(pts.map((q) => q.wSpd));
+  const vlaagRange = vlagen.length ? knBereik(vlagen.map((g) => g.gustKn)) : null;
+  const maxVlaag = vlagen.length ? Math.max(...vlagen.map((g) => g.gustKn)) : 0;
+  const vlaagErnst = windErnst(null, maxVlaag);
   // zeilhoek-stukken: opeenvolgende stappen met dezelfde omschrijving
   const stukken: { fraseer: string; van: number; tot: number; stappen: SimStep[] }[] = [];
   pts.forEach((q, i) => {
@@ -355,17 +365,17 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
     else stukken.push({ fraseer, van: q.tMs, tot: t1, stappen: [q] });
   });
   return (
-    <div className={`card ${s.krommeKaart}`}>
+    <div className={`card ${s.krommeKaart}`} data-vlaag={vlaagErnst}>
       <div className={s.sectie}>WIND ONDERWEG · KN</div>
       <svg className={s.kromme} viewBox={`0 0 ${W} ${WTOT}`} role="img" aria-label="windsnelheid en windhoek langs de route">
         <Raster waarden={rast.waarden} y={y} x1={W} />
         <polygon className={s.windVlak} points={`${x(eerste.ms).toFixed(1)},${WH - WPAD} ${lijn.join(" ")} ${x(laatste.ms).toFixed(1)},${WH - WPAD}`} />
+        {band && <polygon className={s.windBand} points={band} />}
+        {gLijn.length > 1 && <polyline className={s.windVlaagLijn} points={gLijn.join(" ")} />}
+        {vlaagTop && <text x={labelX(x(vlaagTop.ms))} y={y(vlaagTop.v) - 4} className={`${s.windLabel} ${s.windLabelVlaag}`}>{Math.round(vlaagTop.v)} kn · {localHM(vlaagTop.ms)}</text>}
         <polyline className={s.windLijn} points={lijn.join(" ")} />
         <circle cx={x(top.ms)} cy={y(top.v)} r={3} className={s.windStipRand} />
-        <text x={labelX(x(top.ms))} y={y(top.v) - 6} className={s.windLabel}>{Math.round(top.v)} kn · {localHM(top.ms)}</text>
-        {x(top.ms) - x(eerste.ms) > 70 && (
-          <text x={x(eerste.ms) + 4} y={startLabelY - 5} className={`${s.windLabel} ${s.windLabelStart}`}>{Math.round(eerste.v)} kn</text>
-        )}
+        <text x={labelX(x(top.ms))} y={onder(top.v)} className={s.windLabel}>{Math.round(top.v)} kn · {localHM(top.ms)}</text>
         {stukken.map((st, i) => {
           const x0 = x(st.van), x1 = x(st.tot), breed = x1 - x0, midX = (x0 + x1) / 2;
           const icoon = breed >= 22, mid_ = st.stappen[Math.floor(st.stappen.length / 2)];
@@ -378,7 +388,10 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
         })}
       </svg>
       <TijdAs van={van} tot={tot} dagweergave={false} inset={RASTER_GUT} />
-      {vlaag && <div className={s.windVlagen}>Vlagen tot {Math.round(vlaag.gustKn)}&nbsp;kn rond {localHM(vlaag.ms)}</div>}
+      <div className={s.legenda}>
+        <span><span className={`${s.stip} ${s.stipWind}`} />WIND {windRange}&nbsp;KN</span>
+        {vlaagRange && <span><span className={`${s.stip} ${s.stipVlaag}`} />VLAGEN {vlaagRange}&nbsp;KN</span>}
+      </div>
     </div>
   );
 }
@@ -388,7 +401,7 @@ function WindTegel({ steps, gusts, depMs, arrMs }: { steps: SimStep[]; gusts: Gu
 // op de etappegrenzen), met een subtiel raster en de snelheden in een smalle marge links. Hoogste
 // snelheid als label boven de lijn; gemiddelde en laagste eronder als tekst (nooit een label over de lijn).
 const SH = 70;
-function SnelheidTegel({ steps, depMs, arrMs, distanceNm }: { steps: SimStep[]; depMs: number; arrMs: number | null; distanceNm: number | null }) {
+function SnelheidTegel({ steps, depMs, arrMs }: { steps: SimStep[]; depMs: number; arrMs: number | null }) {
   const eind = arrMs ?? depMs;
   const raw = steps.filter((q) => q.tMs >= depMs && q.tMs <= eind);
   if (raw.length < 2) return null;
@@ -401,7 +414,7 @@ function SnelheidTegel({ steps, depMs, arrMs, distanceNm }: { steps: SimStep[]; 
   const lijn = pts.map((q) => `${x(q.ms).toFixed(1)},${y(q.v).toFixed(1)}`);
   const top = pts.reduce((m, q) => (q.v > m.v ? q : m), pts[0]);
   const laag = pts.reduce((m, q) => (q.v < m.v ? q : m), pts[0]);
-  const gem = distanceNm != null && arrMs ? distanceNm / ((arrMs - depMs) / H) : null;
+  const toonLaag = top.ms !== laag.ms && top.v - laag.v >= 0.2;   // bij een vlakke snelheid geen tweede label
   return (
     <div className={`card ${s.krommeKaart}`}>
       <div className={s.sectie}>SNELHEID ONDERWEG · KN</div>
@@ -411,11 +424,14 @@ function SnelheidTegel({ steps, depMs, arrMs, distanceNm }: { steps: SimStep[]; 
         <polyline className={s.snelLijn} points={lijn.join(" ")} />
         <circle cx={x(top.ms)} cy={y(top.v)} r={3} className={s.snelStip} />
         <text x={labelX(x(top.ms))} y={y(top.v) - 6} className={s.snelLabel}>{kn(top.v)} kn · {localHM(top.ms)}</text>
+        {toonLaag && (
+          <>
+            <circle cx={x(laag.ms)} cy={y(laag.v)} r={3} className={s.snelStip} />
+            <text x={labelX(x(laag.ms))} y={Math.min(y(laag.v) + 12, SH - 2)} className={s.snelLabel}>{kn(laag.v)} kn · {localHM(laag.ms)}</text>
+          </>
+        )}
       </svg>
       <TijdAs van={van} tot={tot} dagweergave={false} inset={RASTER_GUT} />
-      <div className={s.snelTekst}>
-        {gem != null && <>Gemiddeld {kn(gem)}&nbsp;kn · </>}laagst {kn(laag.v)}&nbsp;kn rond {localHM(laag.ms)}
-      </div>
     </div>
   );
 }

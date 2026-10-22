@@ -22,6 +22,8 @@
   background: var(--ochre-fill); border: var(--line) solid var(--ochre-line); color: var(--ochre);
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); white-space: nowrap;
 }
+/* harde wind rood, zoals in ROUTE */
+.letOp[data-ernst="hard"] { background: var(--rood-fill); color: var(--rood); border-color: color-mix(in srgb, var(--rood) 45%, transparent); }
 /* zelfde compacte chip als in ROUTE (RouteScreen.module.css) */
 @media (min-width: 768px) {
   .letOp { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-caption); }
@@ -36,7 +38,9 @@
 .wind { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-7); color: var(--ochre); }
 .windKn { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
 .vlaag { display: inline-flex; align-items: baseline; gap: var(--sp-2); font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); white-space: nowrap; }
-.vlaag .windKn { letter-spacing: 0; }
+.vlaag .windKn { letter-spacing: 0; font-size: var(--fs-label); }   /* vlaag kleiner dan de wind */
+.vlaag[data-ernst="let-op"], .vlaag[data-ernst="let-op"] .windKn { color: var(--ochre); }
+.vlaag[data-ernst="hard"], .vlaag[data-ernst="hard"] .windKn { color: var(--rood); }
 
 .haven { padding: var(--row-pad); }
 .havenNaam { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; min-width: 0; }
@@ -73,16 +77,20 @@
 .hoekVak { fill: var(--fill-faint); }
 .hoekIcoon { color: var(--ochre-text); }
 .windLijn { fill: none; stroke: var(--ochre); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
-.windVlagen { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--ochre-text); }
 .windVlak { fill: var(--ochre-fill); }
+.windBand { fill: var(--vlaag-vlak); stroke: none; }
+/* vlagenkleur naar ernst (drempels: WIND_ERNST in lib/constants.ts, via windErnst()): rustig, let op, hard */
+.krommeKaart[data-vlaag="rustig"] { --vlaag: var(--slate); --vlaag-vlak: var(--fill-faint); }
+.krommeKaart[data-vlaag="let-op"] { --vlaag: var(--ochre-text); --vlaag-vlak: var(--ochre-fill); }
+.krommeKaart[data-vlaag="hard"] { --vlaag: var(--rood); --vlaag-vlak: var(--rood-fill); }
+.windVlaagLijn { fill: none; stroke: var(--vlaag); stroke-width: var(--line); stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
 .windStipRand { fill: var(--ochre); }
 .windLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--ochre-text); text-anchor: middle; }
 .snelLijn { fill: none; stroke: var(--parchment); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
-.snelTekst { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); }
 .snelVlak { fill: var(--fill-faint); }
 .snelStip { fill: var(--parchment); }
 .snelLabel { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--parchment); text-anchor: middle; }
-.windLabelStart { text-anchor: start; }
+.windLabelVlaag { font-weight: var(--fw-label); fill: var(--vlaag); }
 .lijnTegen { stroke: var(--ochre); }
 .as, .legenda { display: flex; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
 .as { justify-content: space-between; }
@@ -93,6 +101,8 @@
 .stip.piekTegen { background: var(--ochre); }
 .stip.stipKentering { background: var(--ink); border: var(--kromme-markering) solid var(--parchment); }
 .stip.stipVertrek { width: var(--line); border-radius: 0; background: var(--hairline-hover); }
+.stip.stipWind { width: var(--sp-7); height: var(--kromme-lijn); border-radius: var(--sp-1); background: var(--ochre); }
+.stip.stipVlaag { width: var(--sp-7); height: 0; border-radius: 0; border-top: var(--line) dashed var(--vlaag); }
 .stip.stipNu { width: 0; border-radius: 0; border-left: var(--line) dashed var(--parchment); }
 
 /* routekaartje op echte kaarttegels */

@@ -1,0 +1,31 @@
+/* Uurstrook van één haven (maten uit screenshots/02-nu.png en 05-desktop.png). */
+.sectie {
+  margin-bottom: var(--sp-4);
+  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate);
+}
+.uren { padding: var(--sp-6); }
+.staven { display: flex; align-items: flex-end; gap: var(--tab-gap); height: var(--staaf-h); }
+.staaf {
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--sp-1);
+  --kleur: var(--parchment);
+}
+.staaf[data-verdict="fris"] { --kleur: var(--wind-fris); }
+/* wind en balk volgen alleen de wind (nooit rood); rood is voorbehouden aan de vlaaggetallen */
+.staaf[data-verdict="letop"], .staaf[data-verdict="hard"] { --kleur: var(--ochre); }
+.staaf[data-buiten] .balk { opacity: var(--staaf-rust); }
+.vlaag { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-num); color: var(--slate); }
+.vlaag[data-ernst="let-op"] { color: var(--ochre); }
+.vlaag[data-ernst="hard"] { color: var(--rood); }
+.kn { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--kleur); }
+.pijl { display: flex; color: var(--slate-dim); }
+.balk { width: 100%; border-radius: var(--radius-xs); background: var(--kleur); }
+.as { display: flex; justify-content: space-between; margin-top: var(--sp-2); font-family: var(--font-num); font-size: var(--fs-caption); color: var(--slate); }
+
+/* mobiel: alleen de even uren */
+@media (max-width: 767px) {
+  .staaf[data-desktop] { display: none; }
+}
+@media (min-width: 768px) {
+  .staven { height: var(--staaf-h-desk); gap: var(--sp-1); }
+}

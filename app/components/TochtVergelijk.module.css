@@ -1,0 +1,33 @@
+/* Vertrek en aankomst naast elkaar (hero van WEER & GETIJ TOCHT). */
+.vergelijk { display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-8); background: var(--fill-faint); }   /* gevuld: de hoofdkaart, de rest is omlijnd */
+.kolommen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); }
+.deel { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.deel + .deel { padding-left: var(--sp-8); border-left: var(--line) solid var(--hairline-soft); }
+.rol { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); }
+.tijd { color: var(--parchment); }
+.haven { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); text-transform: uppercase; }
+.dot { display: inline-block; width: var(--sp-4); height: var(--sp-4); margin-right: var(--sp-3); border-radius: 50%; }   /* kleur = die van de haven in de getijgrafiek */
+.dotA { background: var(--haven-vertrek); }
+.dotB { background: var(--haven-aankomst); }
+.kn {
+  display: flex; align-items: baseline; gap: var(--sp-3);
+  font-family: var(--font-num); font-size: var(--fs-decision-desk); font-weight: var(--fw-num);
+  letter-spacing: var(--ls-kern); line-height: 1; color: var(--parchment); white-space: nowrap;
+}
+.eenheid { font-size: var(--fs-label); font-weight: var(--fw-num); letter-spacing: 0; color: var(--slate); }
+.vlaagRij { display: flex; align-items: baseline; gap: var(--sp-3); }
+.vlaag { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--slate); }
+.vlaag[data-ernst="let-op"] { color: var(--ochre); }
+.vlaag[data-ernst="hard"] { color: var(--rood); }
+.richting { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--ochre); }
+.context { font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--body); }
+.weer { display: flex; align-items: flex-start; gap: var(--sp-4); font-size: var(--fs-caption); line-height: var(--lh-text); color: var(--slate); }
+.weer > :first-child { flex: 0 0 auto; }
+
+.onderweg { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-6); padding-top: var(--sp-5); border-top: var(--line) solid var(--hairline-soft); }
+.onderwegLabel { font-family: var(--font-num); font-size: var(--fs-caption); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate); }
+.onderwegWind { font-family: var(--font-num); font-size: var(--fs-title); font-weight: var(--fw-num); color: var(--parchment); white-space: nowrap; }
+.onderwegWind .eenheid { margin-left: var(--sp-2); }
+.onderwegVlaag { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num); color: var(--slate); white-space: nowrap; }
+.onderwegVlaag[data-ernst="let-op"] { color: var(--ochre); }
+.onderwegVlaag[data-ernst="hard"] { color: var(--rood); }

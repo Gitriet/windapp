@@ -28,17 +28,15 @@ export const WEATHER_MODEL = "knmi_seamless";
 // is populated.
 export const WEEK_MODEL = "best_match";
 
-// Hard-wind thresholds — central config, never hardcoded in components. Used by
-// the 7-day card's warning triangle: amber from 6 bft (gust ≥28 kn), red from
-// 7 bft (gust ≥34 kn).
-export const WARN = {
-  hardWind: { amberKn: 22, amberGust: 28, redKn: 28, redGust: 34 },
+// Eén windstandaard voor de hele app (Beaufort). Gemiddelde wind: oker vanaf windkracht 6
+// (22 kn, "krachtig"), rood vanaf windkracht 7 (28 kn, "hard"). Vlagen liggen op zee 30–50%
+// boven het gemiddelde en tellen daarom één klasse zwaarder: oker vanaf 28 kn, rood vanaf
+// 34 kn (windkracht 8, "stormachtig"). Gebruikt door LET OP (letOp), de vlagenlijn in de
+// windgrafiek en het zeilverdict (lib/verdict.ts) — via windErnst() in lib/format.ts.
+export const WIND_ERNST = {
+  wind: { okerKn: 22, roodKn: 28 },
+  vlaag: { okerKn: 28, roodKn: 34 },
 };
-
-// Wind-strip under the wind chart's axis: green, turning red once the sustained
-// wind reaches this threshold (kn). A single green→red cutoff, separate from the
-// 7-day card's amber/red triangle.
-export const WINDBAR_RED_KN = 22;
 
 // Horizon-grenzen (uren vooruit) waarop de modelzekerheid verspringt en waarop de
 // 48u-windgrafiek in zones deelt: tot 24u betrouwbaar, 24–36u wisselend, daarna

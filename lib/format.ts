@@ -1,4 +1,5 @@
 import { localHM, localDateISO, localWeekdayShort } from "./tz";
+import { WIND_ERNST } from "./constants";
 // Small presentation helpers. Knots is the primary (and only) wind unit.
 
 export function fmtDay(iso: string): string {
@@ -20,6 +21,23 @@ export function sailPhrase(twa: number): string {
   const a = Math.abs(twa);
   return a < 45 ? "aan de wind" : a < 90 ? "halve wind" : a < 135 ? "ruime wind" : "voor de wind";
 }
+// Ernst van wind en/of vlagen volgens de ene windstandaard (WIND_ERNST): de zwaarste van de twee telt.
+// Op hele knopen afgerond, zoals getoond: twee uren met "28" in beeld krijgen dezelfde kleur.
+export type WindErnst = "rustig" | "let-op" | "hard";
+export function windErnst(windKn: number | null, vlaagKn: number | null = null): WindErnst {
+  const w = Math.round(windKn ?? 0), g = Math.round(vlaagKn ?? 0);
+  if (w >= WIND_ERNST.wind.roodKn || g >= WIND_ERNST.vlaag.roodKn) return "hard";
+  if (w >= WIND_ERNST.wind.okerKn || g >= WIND_ERNST.vlaag.okerKn) return "let-op";
+  return "rustig";
+}
+// Chiptekst bij een ernst (Beaufort-namen): krachtig = windkracht 6, hard = windkracht 7+.
+export const windErnstChip = (e: WindErnst) => (e === "hard" ? "LET OP · HARDE WIND" : "LET OP · KRACHTIGE WIND");
+// Bereik in hele knopen: "15–17", of "16" als begin en eind gelijk afronden.
+export function knBereik(waarden: number[]): string {
+  const lo = Math.round(Math.min(...waarden)), hi = Math.round(Math.max(...waarden));
+  return lo === hi ? `${lo}` : `${lo}\u2013${hi}`;
+}
+export const vlaagErnstChip = (minKn: number, maxKn: number) => `LET OP · VLAGEN ${knBereik([minKn, maxKn])}\u00A0KN`;
 // Windkracht-beschrijving bij het Beaufort-getal (0–12). Presentatielabel, geen databron.
 const BFT_LABEL = [
   "stil", "zwak", "zwak", "matig", "matig", "vrij krachtig", "krachtig",

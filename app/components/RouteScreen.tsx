@@ -2,10 +2,10 @@
 // ROUTE — beslisscherm: één advieskaart (5 toestanden) + alle vertrekvensters (48u).
 // Alleen presentatie; alle afleidingen komen uit lib/tocht.ts.
 import { localHM, localDateISO } from "@/lib/tz";
-import { aankomstLabel, dirLabel16, fmtDuurKort, sailPhrase, tijdblok } from "@/lib/format";
+import { aankomstLabel, dirLabel16, fmtDuurKort, sailPhrase, tijdblok, windErnstChip, vlaagErnstChip, knBereik } from "@/lib/format";
 import { wxLabel } from "@/lib/weather";
 import {
-  adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, pickSnelste, stroomVerloop, weatherAt,
+  adviesState, adviesTitel, adviesUitleg, effectLabel, letOp, pickSnelste, stroomVerloop, weatherAt, windOnderweg,
   type AdviesKind, type DepOption, type GustSample, type StroomVerloop,
 } from "@/lib/tocht";
 import type { TideData, WeatherSeries } from "@/lib/types";
@@ -101,6 +101,9 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
     : `${dagLabel(depShow, nowMs) ? `${dagLabel(depShow, nowMs)} · ` : ""}${effectLabel(rShow.effectMin)}`;
 
   const s0 = rShow?.steps[0];
+  // wind onderweg (hele tocht): gemiddelde richting en bereik, niet alleen bij vertrek
+  const wo = rShow ? windOnderweg(rShow, gustsVoor(rShow)) : null;
+  const windOnderwegChip = wo ? { dir: wo.dir, bereik: knBereik([wo.windMin, wo.windMax]) } : null;
   const verloop = rShow ? stroomVerloop(rShow, anyStroom) : null;
   const hw = best && routeTide ? routeTide.extremes.find((e) => e.kind === "HW" && tms(e.t) >= depShow) : undefined;
   const warn = rShow ? letOp(rShow, routeBearing ?? 0, gustsVoor(rShow)) : null;
@@ -124,9 +127,9 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
         <div className={s.sub}>{sub}</div>
         {bereik && <div className={s.sub}>Nog steeds gunstig tussen {localHM(bereik.vanMs)} en {localHM(bereik.totMs)}</div>}
       </div>
-      {rShow && s0 && (
+      {rShow && s0 && windOnderwegChip && (
         <div className={s.chips}>
-          <span className={`${s.chip} ${s.chipWind}`} title="wind bij vertrek"><WindArrow dir={s0.wDir} />{dirLabel16(s0.wDir)}&nbsp;{Math.round(s0.wSpd)}&nbsp;KN</span>
+          <span className={`${s.chip} ${s.chipWind}`} title="wind onderweg"><WindArrow dir={windOnderwegChip.dir} />{dirLabel16(windOnderwegChip.dir)}&nbsp;{windOnderwegChip.bereik}&nbsp;KN</span>
           <span className={`${s.chip} ${s.chipWind}`}><WindHoekIcon rel={s0.wDir - s0.course} />{sailPhrase(s0.twa).toUpperCase()}</span>
           {/* MEE-chip alleen als de stroom per saldo helpt (effectMin ≤ 0) */}
           {verloop && "totMs" in verloop && !(verloop.kind === "mee" && rShow.effectMin > 0) && (
@@ -135,7 +138,8 @@ function AdviesKaart({ best, venster, distanceNm, selTrip, firstDepMs, horizonUu
             </span>
           )}
           {hw && <span className={`${s.chip} ${s.chipHw}`}>HW&nbsp;{localHM(tms(hw.t))}</span>}
-          {warn?.hardWind && <span className={`${s.chip} ${s.chipLetOp}`}>LET OP · HARDE WIND</span>}
+          {warn && warn.ernstWind !== "rustig" && <span className={`${s.chip} ${s.chipLetOp}`} data-ernst={warn.ernstWind}>{windErnstChip(warn.ernstWind)}</span>}
+          {warn && warn.ernstVlaag !== "rustig" && <span className={`${s.chip} ${s.chipLetOp}`} data-ernst={warn.ernstVlaag}>{vlaagErnstChip(warn.minVlaagKn, warn.maxVlaagKn)}</span>}
           {warn?.windTegenStroom && <span className={`${s.chip} ${s.chipLetOp}`}>LET OP · WIND TEGEN STROOM</span>}
         </div>
       )}

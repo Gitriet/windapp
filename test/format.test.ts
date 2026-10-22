@@ -1,5 +1,5 @@
 // Tijdblok-formatter (lib/format.ts) en advies-titel (lib/tocht.ts).
-import { aankomstLabel, fmtDuurKort, signedCm, tijdblok } from "../lib/format";
+import { aankomstLabel, fmtDuurKort, knBereik, signedCm, tijdblok } from "../lib/format";
 import { adviesTitel } from "../lib/tocht";
 
 let fail = 0;
@@ -36,6 +36,9 @@ ok("GEEN VENSTER", adviesTitel("geen-venster", null, false) === "GEEN VENSTER");
 ok("signedCm +", signedCm(74.4) === "+74");
 ok("signedCm −", signedCm(-27.6) === "\u221228");
 ok("signedCm 0", signedCm(0.2) === "0");
+
+ok("knBereik bereik", knBereik([15.4, 16.6, 17.2]) === "15\u201317");
+ok("knBereik gelijk", knBereik([16.1, 15.9]) === "16");
 
 if (fail) { console.error(`\nFAILED (${fail})`); process.exit(1); }
 

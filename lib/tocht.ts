@@ -3,9 +3,8 @@
 import type { SimResult, SimStep } from "./tripsim";
 import type { RouteCurrent, RouteHaven } from "./planner-data";
 import type { WeatherSeries } from "./types";
-import { WARN } from "./constants";
 import { localHM } from "./tz";
-import { dirLabel16, fmtDuurKort, sailPhrase } from "./format";
+import { dirLabel16, fmtDuurKort, sailPhrase, windErnst, type WindErnst } from "./format";
 import { gladReeks } from "./grafiek";
 
 const H = 3_600_000;
@@ -194,18 +193,63 @@ export function gustsOnTrip(trip: SimResult, stations: StationPos[], gusts: Gust
 
 export type WaveSample = { ms: number; m: number; key: string };          // golfhoogte (m) per station
 
-// LET OP voor een gekozen venster: harde wind (maximum over alle stappen van de tocht
-// ≥ WARN.hardWind.amberKn, of vlaag ≥ amberGust binnen [vertrek-uur, aankomst]) en/of
-// wind tegen stroom (windAgainstCurrent). Vlagen komen niet uit de sim (die kent alleen
-// gemiddelde wind), dus uit de forecast-punten van de stations langs de route.
-export function letOp(trip: SimResult, courseDeg: number, gusts: GustSample[]): { hardWind: boolean; windTegenStroom: boolean } {
+// LET OP voor een gekozen venster: harde wind (ernst volgens windErnst(): de hardste stap van de
+// tocht en de hardste vlaag binnen [vertrek-uur, aankomst]) en/of wind tegen stroom
+// (windAgainstCurrent). Vlagen komen niet uit de sim (die kent alleen gemiddelde wind), dus uit
+// de positiegebonden forecast-punten van de stations langs de route (gustsOnTrip).
+export function letOp(trip: SimResult, courseDeg: number, gusts: GustSample[]): {
+  hardWind: boolean; ernst: WindErnst; ernstWind: WindErnst; ernstVlaag: WindErnst; minVlaagKn: number; maxVlaagKn: number; windTegenStroom: boolean;
+} {
   const maxWind = Math.max(0, ...trip.steps.map((s: SimStep) => s.wSpd));
   const from = Math.floor(trip.departMs / H) * H, to = trip.arrMs ?? trip.steps[trip.steps.length - 1]?.tMs ?? trip.departMs;
-  const maxGust = Math.max(0, ...gusts.filter((g) => g.ms >= from && g.ms <= to).map((g) => g.gustKn));
+  const inTocht = gusts.filter((g) => g.ms >= from && g.ms <= to).map((g) => g.gustKn);
+  const maxGust = Math.max(0, ...inTocht), minGust = inTocht.length ? Math.min(...inTocht) : 0;
+  const ernst = windErnst(maxWind, maxGust);
+  // wind en vlagen apart: een rustige wind met harde vlagen is een andere waarschuwing dan harde wind
   return {
-    hardWind: maxWind >= WARN.hardWind.amberKn || maxGust >= WARN.hardWind.amberGust,
-    windTegenStroom: windAgainstCurrent(trip.steps, courseDeg),
+    hardWind: ernst !== "rustig", ernst, ernstWind: windErnst(maxWind, null), ernstVlaag: windErnst(null, maxGust),
+    minVlaagKn: minGust, maxVlaagKn: maxGust, windTegenStroom: windAgainstCurrent(trip.steps, courseDeg),
   };
+}
+
+// Wind en vlagen onderweg, vanaf het vertrekmoment: richting (gemiddeld) en bereik over de hele
+// tocht. Eén bron voor de ROUTE-windchip en de WEER-hero; vlagen uit gustsOnTrip (positiegebonden).
+export type WindOnderweg = {
+  vanMs: number; totMs: number; dir: number;
+  windMin: number; windMax: number; vlaagMin: number | null; vlaagMax: number | null;
+};
+export function windOnderweg(trip: SimResult, gusts: GustSample[]): WindOnderweg | null {
+  const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
+  if (!body.length) return null;
+  const e = body.reduce((a, q) => a + Math.sin((q.wDir * Math.PI) / 180), 0), n = body.reduce((a, q) => a + Math.cos((q.wDir * Math.PI) / 180), 0);
+  const w = body.map((q) => q.wSpd);
+  const g = gusts.filter((x) => x.ms >= trip.departMs && x.ms <= (trip.arrMs ?? trip.departMs)).map((x) => x.gustKn);
+  return {
+    vanMs: trip.departMs, totMs: trip.arrMs ?? trip.departMs, dir: ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360,
+    windMin: Math.min(...w), windMax: Math.max(...w),
+    vlaagMin: g.length ? Math.min(...g) : null, vlaagMax: g.length ? Math.max(...g) : null,
+  };
+}
+
+// Wind en vlagen per klokuur langs de tocht, zoals de boot ze tegenkomt (sim-wind en positiegebonden vlagen),
+// in de vorm van een uurpunt voor de uurstrook. Het eerste en laatste uur zijn deeluren van de tocht.
+export type UurPunt = { time: string; speed_kn: number; gust_kn: number; dir_deg: number };
+export function windPerUur(trip: SimResult, gusts: GustSample[]): UurPunt[] {
+  const body = trip.steps.length > 1 ? trip.steps.slice(0, -1) : trip.steps;
+  const perUur = new Map<number, SimStep[]>();
+  for (const st of body) {
+    const u = Math.floor(st.tMs / H) * H;
+    perUur.set(u, [...(perUur.get(u) ?? []), st]);
+  }
+  return [...perUur.entries()].sort((a, b) => a[0] - b[0]).map(([u, ss]) => {
+    const e = ss.reduce((a, q) => a + Math.sin((q.wDir * Math.PI) / 180), 0), n = ss.reduce((a, q) => a + Math.cos((q.wDir * Math.PI) / 180), 0);
+    const g = gusts.filter((x) => Math.floor(x.ms / H) * H === u).map((x) => x.gustKn);
+    const speed = ss.reduce((a, q) => a + q.wSpd, 0) / ss.length;
+    return {
+      time: new Date(u).toISOString().slice(0, 16), speed_kn: speed, gust_kn: g.length ? Math.max(...g) : speed,
+      dir_deg: ((Math.atan2(e, n) * 180) / Math.PI + 360) % 360,
+    };
+  });
 }
 
 // Weer op een tijdstip: het uur-sample waarin `ms` valt (uurgrid, UTC).

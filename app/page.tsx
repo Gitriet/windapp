@@ -16,6 +16,7 @@ import { useScreenTab, useVertrekUrl } from "./use-app-url";
 import { SCREENS, type ScreenId } from "./screens";
 import { TopBar, TabBar, RouteKiezer, ScreenPanel } from "./components/Shell";
 import { localHM } from "@/lib/tz";
+import { windOnderweg, windPerUur } from "@/lib/tocht";
 
 export default function Page() {
   const [boat, setBoat] = useBoot();
@@ -32,6 +33,9 @@ export default function Page() {
   const naarData = useHaven(endpoints?.naar ?? null);
   const err = tocht.err ?? vanData.err ?? naarData.err;
   useVertrekUrl(depMs, setDepMs, depOptions);
+  const onderwegGusts = selTrip ? gustsVoor(selTrip) : [];
+  const onderweg = selTrip ? windOnderweg(selTrip, onderwegGusts) : null;
+  const onderwegUren = selTrip ? windPerUur(selTrip, onderwegGusts) : [];   // wind en vlagen onderweg, voor de WEER-hero
 
   // Startstand: laatst gebruikte havens zolang ze <48u geleden gebruikt zijn, anders het
   // startvenster. Daarna wordt elke havenstand bewaard (ook dat verlengt de termijn).
@@ -85,11 +89,11 @@ export default function Page() {
           onSelect={setDepMs} onOpenVaarplan={() => setTab("vaarplan")} />
       </>
     ),
-    weergetij: (
+    weertocht: (
       <>
-        {/* geen routechip: de havenschakelaar staat bovenaan dit scherm */}
         <WeerGetijScreen nowMs={nowMs} havens={{ van: endpoints?.van ?? null, naar: endpoints?.naar ?? null }}
-          data={{ van: vanData, naar: naarData }} />
+          data={{ van: vanData, naar: naarData }} onderweg={onderweg} onderwegUren={onderwegUren}
+          trip={selTrip ? { vertrekMs: selTrip.departMs, aankomstMs: selTrip.arrMs } : null} />
       </>
     ),
     vaarplan: (
@@ -111,7 +115,7 @@ export default function Page() {
       {startVenster}
       <BootPaneel open={bootOpen} onClose={() => setBootOpen(false)} boat={boat} setBoat={setBoat} />
       {err && <div role="alert" style={{ padding: "var(--sp-6) var(--gutter)", color: "var(--ochre)", fontSize: "var(--fs-label)" }}>Fout bij laden: {err}</div>}
-      <main className="shell-screens">
+      <main className="shell-screens" style={{ "--schermen": SCREENS.length } as React.CSSProperties}>
         {SCREENS.map((s) => (
           <ScreenPanel key={s.id} label={s.label} active={s.id === tab}>{content[s.id]}</ScreenPanel>
         ))}

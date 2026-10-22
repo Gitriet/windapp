@@ -80,7 +80,7 @@ export function TabBar({ active, onSelect }: { active: ScreenId; onSelect: (t: S
         <button key={s.id} type="button" className="shell-tab" aria-current={s.id === active ? "page" : undefined}
           onClick={() => onSelect(s.id)}>
           <span className="shell-tab-dot" aria-hidden />
-          {s.label}
+          {s.kort}
         </button>
       ))}
     </nav>

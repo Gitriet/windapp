@@ -1,4 +1,4 @@
-/* WEER & GETIJ — datumstrip (uit GETIJDEN), havenschakelaar en dagblok. */
+/* WEER & GETIJ TOCHT — havenschakelaar en het blok met weer en getij op het vertrek-/ETA-moment. */
 .sectie {
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label);
   letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--slate);
@@ -6,52 +6,8 @@
 .noot { margin-top: var(--sp-1); font-size: var(--fs-caption); color: var(--slate); }
 .leeg { margin-top: var(--sp-4); font-family: var(--font-num); font-size: var(--fs-time); color: var(--slate); }
 
-.maandRij { display: flex; align-items: center; gap: var(--sp-3); }
-.maand {
-  flex: 1; text-align: center;
-  font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--slate);
-}
-/* tapvlak --tap breed en --sp-11 hoog (compacte rij), 22px zichtbaar vierkant */
-.nav { width: var(--tap); height: var(--sp-11); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--slate); }
-.navVlak {
-  width: var(--nav-knop); height: var(--nav-knop); display: inline-flex; align-items: center; justify-content: center;
-  border: var(--line) solid var(--hairline); border-radius: var(--radius-sm); font-size: var(--fs-label);
-  transition: border-color var(--dur-hover);
-}
-@media (hover: hover) { .nav:not(:disabled):hover .navVlak { border-color: var(--hairline-hover); } }
-.nav:disabled { color: var(--slate-dim); cursor: default; }
-.nav:disabled .navVlak { border-color: var(--hairline-soft); }
-
-.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); }
-.tegel {
-  min-width: 0; min-height: 0;   /* compacter dan de .row-standaard (--tap) */
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: var(--sp-2) var(--line); font-family: var(--font-num); color: var(--slate);
-}
-.tegelDag { font-size: var(--fs-caption); color: var(--slate); }
-.tegelNr { font-size: var(--fs-title); font-weight: 700; }
-.tegel:global(.is-filled) { color: var(--ink); }
-.tegel:global(.is-filled) .tegelDag { color: var(--ink); }
-.tegel:disabled { cursor: default; border-color: var(--hairline-soft); }
-.tegel:disabled .tegelDag, .tegel:disabled .tegelNr { color: var(--slate-dim); }
-@media (hover: hover) { .tegel:disabled:hover { border-color: var(--hairline-soft); } }
-
-.kop { display: block; margin-bottom: var(--sp-4); }
-
-/* gekozen dag: weerregel, live wind, en onderaan het getij (HW/LW + curve) */
+/* kaart rond de getijgrafiek */
 .blok { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-6); }
-.nu { display: flex; flex-direction: column; gap: var(--sp-7); }
-
-.krommeWrap { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
-.kromme { width: 100%; height: auto; display: block; overflow: visible; }
-.nullijn { stroke: var(--hairline-soft); stroke-width: var(--line); }
-.lijn { fill: none; stroke: var(--parchment); stroke-width: var(--kromme-lijn); stroke-linejoin: round; stroke-linecap: round; }
-.stipExt { fill: var(--ochre); }
-.extTijd { font-family: var(--font-num); font-size: 9px; font-weight: var(--fw-num); fill: var(--ochre-text); text-anchor: middle; }  /* SVG-eenheden, schaalt mee */
-.extCm { font-weight: var(--fw-label); fill: var(--slate); }
-.as { display: flex; justify-content: space-between; font-family: var(--font-num); font-size: var(--fs-label); color: var(--slate); }
-
-@media (min-width: 768px) {
-  .tegelDag { font-size: var(--fs-caption); }
-  .tegelNr { font-size: var(--fs-title); }
-}
+/* groep per haven: kop buiten de kaarten (kop boven een groep), kaarten eronder */
+.haven { display: flex; flex-direction: column; gap: var(--sp-5); }
+.havenKop { font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-label); letter-spacing: var(--ls-label); color: var(--parchment); }

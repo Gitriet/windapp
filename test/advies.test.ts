@@ -1,7 +1,7 @@
 // Advies-afleidingen (lib/tocht.ts): de vijf toestanden, de LET OP-drempels uit
-// WARN.hardWind, het stroomeffect-label en het weer-uur-sample.
+// WIND_ERNST (letOp), het stroomeffect-label en het weer-uur-sample.
 import { adviesState, letOp, effectLabel, weatherAt, stroomVerloop, adviesUitleg, type DepOption } from "../lib/tocht";
-import { WARN } from "../lib/constants";
+import { WIND_ERNST } from "../lib/constants";
 import type { SimResult, SimStep } from "../lib/tripsim";
 import type { WeatherSeries } from "../lib/types";
 
@@ -30,10 +30,15 @@ const trip = (wSpds: number[], cur = 0, wDir = 0): SimResult => {
   const steps = wSpds.map((w, i) => step(T0 + i * 15 * 60000, w, cur, wDir));
   return { steps, departMs: T0, arrMs: steps[steps.length - 1].tMs } as SimResult;
 };
-const { amberKn, amberGust } = WARN.hardWind;
-ok("onder de drempel → geen harde wind", !letOp(trip([10, amberKn - 0.1, 12]), 0, []).hardWind);
+const amberKn = WIND_ERNST.wind.okerKn, amberGust = WIND_ERNST.vlaag.okerKn;
+ok("onder de drempel → geen harde wind", !letOp(trip([10, amberKn - 0.6, 12]), 0, []).hardWind);
 ok("wind = amberKn ergens in de tocht → harde wind", letOp(trip([10, amberKn, 12]), 0, []).hardWind);
 ok("vlaag ≥ amberGust binnen de tocht → harde wind", letOp(trip([10, 12]), 0, [{ ms: T0, gustKn: amberGust }]).hardWind);
+ok("ernst: krachtig bij oker, hard bij rood", letOp(trip([10, WIND_ERNST.wind.okerKn]), 0, []).ernst === "let-op" && letOp(trip([10, WIND_ERNST.wind.roodKn]), 0, []).ernst === "hard" && letOp(trip([10, 12]), 0, [{ ms: T0, gustKn: WIND_ERNST.vlaag.roodKn }]).ernst === "hard");
+{
+  const w = letOp(trip([10, 12]), 0, [{ ms: T0, gustKn: 30 }]);
+  ok("rustige wind + harde vlaag: aparte waarschuwing", w.ernstWind === "rustig" && w.ernstVlaag === "let-op" && Math.round(w.maxVlaagKn) === 30);
+}
 ok("vlaag buiten de tocht telt niet", !letOp(trip([10, 12]), 0, [{ ms: T0 + 5 * H, gustKn: 40 }]).hardWind);
 // koers 0 (noord), stroom mee (noordwaarts), wind UIT het noorden 20 kn → wind tegen stroom
 ok("wind tegen stroom", letOp(trip([20, 20, 20], 1, 0), 0, []).windTegenStroom);

@@ -1,5 +1,5 @@
 // gustsOnTrip() (lib/tocht.ts): vlagen per positie en tijd, geen maximum over alle stations.
-import { gustsOnTrip, etappes, letOp, type EtappeLeg } from "../lib/tocht";
+import { gustsOnTrip, etappes, letOp, windPerUur, type EtappeLeg } from "../lib/tocht";
 import type { SimResult, SimStep } from "../lib/tripsim";
 
 let fail = 0;
@@ -39,5 +39,10 @@ ok("letOp: vlaag 40 bij B niet gevlagd bij 10 kn bij A halverwege", Math.max(...
 const legs: EtappeLeg[] = [{ label: "A → B", distNm: 10, keys: ["a", "b"], stroom: false }];
 const [e] = etappes(trip, legs, g);
 ok("etappe-vlag = max van de positiegebonden samples", e.vlaagKn != null && Math.round(e.vlaagKn) === Math.round(Math.max(...g.filter((x) => x.prog! < 10).map((x) => x.gustKn))), String(e.vlaagKn));
+
+// windPerUur: één punt per klokuur, gemiddelde wind en hardste vlaag langs de boot
+const wu = windPerUur(trip, g);
+ok("windPerUur: uren 13:00, 14:00 en 15:00", wu.length === 3 && wu[0].time === "2026-10-22T13:00" && wu[2].time === "2026-10-22T15:00", wu.map((x) => x.time).join(","));
+ok("windPerUur: gemiddelde wind en hardste vlaag per uur", Math.round(wu[0].speed_kn) === 10 && wu[0].gust_kn > 20 && wu[2].gust_kn > wu[1].gust_kn && wu[1].gust_kn > wu[0].gust_kn, JSON.stringify(wu.map((x) => Math.round(x.gust_kn))));
 
 if (fail) process.exit(1);

@@ -31,14 +31,31 @@ nieuw ontwerp aansluit: het voorkomt dat er waarden verschijnen die niet in de d
 | Chip wind | eerste sim-stap `wDir`/`wSpd` | `dirLabel16` |
 | Chip MEE/TEGEN TOT | eerste stap `cur` + `kentMs` | `stroomVerloop()`; MEE-chip alleen als `effectMin ≤ 0` |
 | Chip HW | `/api/tide/haven/{vertrekhaven}` → `extremes` | eerste HW ≥ vertrek |
-| LET OP | sim-stappen + vlaagpunten van de stations langs de route | `letOp()`: `WARN.hardWind` (oker-drempel) of `windAgainstCurrent` |
+| LET OP | sim-stappen + vlaagpunten van de stations langs de route | `letOp()`: `WIND_ERNST` via `windErnst()` (lib/format.ts) of `windAgainstCurrent` |
 | Weerregel | `/api/forecast/{station vertrekhaven}` → `weather` | `weatherAt()` op het vertrekuur |
 | Alle vertrekken | zelfde sweep | `pickVensters()`; rechts de tochtduur (`fmtDuurKort`: "48m", "1u 15m", ≥24u "1d 3u") |
 
-### WEER & GETIJ (per haven: schakelaar VERTREK / AANKOMST)
+### WEER & GETIJ TOCHT (vertrek- en aankomsthaven tegelijk)
+
+Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven op de ETA van het gekozen vertrek (`WeerGetijScreen`, `trip` uit `selTrip`): `TochtVergelijk` (wind, vlaag, richting, weer naast elkaar + wind onderweg), een `UrenStrook` met de wind per uur langs de route (`windPerUur`) en `TochtGetij`: de getijcurves van beide havens in één grafiek over de tocht (+2 uur marge), met stand en stijgen/dalen op vertrek en ETA.
+
 | Blok | Bron | Afleiding |
 |---|---|---|
-| Kiesbare dagen | weekreeks + getijreeks van beide havens | `datumBereik()`; de strip begint altijd bij vandaag (`stripDagen`) |
+| GA NU / VERTREK / ONZEKER / GEEN VENSTER / ZONDER STROOM / MINST SLECHT | `useTocht.bestOption` (sweep van `simulateTrip` elk half uur, 48 u) | `pickBest()`: vroegste lokale duur-minimum waar de stroom netto tijd wint (`effectMin < 0`), anders het snelste vertrek. `adviesState()`: eerste slot = GA NU; `voorbijHorizon` = ONZEKER; geen stroomdata = ZONDER STROOM; beste met stroom tegen = MINST SLECHT (label "Minst slecht · komende N u", N = `useTocht.horizonUur`). Melding `vertrekVenster()`: beste vertrek ± 30 min (`VENSTER_MARGE_MIN`), binnen de gerekende vertrekken → regel "Nog steeds gunstig tussen 03:00 en 04:00" (alleen bij GA NU / VERTREK); de titel toont alleen het beste vertrek |
+| "ETA · N min sneller/langer" | `SimResult.effectMin` (= tocht mét − zónder stroom, zelfde wind) | `effectLabel()` |
+| Chip wind | eerste sim-stap `wDir`/`wSpd` | `dirLabel16` |
+| Chip MEE/TEGEN TOT | eerste stap `cur` + `kentMs` | `stroomVerloop()`; MEE-chip alleen als `effectMin ≤ 0` |
+| Chip HW | `/api/tide/haven/{vertrekhaven}` → `extremes` | eerste HW ≥ vertrek |
+| LET OP | sim-stappen + vlaagpunten van de stations langs de route | `letOp()`: `WIND_ERNST` via `windErnst()` (lib/format.ts) of `windAgainstCurrent` |
+| Weerregel | `/api/forecast/{station vertrekhaven}` → `weather` | `weatherAt()` op het vertrekuur |
+| Alle vertrekken | zelfde sweep | `pickVensters()`; rechts de tochtduur (`fmtDuurKort`: "48m", "1u 15m", ≥24u "1d 3u") |
+
+### WEER & GETIJ TOCHT (per haven: schakelaar VERTREK / AANKOMST)
+
+Weer en getij van de vertrekhaven op het vertrekmoment en van de aankomsthaven op de ETA van het gekozen vertrek (`WeerGetijScreen`, `trip` uit `selTrip`); geen dagkeuze. Wind-tegel = wind van de komende 6 uur vanaf dat moment (`tochtWind`), uurstrook met tochtperiode, getijmarkering.
+
+| Blok | Bron | Afleiding |
+|---|---|---|
 | Kompas, knopen, BFT, vlaag | `/api/forecast/{station haven}` → `points[0]` (gekalibreerd) | `beaufort`, `bftLabel` |
 | Chips temp / golf | `weather.temp[0]`; `weather.wave[0]` (Open-Meteo Marine) | golf ontbreekt → "—" + reden |
 | Komende 12 uur | `points[0..12]` | kleur via `verdict()`; mobiel even uren, desktop elk uur |

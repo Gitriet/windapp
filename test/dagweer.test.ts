@@ -18,6 +18,10 @@ ok("vandaag: vanaf nu, 13 uur", nu.length === 13 && nu[0] === pts[0]);
 const di = dagVenster(pts, "2026-09-29", "2026-09-28");
 ok("morgen: vanaf 09:00 lokaal (07:00 UTC)", di[0]?.time === "2026-09-29T07:00", di[0]?.time);
 ok("buiten de reeks: leeg", dagVenster(pts, "2026-10-02", "2026-09-28").length === 0);
+// ankertijd (vertrek/ETA): venster begint bij het uur van dat moment, ook op een andere dag
+const an = dagVenster(pts, "2026-09-29", "2026-09-28", Date.UTC(2026, 8, 29, 13, 30));
+ok("anker 13:30 UTC: begint 13:00 UTC, 13 uur", an[0]?.time === "2026-09-29T13:00" && an.length === 13, an[0]?.time);
+ok("anker voorbij de reeks: leeg", dagVenster(pts, "2026-10-05", "2026-09-28", Date.UTC(2026, 9, 5, 12)).length === 0);
 const w = dagWind(pts, "2026-09-28");
 ok("vandaag: resterende uren tot middernacht lokaal", w?.min === 0 && w?.max === 15 && w?.gust === 20, JSON.stringify(w));
 ok("geen uren: null", dagWind(pts, "2026-10-05") === null);

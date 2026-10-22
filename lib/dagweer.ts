@@ -8,7 +8,13 @@ const tms = (iso: string) => Date.parse(iso + (iso.endsWith("Z") ? "" : "Z"));
 export const DAG_START_UUR = 9;
 const VENSTER_UREN = 13;   // 12 uur vooruit, beide randen inclusief
 
-export function dagVenster(points: CorrectedPoint[], date: string, vandaag: string): CorrectedPoint[] {
+// ankerMs (vertrek of ETA van de tocht): het venster begint dan bij het uur van dat moment, ongeacht de dag.
+export function dagVenster(points: CorrectedPoint[], date: string, vandaag: string, ankerMs?: number | null): CorrectedPoint[] {
+  if (ankerMs != null) {
+    const uur = Math.floor(ankerMs / 3_600_000) * 3_600_000;
+    const i = points.findIndex((p) => tms(p.time) >= uur);
+    return i < 0 ? [] : points.slice(i, i + VENSTER_UREN);
+  }
   const i0 = date === vandaag ? (points.length ? 0 : -1)
     : points.findIndex((p) => localDateISO(tms(p.time)) === date && localHourDecimal(tms(p.time)) >= DAG_START_UUR);
   return i0 < 0 ? [] : points.slice(i0, i0 + VENSTER_UREN);

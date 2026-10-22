@@ -32,11 +32,12 @@
   padding: var(--chip-pad-lg); border-radius: var(--radius-sm); border: var(--line) solid transparent;
   font-family: var(--font-num); font-size: var(--fs-label); font-weight: var(--fw-num);
 }
-.chipWind { background: var(--ochre-chip); color: var(--ochre-text); border-color: var(--ochre-line); }
-.chipHw { background: var(--ochre-chip-hw); color: var(--ochre-text); border-color: var(--ochre-line); }
+/* informatie-chips (wind, zeilhoek, HW) neutraal: alleen waarschuwingen en stroom mee krijgen kleur */
+.chipWind, .chipHw { background: var(--fill-faint); color: var(--body); border-color: var(--hairline); }
 .chipMee { background: var(--sea-green-fill); color: var(--sea-green-text); border-color: var(--sea-green-line); }
 .chipTegen { background: var(--fill-faint); color: var(--slate); border-color: var(--hairline); }
 .chipLetOp { background: var(--ochre-fill); color: var(--ochre); border-color: var(--ochre-line); }
+.chipLetOp[data-ernst="hard"] { background: var(--rood-fill); color: var(--rood); border-color: color-mix(in srgb, var(--rood) 45%, transparent); }
 
 /* "nu vertrekken": het eerstvolgende vertrek naast een later beste vertrek; tik = kiezen */
 .nu {

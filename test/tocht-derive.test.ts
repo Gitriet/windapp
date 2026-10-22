@@ -63,9 +63,13 @@ ok("gat blijft null (nooit 0)", c.series[1].alongKn === null);
 
 console.log("— verdict —");
 ok("null wind → null", verdict(null, 10) === null);
-ok("25 kn → fris", verdict(25, 0) === "fris");
-ok("25,1 kn → letop", verdict(25.1, 0) === "letop");
-ok("vlaag 35,1 → letop", verdict(10, 35.1) === "letop");
+ok("21,4 kn → fris", verdict(21.4, 0) === "fris");
+ok("21,5 kn → letop (rondt af op 22 = windkracht 6)", verdict(21.5, 0) === "letop");
+ok("vlaag 27,4 → fris", verdict(10, 27.4) === "fris");
+ok("vlaag 27,5 → letop (rondt af op 28)", verdict(10, 27.5) === "letop");
+ok("wind 28 → hard (windkracht 7)", verdict(28, 0) === "hard");
+ok("vlaag 34 → hard (windkracht 8)", verdict(10, 34) === "hard");
+ok("vlaag 33 → letop", verdict(10, 33) === "letop");
 ok("16 kn → fris", verdict(16, 0) === "fris");
 ok("vlaag 25 → fris", verdict(10, 25) === "fris");
 ok("5,9 kn → licht", verdict(5.9, 0) === "licht");
