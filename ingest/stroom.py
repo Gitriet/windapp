@@ -54,7 +54,8 @@ def _get_retry(url: str, params: dict, timeout: float, retries: int = 3,
     for attempt in range(1, retries + 1):
         try:
             return requests.get(url, params=params, timeout=timeout)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                requests.exceptions.ChunkedEncodingError) as exc:
             if attempt == retries:
                 raise
             wait = backoff * (2 ** (attempt - 1))

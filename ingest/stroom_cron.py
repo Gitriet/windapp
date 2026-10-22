@@ -47,6 +47,11 @@ LEADS = (0, 1, 2)
 _PARQUET = "application/vnd.apache.parquet"
 
 
+class MatroosDown(Exception):
+    """Matroos onbereikbaar: de analysetijdenlijst is source-niveau, dus het
+    heeft geen zin om de overige boxen nog te proberen."""
+
+
 # --- R2-sleutels ---------------------------------------------------------
 def _forecast_key(box_id: str, at: datetime) -> str:
     return f"forecast/{box_id}/{at.astimezone(timezone.utc):%Y%m%dT%H%M}Z.parquet"
@@ -88,7 +93,10 @@ def run_box(box_id, samplepunten, st, keep, stale_h, lookback_h, leads, now):
     with DB.connect() as c:
         have = DB.logged_analysis_times(c, box_id)
 
-    avail = S.list_analysis_times(now - timedelta(hours=lookback_h), now)
+    try:
+        avail = S.list_analysis_times(now - timedelta(hours=lookback_h), now)
+    except Exception as exc:
+        raise MatroosDown(str(exc)) from exc
     if not avail:
         log.error("STILTE: geen analysetijden van Matroos voor %s (endpoint down?)", box_id)
         return 1, [], []
@@ -203,7 +211,11 @@ def run_cycle(boxes, keep=KEEP_RUNS, stale_h=STALE_H, lookback_h=LOOKBACK_H, lea
 
     rc = 0
     for box in boxes:
-        r, hc, done = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
+        try:
+            r, hc, done = run_box(box, samplepunten, st, keep, stale_h, lookback_h, leads, now)
+        except MatroosDown as exc:
+            log.error("STILTE: Matroos onbereikbaar, cyclus afgebroken bij %s: %s", box, exc)
+            return 1
         rc = max(rc, r)
         # Finalize + log direct na elke box, in dezelfde lus. Zo is elke box
         # volledig opgeslagen zodra run_box terugkeert — een timeout of crash
